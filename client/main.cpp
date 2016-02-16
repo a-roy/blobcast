@@ -1,5 +1,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -9,20 +11,30 @@ extern "C"
 }
 
 #include <iostream>
+#include <sstream>
 #include "GLFWProject.h"
 #include "ShaderProgram.h"
 #include "Buffer.h"
+#include "Text.h"
+#include "BlobInput.h"
 
 #define RootDir "../../"
 #define ShaderDir RootDir "shaders/"
+#define FontDir RootDir "fonts/"
 
 bool init();
+void update();
 void draw();
+void key_callback(
+		GLFWwindow *window, int key, int scancode, int action, int mods);
 
 GLFWwindow *window;
 VertexArray *vao;
 FloatBuffer *vbo;
-ShaderProgram *program;
+Text *input_display;
+Font *vera;
+ShaderProgram *stream_program;
+ShaderProgram *text_program;
 int width, height;
 uint8_t *data;
 GLuint tex;
@@ -32,12 +44,15 @@ AVCodecContext *avctx = NULL;
 AVFrame *avframe = NULL;
 SwsContext *swctx = NULL;
 
+BlobInput current_input;
+
 int main(int argc, char *argv[])
 {
 	window = GLFWProject::Init("Client Test", 1024, 576);
 	if (!window)
 		return 1;
 
+	glfwSetKeyCallback(window, key_callback);
 	glfwGetFramebufferSize(window, &width, &height);
 
 	if (!init())
@@ -45,6 +60,7 @@ int main(int argc, char *argv[])
 
 	while (!glfwWindowShouldClose(window))
 	{
+		update();
 		draw();
 		glfwPollEvents();
 	}
@@ -53,7 +69,10 @@ int main(int argc, char *argv[])
 	avcodec_free_context(&avctx);
 	avformat_network_deinit();
 	av_frame_free(&avframe);
-	delete program;
+	delete stream_program;
+	delete text_program;
+	delete input_display;
+	delete vera;
 	delete vbo;
 	delete vao;
 
@@ -67,10 +86,27 @@ bool init()
 	vbo = new FloatBuffer(vao, 2, 4);
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
+
+	glGenTextures(1, &tex);
+	vera = new Font(FontDir "Vera.ttf", 24.f);
+	input_display = new Text(vao, vera);
+	input_display->XPosition = 8;
+	input_display->YPosition = 8;
+	input_display->SetText("Inputs:");
+
 	std::vector<Shader *> shaders;
 	shaders.push_back(new Shader(ShaderDir "Stream.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Stream.frag", GL_FRAGMENT_SHADER));
-	program = new ShaderProgram(shaders);
+	stream_program = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+	{
+		delete shaders[i];
+	}
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
+	text_program = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 	{
 		delete shaders[i];
@@ -97,12 +133,37 @@ bool init()
 
 	avframe = av_frame_alloc();
 	data = (uint8_t *)malloc(width * height * 4);
-	glGenTextures(1, &tex);
 
-	GLuint uImage = program->GetUniformLocation("uImage");
-	program->Install();
+	GLuint uImage = stream_program->GetUniformLocation("uImage");
+	stream_program->Install();
 	glUniform1i(uImage, 0);
-	program->Uninstall();
+	stream_program->Uninstall();
+
+	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
+	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
+	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
+	text_program->Install();
+	vera->BindTexture(uAtlas);
+	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
+	text_program->Uninstall();
+}
+
+void update()
+{
+	std::ostringstream ss;
+	ss << "Input: ";
+	if (current_input & Forward)
+		ss << "F";
+	if (current_input & Backward)
+		ss << "B";
+	if (current_input & Right)
+		ss << "R";
+	if (current_input & Left)
+		ss << "L";
+	if (current_input & Jump)
+		ss << "J";
+
+	input_display->SetText(ss.str());
 }
 
 void draw()
@@ -132,18 +193,47 @@ void draw()
 				dstSlice, dstStride);
 	av_frame_unref(avframe);
 	glClear(GL_COLOR_BUFFER_BIT);
+	glActiveTexture(GL_TEXTURE0 + tex - 1);
 	glBindTexture(GL_TEXTURE_2D, tex);
 	glTexImage2D(
 			GL_TEXTURE_2D, 0, GL_RGBA,
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	program->Install();
+	stream_program->Install();
 	glEnableVertexAttribArray(0);
 	vbo->BufferData(0);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glDisableVertexAttribArray(0);
-	program->Uninstall();
+	stream_program->Uninstall();
+
+	text_program->Install();
+	input_display->Draw();
+	text_program->Uninstall();
 
 	glfwSwapBuffers(window);
+}
+
+void key_callback(
+		GLFWwindow *window, int key, int scancode, int action, int mods)
+{
+	BlobInput changed_input = NoInput;
+	if (key == GLFW_KEY_W)
+		changed_input = Forward;
+	else if (key == GLFW_KEY_S)
+		changed_input = Backward;
+	else if (key == GLFW_KEY_D)
+		changed_input = Right;
+	else if (key == GLFW_KEY_A)
+		changed_input = Left;
+	else if (key == GLFW_KEY_SPACE)
+		changed_input = Jump;
+
+	if (changed_input != 0)
+	{
+		if (action == GLFW_PRESS)
+			current_input = (BlobInput)(current_input | changed_input);
+		else if (action == GLFW_RELEASE)
+			current_input = (BlobInput)(current_input & ~changed_input);
+	}
 }
