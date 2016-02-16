@@ -66,7 +66,7 @@ double deltaTime;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", 800, 600);
+	window = GLFWProject::Init("Stream Test", 1024, 576);
 	if (!window)
 		return 1;
 
@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
 	program->Uninstall();
 
 	glEnable(GL_DEPTH_TEST);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -185,18 +186,6 @@ bool init()
 
 	glGenBuffers(1, &pbo);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	glBufferData(
-			GL_PIXEL_PACK_BUFFER, width * height * 3, NULL, GL_STREAM_READ);
-	avframe = av_frame_alloc();
-	avframe->format = AV_PIX_FMT_YUV444P;
-	avframe->width = width;
-	avframe->height = height;
-	avframe->linesize[0] = width;
-	avframe->linesize[1] = width;
-	avframe->linesize[2] = width;
-	if (av_frame_get_buffer(avframe, 0) != 0)
-		return false;
-
 	avcodec_register_all();
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
@@ -208,6 +197,21 @@ bool init()
 	avctx->pix_fmt = AV_PIX_FMT_YUV444P;
 	avctx->width = width;
 	avctx->height = height;
+
+	avframe = av_frame_alloc();
+	avframe->format = AV_PIX_FMT_YUV444P;
+	avframe->width = width;
+	avframe->height = height;
+	avframe->linesize[0] = width;
+	avframe->linesize[1] = width;
+	avframe->linesize[2] = width;
+	if (av_frame_get_buffer(avframe, 0) != 0)
+		return false;
+
+	int linesize_align[AV_NUM_DATA_POINTERS];
+	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
+	glBufferData(
+			GL_PIXEL_PACK_BUFFER, avframe->width * avframe->height * 3, NULL, GL_STREAM_READ);
 	avctx->gop_size = 0;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
