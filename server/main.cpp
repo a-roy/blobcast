@@ -15,9 +15,13 @@ extern "C"
 #include "ShaderProgram.h"
 #include "Text.h"
 
+#include "SoftBody.h"
+
 #define RootDir "../../"
 #define ShaderDir RootDir "shaders/"
 #define FontDir RootDir "fonts/"
+
+#define MAX_PROXIES 32766
 
 bool init();
 void update();
@@ -41,6 +45,24 @@ AVCodecContext *avctx;
 AVFormatContext *avfmt;
 SwsContext *swctx;
 GLuint pbo;
+
+btCollisionDispatcher *dispatcher;
+btBroadphaseInterface *broadphase;
+btSequentialImpulseConstraintSolver *solver;
+btSoftBodyRigidBodyCollisionConfiguration *collisionConfiguration;
+btSoftBodySolver *softBodySolver;
+btSoftRigidDynamicsWorld *dynamicsWorld;
+
+SoftBody *blob;
+btRigidBody *groundRigidBody;
+
+ShaderProgram *blobShaderProgram;
+
+btSoftBodyWorldInfo softBodyWorldInfo;
+
+double currentFrame = glfwGetTime();
+double lastFrame = currentFrame;
+double deltaTime;
 
 int main(int argc, char *argv[])
 {
@@ -84,12 +106,53 @@ int main(int argc, char *argv[])
 	delete program;
 	delete text;
 	delete vera;
+
+	delete dynamicsWorld;
+	delete solver;
+	delete collisionConfiguration;
+	delete dispatcher;
+	delete broadphase;
+
 	glfwTerminate();
 	return 0;
 }
 
 bool init()
 {
+	broadphase = new btDbvtBroadphase();
+	btVector3 worldAabbMin(-1000, -1000, -1000);
+	btVector3 worldAabbMax(1000, 1000, 1000);
+	broadphase = new btAxisSweep3(worldAabbMin, worldAabbMax, MAX_PROXIES);
+
+	collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration(); 
+	dispatcher = new btCollisionDispatcher(collisionConfiguration);
+	solver = new btSequentialImpulseConstraintSolver();
+	softBodySolver = new btDefaultSoftBodySolver();
+	dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
+
+	dynamicsWorld->setGravity(btVector3(0, -10, 0));
+	
+	softBodyWorldInfo.m_broadphase = broadphase;
+	softBodyWorldInfo.m_dispatcher = dispatcher;
+	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
+
+	softBodyWorldInfo.m_sparsesdf.Initialize();
+
+	softBodyWorldInfo.air_density = (btScalar)1.2;
+	softBodyWorldInfo.water_density = 0;
+	softBodyWorldInfo.water_offset = 0;
+	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
+
+	blob = new SoftBody(btSoftBodyHelpers::CreateEllipsoid(softBodyWorldInfo, btVector3(0, 0, 0), btVector3(1, 1, 1) * 3, 512));
+	dynamicsWorld->addSoftBody(blob->softbody);
+
+	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), -4.5f);
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
+	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
+	groundRigidBody = new btRigidBody(groundRigidBodyCI);
+
+	dynamicsWorld->addRigidBody(groundRigidBody);
+
 	vao = new VertexArray();
 
 	vera = new Font(FontDir "Vera.ttf", 48.f);
@@ -100,6 +163,15 @@ bool init()
 	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
 	program = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+	{
+		delete shaders[i];
+	}
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
+	blobShaderProgram = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 	{
 		delete shaders[i];
@@ -173,7 +245,15 @@ bool init()
 
 void update()
 {
+	currentFrame = glfwGetTime();
+	deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;
+
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
+
+	dynamicsWorld->stepSimulation(deltaTime/**.001f*/, 10);
+
+	blob->Update();
 }
 
 void draw()
@@ -186,6 +266,13 @@ void draw()
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
 	text->Draw();
 	program->Uninstall();
+
+	mvpMatrix = projMatrix;
+
+	uMVPMatrix = blobShaderProgram->GetUniformLocation("uMVPMatrix");
+	blobShaderProgram->Install();
+	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+	blob->Render();
 
 	glfwSwapBuffers(window);
 }
