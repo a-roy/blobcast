@@ -20,6 +20,10 @@ target_link_libraries(${LIB_NAME}
 	legacy_stdio_definitions
 	freetype
 	freetype-gl
+	optimized BulletCollision debug BulletCollision_Debug
+	optimized BulletDynamics  debug BulletDynamics_Debug
+	optimized BulletSoftBody  debug BulletSoftBody_Debug
+	optimized LinearMath      debug LinearMath_Debug
 	)
 
 add_subdirectory(server)
