@@ -35,7 +35,7 @@ void key_callback(
 
 GLFWwindow *window;
 VertexArray *vao;
-ShaderProgram *program;
+ShaderProgram *text_program;
 Font *vera;
 Text *text;
 int width, height;
@@ -80,14 +80,14 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	GLuint uMVPMatrix = program->GetUniformLocation("uMVPMatrix");
-	GLuint uAtlas = program->GetUniformLocation("uAtlas");
-	GLuint uTextColor = program->GetUniformLocation("uTextColor");
+	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
+	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
+	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
 
-	program->Install();
+	text_program->Install();
 	glUniform4f(uTextColor, 0.5f, 1.0f, 1.0f, 1.0f);
 	vera->BindTexture(uAtlas);
-	program->Uninstall();
+	text_program->Uninstall();
 
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 	avformat_network_deinit();
 	//avcodec_free_context(&avctx);
 	av_frame_free(&avframe);
-	delete program;
+	delete text_program;
 	delete text;
 	delete vera;
 
@@ -176,7 +176,7 @@ bool init_graphics()
 	std::vector<Shader *> shaders;
 	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	program = new ShaderProgram(shaders);
+	text_program = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 	{
 		delete shaders[i];
@@ -283,11 +283,11 @@ void draw()
 	glm::mat4 mvpMatrix = projMatrix * modelMatrix;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	GLuint uMVPMatrix = program->GetUniformLocation("uMVPMatrix");
-	program->Install();
+	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
+	text_program->Install();
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
 	text->Draw();
-	program->Uninstall();
+	text_program->Uninstall();
 
 	mvpMatrix = projMatrix;
 
