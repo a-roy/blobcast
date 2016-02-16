@@ -23,3 +23,4 @@ target_link_libraries(${LIB_NAME}
 	)
 
 add_subdirectory(server)
+add_subdirectory(client)
