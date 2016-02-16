@@ -24,6 +24,9 @@ extern "C"
 #define MAX_PROXIES 32766
 
 bool init();
+bool init_physics();
+bool init_graphics();
+bool init_stream();
 void update();
 void draw();
 void stream();
@@ -120,6 +123,11 @@ int main(int argc, char *argv[])
 
 bool init()
 {
+	return init_physics() && init_graphics() && init_stream();
+}
+
+bool init_physics()
+{
 	broadphase = new btDbvtBroadphase();
 	btVector3 worldAabbMin(-1000, -1000, -1000);
 	btVector3 worldAabbMax(1000, 1000, 1000);
@@ -154,6 +162,11 @@ bool init()
 
 	dynamicsWorld->addRigidBody(groundRigidBody);
 
+	return true;
+}
+
+bool init_graphics()
+{
 	vao = new VertexArray();
 
 	vera = new Font(FontDir "Vera.ttf", 48.f);
@@ -184,6 +197,11 @@ bool init()
 			-(float)height * 0.5f, (float)height * 0.5f);
 	modelMatrix = glm::mat4(1.f);
 
+	return true;
+}
+
+bool init_stream()
+{
 	glGenBuffers(1, &pbo);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
 	avcodec_register_all();
