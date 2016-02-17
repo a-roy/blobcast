@@ -9,6 +9,7 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libswscale/swscale.h>
 }
+#include <RakNet/RakPeerInterface.h>
 
 #include <iostream>
 #include "GLFWProject.h"
@@ -49,6 +50,7 @@ AVCodecContext *avctx;
 AVFormatContext *avfmt;
 SwsContext *swctx;
 GLuint pbo;
+RakNet::RakPeerInterface *raknetPeer = RakNet::RakPeerInterface::GetInstance();
 
 btCollisionDispatcher *dispatcher;
 btBroadphaseInterface *broadphase;
@@ -104,6 +106,8 @@ int main(int argc, char *argv[])
 	av_write_trailer(avfmt);
 	avcodec_close(avctx);
 
+	raknetPeer->Shutdown(0);
+	RakNet::RakPeerInterface::DestroyInstance(raknetPeer);
 	av_free(avfmt->pb);
 	avformat_free_context(avfmt);
 	avformat_network_deinit();
@@ -271,6 +275,13 @@ bool init_stream()
 			0, NULL, NULL, NULL);
 	if (swctx == NULL)
 		return false;
+
+	RakNet::SocketDescriptor socketDescriptor;
+	socketDescriptor.port = 0;
+	socketDescriptor.hostAddress[0] = '\0';
+	socketDescriptor.socketFamily = AF_UNSPEC;
+	raknetPeer->Startup(100, &socketDescriptor, 1);
+	raknetPeer->SetMaximumIncomingConnections(100);
 
 	return true;
 }

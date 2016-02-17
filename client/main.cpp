@@ -9,6 +9,7 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libswscale/swscale.h>
 }
+#include <RakNet/RakPeerInterface.h>
 
 #include <iostream>
 #include <sstream>
@@ -17,6 +18,7 @@ extern "C"
 #include "Buffer.h"
 #include "Text.h"
 #include "BlobInput.h"
+#include "HostData.h"
 
 #define RootDir "../../"
 #define ShaderDir RootDir "shaders/"
@@ -44,6 +46,7 @@ AVCodecContext *avctx = NULL;
 AVFrame *avframe = NULL;
 SwsContext *swctx = NULL;
 
+RakNet::RakPeerInterface *raknetPeer = RakNet::RakPeerInterface::GetInstance();
 BlobInput current_input;
 
 int main(int argc, char *argv[])
@@ -65,6 +68,8 @@ int main(int argc, char *argv[])
 		glfwPollEvents();
 	}
 	free(data);
+	raknetPeer->Shutdown(0);
+	RakNet::RakPeerInterface::DestroyInstance(raknetPeer);
 	avcodec_close(avctx);
 	avcodec_free_context(&avctx);
 	avformat_network_deinit();
@@ -146,6 +151,12 @@ bool init()
 	vera->BindTexture(uAtlas);
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
+
+	RakNet::SocketDescriptor socketDescriptor;
+	socketDescriptor.port = 0;
+	socketDescriptor.hostAddress[0] = '\0';
+	socketDescriptor.socketFamily = AF_UNSPEC;
+	raknetPeer->Startup(1, &socketDescriptor, 1);
 }
 
 void update()
@@ -183,6 +194,12 @@ void draw()
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(
 			avctx, &avframe->width, &avframe->height, linesize_align);
+
+	if (raknetPeer->NumberOfConnections() == 0)
+	{
+		/// \TODO Open connection
+	}
+
 	uint8_t *const dstSlice[] = { data };
 	int dstStride[] = { width * 4 };
 	if (data != NULL)
