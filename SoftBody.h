@@ -28,18 +28,12 @@ class SoftBody
 		{
 			softbody = p_softBody;
 
-			softbody->m_materials[0]->m_kLST = 0.1;
-			softbody->m_cfg.kDF = 1;
-			softbody->m_cfg.kDP = 0.001;
-			softbody->m_cfg.kPR = 2500;
-			softbody->setTotalMass(30, true);
-	
 			for (int i = 0; i<softbody->m_faces.size(); ++i)
 			{
 				const btSoftBody::Face&	f = softbody->m_faces[i];
-				vertices.push_back(convertBtVector3(&f.m_n[0]->m_x));
-				vertices.push_back(convertBtVector3(&f.m_n[1]->m_x));
-				vertices.push_back(convertBtVector3(&f.m_n[2]->m_x));
+				vertices.push_back(convert(&f.m_n[0]->m_x));
+				vertices.push_back(convert(&f.m_n[1]->m_x));
+				vertices.push_back(convert(&f.m_n[2]->m_x));
 			}
 
 			glGenVertexArrays(1, &vao);
@@ -69,9 +63,9 @@ class SoftBody
 			for (int i = 0; i<softbody->m_faces.size(); ++i)
 			{
 				const btSoftBody::Face&	f = softbody->m_faces[i];
-				vertices.push_back(convertBtVector3(&f.m_n[0]->m_x));
-				vertices.push_back(convertBtVector3(&f.m_n[1]->m_x));
-				vertices.push_back(convertBtVector3(&f.m_n[2]->m_x));
+				vertices.push_back(convert(&f.m_n[0]->m_x));
+				vertices.push_back(convert(&f.m_n[1]->m_x));
+				vertices.push_back(convert(&f.m_n[2]->m_x));
 			}
 
 			glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);

@@ -16,6 +16,7 @@ extern "C"
 #include "Text.h"
 
 #include "SoftBody.h"
+#include "RigidBody.h"
 
 #define RootDir "../../"
 #define ShaderDir RootDir "shaders/"
@@ -57,9 +58,10 @@ btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
 SoftBody *blob;
-btRigidBody *groundRigidBody;
+std::vector<RigidBody*> rigidBodies;
 
 ShaderProgram *blobShaderProgram;
+ShaderProgram *rigidBodyShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -141,26 +143,32 @@ bool init_physics()
 
 	dynamicsWorld->setGravity(btVector3(0, -10, 0));
 	
+	//Experiment with environment variables
 	softBodyWorldInfo.m_broadphase = broadphase;
 	softBodyWorldInfo.m_dispatcher = dispatcher;
 	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
-
-	softBodyWorldInfo.m_sparsesdf.Initialize();
-
 	softBodyWorldInfo.air_density = (btScalar)1.2;
 	softBodyWorldInfo.water_density = 0;
 	softBodyWorldInfo.water_offset = 0;
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
+	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new SoftBody(btSoftBodyHelpers::CreateEllipsoid(softBodyWorldInfo, btVector3(0, 0, 0), btVector3(1, 1, 1) * 3, 512));
+	btSoftBody* btblob = btSoftBodyHelpers::CreateEllipsoid(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
+	
+	//Experiment with blob variables
+	btblob->m_materials[0]->m_kLST = 0.1;
+	btblob->m_cfg.kDF = 1;
+	btblob->m_cfg.kDP = 0.001;
+	btblob->m_cfg.kPR = 2500;
+	btblob->setTotalMass(30, true);
+	
+	blob = new SoftBody(btblob);
 	dynamicsWorld->addSoftBody(blob->softbody);
-
-	btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), -4.5f);
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
-	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
-	groundRigidBody = new btRigidBody(groundRigidBodyCI);
-
-	dynamicsWorld->addRigidBody(groundRigidBody);
+	
+	glm::vec3 scale = glm::vec3(10.0f, 1.0f, 10.0f);
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0), glm::quat(), scale, 0/*mass*/)); 
+	//0 is infinite mass i.e. immovable	
+	dynamicsWorld->addRigidBody(rigidBodies[rigidBodies.size()-1]->rigidbody);
 
 	return true;
 }
@@ -191,6 +199,8 @@ bool init_graphics()
 		delete shaders[i];
 	}
 	shaders.clear();
+
+	rigidBodyShaderProgram = blobShaderProgram; //use same as blob for the moment!
 
 	projMatrix = glm::ortho(
 			-(float)width * 0.5f, (float)width * 0.5f,
@@ -273,7 +283,7 @@ void update()
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
-	dynamicsWorld->stepSimulation(deltaTime/**.001f*/, 10);
+	dynamicsWorld->stepSimulation(deltaTime, 10);
 
 	blob->Update();
 }
@@ -295,6 +305,17 @@ void draw()
 	blobShaderProgram->Install();
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
 	blob->Render();
+	blobShaderProgram->Uninstall();
+
+	rigidBodyShaderProgram->Install();
+	uMVPMatrix = rigidBodyShaderProgram->GetUniformLocation("uMVPMatrix");
+	for (RigidBody* r : rigidBodies)
+	{
+		mvpMatrix = projMatrix * glm::translate(glm::vec3(10.0f, 0.0f, 0.0f));// *glm::scale(glm::vec3(1.0f, 1.0f, 1.0000001f)); // * r->GetModelMatrix()
+		glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+		r->Render();
+	}
+	rigidBodyShaderProgram->Uninstall();
 
 	glfwSwapBuffers(window);
 }
