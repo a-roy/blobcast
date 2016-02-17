@@ -6,13 +6,13 @@
 #include "Mesh.h" 
 #include <glm/gtc/type_ptr.hpp>
 
-//enum RBShape { Box };
+//enum RBShape { Box }; //TODO - add more shapes support (as needed)
 
 class RigidBody
 {
 
 private:
-	glm::mat4 modelMatrix;
+	//glm::mat4 modelMatrix;
 
 public:
 
@@ -45,11 +45,9 @@ public:
 
 	glm::mat4 GetModelMatrix()
 	{
-		return
-			glm::translate(glm::mat4(1.0f), translation)
-			//* glm::toMat4(orientation)
-			//* modelMatrix
-			* glm::scale(glm::mat4(1.0f), scale);
+		return glm::translate(translation)
+			* glm::toMat4(orientation)
+			* glm::scale(scale);
 	}
 
 	void Update()
@@ -59,9 +57,8 @@ public:
 			btTransform trans;
 			rigidbody->getMotionState()->getWorldTransform(trans);
 			//trans.getOpenGLMatrix(glm::value_ptr(modelMatrix));
-
-			//translation = convert(&trans.getOrigin());
-			//orientation = convert(trans.getRotation());
+			translation = convert(&trans.getOrigin());
+			orientation = convert(&trans.getRotation());
 		}
 	}
 

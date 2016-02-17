@@ -75,12 +75,8 @@ class SoftBody
 
 		void Render()
 		{
-			glPolygonMode(GL_FRONT, GL_LINE);
-
 			glBindVertexArray(vao);
 			glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 			glBindVertexArray(0);
-
-			glPolygonMode(GL_FRONT, GL_FILL);
 		}
 };

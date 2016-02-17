@@ -17,3 +17,8 @@ btQuaternion convert(glm::quat q)
 	return btQuaternion(q.x, q.y, q.z, q.w);
 }
 
+glm::quat convert(btQuaternion* q)
+{
+	return glm::quat(q->getW(), q->getX(), q->getY(), q->getZ());
+}
+

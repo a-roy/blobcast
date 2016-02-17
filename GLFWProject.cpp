@@ -40,14 +40,14 @@ bool GLFWProject::WASDStrafe(
 {
 	if (key == GLFW_KEY_W)
 	{
-		if      (action == GLFW_PRESS)   camera->WalkForward = true;
-		else if (action == GLFW_RELEASE) camera->WalkForward = false;
+		if      (action == GLFW_PRESS)   camera->MoveForward = true;
+		else if (action == GLFW_RELEASE) camera->MoveForward = false;
 		else return false;
 	}
 	else if (key == GLFW_KEY_S)
 	{
-		if      (action == GLFW_PRESS)   camera->WalkBackward = true;
-		else if (action == GLFW_RELEASE) camera->WalkBackward = false;
+		if      (action == GLFW_PRESS)   camera->MoveBackward = true;
+		else if (action == GLFW_RELEASE) camera->MoveBackward = false;
 		else return false;
 	}
 	else if (key == GLFW_KEY_A)
