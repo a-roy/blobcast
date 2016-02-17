@@ -65,7 +65,7 @@ SoftBody *blob;
 std::vector<RigidBody*> rigidBodies;
 
 ShaderProgram *blobShaderProgram;
-ShaderProgram *rigidBodyShaderProgram;
+ShaderProgram *platformShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -176,7 +176,7 @@ bool init_physics()
 	blob = new SoftBody(btblob);
 	dynamicsWorld->addSoftBody(blob->softbody);
 	
-	glm::vec3 scale = glm::vec3(100.0f, 1.0f, 100.0f);
+	glm::vec3 scale = glm::vec3(30.0f, 1.0f, 30.0f);
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0), glm::quat(), scale, 0/*mass*/)); 
 	//0 is infinite mass i.e. immovable	
 	dynamicsWorld->addRigidBody(rigidBodies[rigidBodies.size()-1]->rigidbody);
@@ -193,30 +193,29 @@ bool init_graphics()
 	text->SetText("Hello world");
 
 	std::vector<Shader *> shaders;
+	
 	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
 	text_program = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
 		delete shaders[i];
-	}
 	shaders.clear();
 
 	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
 	blobShaderProgram = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
 		delete shaders[i];
-	}
 	shaders.clear();
 
-	rigidBodyShaderProgram = blobShaderProgram; //use same as blob for the moment!
+	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
+	platformShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
 
-	/*projMatrix = glm::ortho(
-			-(float)width * 0.5f, (float)width * 0.5f,
-			-(float)height * 0.5f, (float)height * 0.5f);*/
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 100.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
 	modelMatrix = glm::mat4(1.f);
 
@@ -312,29 +311,27 @@ void draw()
 	glm::mat4 mvpMatrix;
 	glm::mat4 viewMatrix = camera->GetMatrix();
 
-	mvpMatrix = projMatrix * viewMatrix * modelMatrix;
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
 	text_program->Install();
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+	mvpMatrix = projMatrix * viewMatrix * modelMatrix;
+	text_program->SetUniform("uMVPMatrix", mvpMatrix);
 	text->Draw();
 	text_program->Uninstall();
 
-	mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
-	uMVPMatrix = blobShaderProgram->GetUniformLocation("uMVPMatrix");
 	blobShaderProgram->Install();
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+	mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
+	blobShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 	blob->Render();
 	blobShaderProgram->Uninstall();
 
-	rigidBodyShaderProgram->Install();
-	uMVPMatrix = rigidBodyShaderProgram->GetUniformLocation("uMVPMatrix");
+	platformShaderProgram->Install();
+	platformShaderProgram->SetUniform("uColor", glm::vec4(0.85f, 0.85f, 0.85f, 1.0f));
 	for (RigidBody* r : rigidBodies)
 	{
 		mvpMatrix = projMatrix * viewMatrix * r->GetModelMatrix();
-		glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+		platformShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 		r->Render();
 	}
-	rigidBodyShaderProgram->Uninstall();
+	platformShaderProgram->Uninstall();
 
 	glfwSwapBuffers(window);
 }
