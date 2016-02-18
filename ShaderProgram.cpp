@@ -1,5 +1,6 @@
 #include "ShaderProgram.h"
 #include <iostream>
+#include <glm/gtc/type_ptr.hpp>
 
 ShaderProgram::ShaderProgram(std::vector<Shader *> shaders)
 {
@@ -87,4 +88,34 @@ void ShaderProgram::Install() const
 void ShaderProgram::Uninstall() const
 {
 	glUseProgram(0);
+}
+
+void ShaderProgram::SetUniform(std::string name, glm::vec3 value)
+{
+	glUniform3fv(GetUniformLocation(name), 1, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(std::string name, glm::vec4 value)
+{
+	glUniform4fv(GetUniformLocation(name), 1, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(std::string name, glm::mat3 value)
+{
+	glUniformMatrix3fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(std::string name, glm::mat4 value)
+{
+	glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(std::string name, GLfloat value)
+{
+	glUniform1f(GetUniformLocation(name), value);
+}
+
+void ShaderProgram::SetUniform(std::string name, GLint value)
+{
+	glUniform1i(GetUniformLocation(name), value);
 }

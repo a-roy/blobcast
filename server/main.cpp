@@ -33,6 +33,10 @@ void draw();
 void stream();
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
+void cursor_pos_callback(
+	GLFWwindow *window, double xpos, double ypos);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+
 
 GLFWwindow *window;
 VertexArray *vao;
@@ -61,13 +65,17 @@ SoftBody *blob;
 std::vector<RigidBody*> rigidBodies;
 
 ShaderProgram *blobShaderProgram;
-ShaderProgram *rigidBodyShaderProgram;
+ShaderProgram *platformShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
+
+EulerCamera *camera;
+
+double xcursor, ycursor;
 
 int main(int argc, char *argv[])
 {
@@ -76,6 +84,9 @@ int main(int argc, char *argv[])
 		return 1;
 
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_pos_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+
 	glfwGetFramebufferSize(window, &width, &height);
 	glfwSwapInterval(1);
 
@@ -165,7 +176,7 @@ bool init_physics()
 	blob = new SoftBody(btblob);
 	dynamicsWorld->addSoftBody(blob->softbody);
 	
-	glm::vec3 scale = glm::vec3(10.0f, 1.0f, 10.0f);
+	glm::vec3 scale = glm::vec3(30.0f, 1.0f, 30.0f);
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0), glm::quat(), scale, 0/*mass*/)); 
 	//0 is infinite mass i.e. immovable	
 	dynamicsWorld->addRigidBody(rigidBodies[rigidBodies.size()-1]->rigidbody);
@@ -182,30 +193,33 @@ bool init_graphics()
 	text->SetText("Hello world");
 
 	std::vector<Shader *> shaders;
+	
 	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
 	text_program = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
 		delete shaders[i];
-	}
 	shaders.clear();
 
 	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
 	blobShaderProgram = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
 		delete shaders[i];
-	}
 	shaders.clear();
 
-	rigidBodyShaderProgram = blobShaderProgram; //use same as blob for the moment!
+	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
+	platformShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
 
-	projMatrix = glm::ortho(
-			-(float)width * 0.5f, (float)width * 0.5f,
-			-(float)height * 0.5f, (float)height * 0.5f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
+
 	modelMatrix = glm::mat4(1.f);
+
+	camera = new FlyCam(glm::vec3(0.f, 3.0f, -1.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
 
 	return true;
 }
@@ -285,37 +299,39 @@ void update()
 
 	dynamicsWorld->stepSimulation(deltaTime, 10);
 
+	camera->Update();
+
 	blob->Update();
 }
 
 void draw()
 {
-	glm::mat4 mvpMatrix = projMatrix * modelMatrix;
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
+
+	glm::mat4 mvpMatrix;
+	glm::mat4 viewMatrix = camera->GetMatrix();
+
 	text_program->Install();
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+	mvpMatrix = projMatrix * viewMatrix * modelMatrix;
+	text_program->SetUniform("uMVPMatrix", mvpMatrix);
 	text->Draw();
 	text_program->Uninstall();
 
-	mvpMatrix = projMatrix;
-
-	uMVPMatrix = blobShaderProgram->GetUniformLocation("uMVPMatrix");
 	blobShaderProgram->Install();
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+	mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
+	blobShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 	blob->Render();
 	blobShaderProgram->Uninstall();
 
-	rigidBodyShaderProgram->Install();
-	uMVPMatrix = rigidBodyShaderProgram->GetUniformLocation("uMVPMatrix");
+	platformShaderProgram->Install();
+	platformShaderProgram->SetUniform("uColor", glm::vec4(0.85f, 0.85f, 0.85f, 1.0f));
 	for (RigidBody* r : rigidBodies)
 	{
-		mvpMatrix = projMatrix * glm::translate(glm::vec3(10.0f, 0.0f, 0.0f));// *glm::scale(glm::vec3(1.0f, 1.0f, 1.0000001f)); // * r->GetModelMatrix()
-		glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &mvpMatrix[0][0]);
+		mvpMatrix = projMatrix * viewMatrix * r->GetModelMatrix();
+		platformShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 		r->Render();
 	}
-	rigidBodyShaderProgram->Uninstall();
+	platformShaderProgram->Uninstall();
 
 	glfwSwapBuffers(window);
 }
@@ -353,4 +369,19 @@ void key_callback(
 	{
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	}
+
+	GLFWProject::WASDStrafe(camera, window, key, scancode, action, mods);
+}
+
+void cursor_pos_callback(
+	GLFWwindow *window, double xpos, double ypos)
+{
+	GLFWProject::MouseTurn(camera, &xcursor, &ycursor, window, xpos, ypos);
+}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+	/*if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+		popup_menu();*/
+	GLFWProject::ClickDisablesCursor(&xcursor, &ycursor, window, button, action, mods);
 }
