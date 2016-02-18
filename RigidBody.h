@@ -30,7 +30,7 @@ public:
 	{	
 		//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 		btCollisionShape* shape;
-		shape = new btBoxShape(btVector3(convert(scale * 0.5f))); //Half extents
+		shape = new btBoxShape(btVector3(convert(scale)));
 
 		btDefaultMotionState* transform = new btDefaultMotionState(btTransform(btQuaternion(convert(p_orientation)), btVector3(convert(p_translation))));
 		btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(mass, transform, shape);
