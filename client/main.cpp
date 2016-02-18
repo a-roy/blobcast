@@ -9,6 +9,9 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libswscale/swscale.h>
 }
+#include <RakNet/MessageIdentifiers.h>
+#include <RakNet/RakPeerInterface.h>
+#include <RakNet/RakNetTypes.h>
 
 #include <iostream>
 #include <sstream>
@@ -17,10 +20,9 @@ extern "C"
 #include "Buffer.h"
 #include "Text.h"
 #include "BlobInput.h"
+#include "HostData.h"
 
-#define RootDir "../../"
-#define ShaderDir RootDir "shaders/"
-#define FontDir RootDir "fonts/"
+#include "config.h"
 
 bool init();
 void update();
@@ -44,6 +46,8 @@ AVCodecContext *avctx = NULL;
 AVFrame *avframe = NULL;
 SwsContext *swctx = NULL;
 
+RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
+RakNet::SystemAddress hostAddress = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
 BlobInput current_input;
 
 int main(int argc, char *argv[])
@@ -65,6 +69,8 @@ int main(int argc, char *argv[])
 		glfwPollEvents();
 	}
 	free(data);
+	rakPeer->Shutdown(0);
+	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
 	avcodec_close(avctx);
 	avcodec_free_context(&avctx);
 	avformat_network_deinit();
@@ -146,6 +152,8 @@ bool init()
 	vera->BindTexture(uAtlas);
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
+
+	rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
 }
 
 void update()
@@ -168,6 +176,42 @@ void update()
 
 void draw()
 {
+	if (hostAddress == RakNet::UNASSIGNED_SYSTEM_ADDRESS)
+	{
+		while (rakPeer->GetReceiveBufferSize() > 0)
+		{
+			RakNet::Packet *p = rakPeer->Receive();
+			unsigned char packet_type = p->data[0];
+			RakNet::SystemAddress sender = p->systemAddress;
+			rakPeer->DeallocatePacket(p);
+			if (packet_type == ID_UNCONNECTED_PONG)
+			{
+				hostAddress = sender;
+				const char *host = sender.ToString();
+				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
+				break;
+			}
+		}
+		rakPeer->Ping("255.255.255.255", REMOTE_GAME_PORT, true);
+	}
+	else
+	{
+		RakNet::ConnectionState connection =
+			rakPeer->GetConnectionState(hostAddress);
+		if (connection != RakNet::IS_CONNECTED)
+		{
+			return;
+		}
+	}
+
+	char send_data[2];
+	send_data[0] = ID_USER_PACKET_ENUM;
+	send_data[1] = current_input;
+	rakPeer->Send(
+			send_data, 2,
+			IMMEDIATE_PRIORITY, RELIABLE, 0,
+			hostAddress, false);
+
 	AVPacket *pkt = av_packet_alloc();
 	av_init_packet(pkt);
 	if (av_read_frame(avfmt, pkt) < 0)
@@ -183,6 +227,7 @@ void draw()
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(
 			avctx, &avframe->width, &avframe->height, linesize_align);
+
 	uint8_t *const dstSlice[] = { data };
 	int dstStride[] = { width * 4 };
 	if (data != NULL)

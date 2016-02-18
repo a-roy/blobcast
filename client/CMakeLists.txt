@@ -31,6 +31,8 @@ target_link_libraries(${EXEC_NAME}
 	avformat
 	avutil
 	swscale
+	ws2_32
+	RakNetLibStatic
 	)
 
 foreach(lib ${EXT_LIBS})

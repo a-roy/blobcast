@@ -9,19 +9,19 @@ extern "C"
 #include <libavutil/avutil.h>
 #include <libswscale/swscale.h>
 }
+#include <RakNet/MessageIdentifiers.h>
+#include <RakNet/RakPeerInterface.h>
 
 #include <iostream>
 #include "GLFWProject.h"
 #include "ShaderProgram.h"
 #include "Text.h"
+#include "BlobInput.h"
 
 #include "SoftBody.h"
 #include "RigidBody.h"
 
-#define RootDir "../../"
-#define ShaderDir RootDir "shaders/"
-#define FontDir RootDir "fonts/"
-
+#include "config.h"
 #define MAX_PROXIES 32766
 
 bool init();
@@ -53,6 +53,7 @@ AVCodecContext *avctx;
 AVFormatContext *avfmt;
 SwsContext *swctx;
 GLuint pbo;
+RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 btCollisionDispatcher *dispatcher;
 btBroadphaseInterface *broadphase;
@@ -69,6 +70,7 @@ ShaderProgram *platformShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
+glm::vec2 current_input;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
@@ -115,6 +117,8 @@ int main(int argc, char *argv[])
 	av_write_trailer(avfmt);
 	avcodec_close(avctx);
 
+	rakPeer->Shutdown(0);
+	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
 	av_free(avfmt->pb);
 	avformat_free_context(avfmt);
 	avformat_network_deinit();
@@ -286,6 +290,9 @@ bool init_stream()
 	if (swctx == NULL)
 		return false;
 
+	rakPeer->Startup(100, &RakNet::SocketDescriptor(REMOTE_GAME_PORT, 0), 1);
+	rakPeer->SetMaximumIncomingConnections(100);
+
 	return true;
 }
 
@@ -302,6 +309,30 @@ void update()
 	camera->Update();
 
 	blob->Update();
+
+	glm::vec2 cum_input(0.f);
+	float num_inputs = 0.f;
+	while (rakPeer->GetReceiveBufferSize() > 0)
+	{
+		RakNet::Packet *p = rakPeer->Receive();
+		unsigned char packet_type = p->data[0];
+		if (packet_type == ID_USER_PACKET_ENUM)
+		{
+			BlobInput i = (BlobInput)p->data[1];
+			if (i & Forward)
+				cum_input += glm::vec2(0.f, 1.f);
+			if (i & Backward)
+				cum_input += glm::vec2(0.f, -1.f);
+			if (i & Right)
+				cum_input += glm::vec2(1.f, 0.f);
+			if (i & Left)
+				cum_input += glm::vec2(-1.f, 0.f);
+			num_inputs += 1.f;
+		}
+	}
+	if (num_inputs > 0.f)
+		cum_input /= num_inputs;
+	current_input = cum_input;
 }
 
 void draw()
