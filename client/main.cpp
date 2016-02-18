@@ -20,9 +20,7 @@ extern "C"
 #include "BlobInput.h"
 #include "HostData.h"
 
-#define RootDir "../../"
-#define ShaderDir RootDir "shaders/"
-#define FontDir RootDir "fonts/"
+#include "config.h"
 
 bool init();
 void update();

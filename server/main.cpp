@@ -19,10 +19,7 @@ extern "C"
 #include "SoftBody.h"
 #include "RigidBody.h"
 
-#define RootDir "../../"
-#define ShaderDir RootDir "shaders/"
-#define FontDir RootDir "fonts/"
-
+#include "config.h"
 #define MAX_PROXIES 32766
 
 bool init();
