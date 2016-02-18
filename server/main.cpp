@@ -316,7 +316,7 @@ void update()
 			if (i & Left)
 				cum_input += btVector3(1.f, 0.f, 0.f);
 			if (i & Jump)
-				cum_input += btVector3(0.f, -1.f, 0.f);
+				cum_input += btVector3(0.f, 10.f, 0.f);
 			num_inputs += 1.f;
 		}
 	}
