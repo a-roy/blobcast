@@ -16,6 +16,7 @@ extern "C"
 #include "Text.h"
 
 #include "SoftBody.h"
+#include "Blob.h"
 #include "RigidBody.h"
 
 #define RootDir "../../"
@@ -61,7 +62,7 @@ btSoftBodyRigidBodyCollisionConfiguration *collisionConfiguration;
 btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
-SoftBody *blob;
+Blob *blob;
 std::vector<RigidBody*> rigidBodies;
 
 ShaderProgram *blobShaderProgram;
@@ -73,7 +74,7 @@ double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
 
-EulerCamera *camera;
+Camera *camera;
 
 double xcursor, ycursor;
 
@@ -173,13 +174,14 @@ bool init_physics()
 	btblob->m_cfg.kPR = 2500;
 	btblob->setTotalMass(30, true);
 	
-	blob = new SoftBody(btblob);
-	dynamicsWorld->addSoftBody(blob->softbody);
-	
 	glm::vec3 scale = glm::vec3(30.0f, 1.0f, 30.0f);
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0), glm::quat(), scale, 0/*mass*/)); 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0, -5, 0), glm::quat(), scale, 0/*mass*/)); 
 	//0 is infinite mass i.e. immovable	
 	dynamicsWorld->addRigidBody(rigidBodies[rigidBodies.size()-1]->rigidbody);
+
+	blob = new Blob(btblob); //Blob #2
+	//blob->AddAnchor(anchor);
+	dynamicsWorld->addSoftBody(blob->softbody);
 
 	return true;
 }
@@ -369,6 +371,8 @@ void key_callback(
 	{
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	}
+
+	blob->Move(key, action);
 
 	GLFWProject::WASDStrafe(camera, window, key, scancode, action, mods);
 }
