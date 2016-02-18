@@ -70,7 +70,7 @@ ShaderProgram *platformShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
-glm::vec2 current_input;
+btVector3 current_input;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
@@ -298,7 +298,34 @@ bool init_stream()
 
 void update()
 {
+	btVector3 cum_input(0, 0, 0);
+	float num_inputs = 0.f;
+	while (rakPeer->GetReceiveBufferSize() > 0)
+	{
+		RakNet::Packet *p = rakPeer->Receive();
+		unsigned char packet_type = p->data[0];
+		if (packet_type == ID_USER_PACKET_ENUM)
+		{
+			BlobInput i = (BlobInput)p->data[1];
+			if (i & Forward)
+				cum_input += btVector3(0.f, 0.f, 1.f);
+			if (i & Backward)
+				cum_input += btVector3(0.f, 0.f, -1.f);
+			if (i & Right)
+				cum_input += btVector3(-1.f, 0.f, 0.f);
+			if (i & Left)
+				cum_input += btVector3(1.f, 0.f, 0.f);
+			if (i & Jump)
+				cum_input += btVector3(0.f, -1.f, 0.f);
+			num_inputs += 1.f;
+		}
+	}
+	if (num_inputs > 0.f)
+		cum_input /= num_inputs;
+	blob->softbody->addForce(cum_input * 0.2f);
+
 	currentFrame = glfwGetTime();
+
 	deltaTime = currentFrame - lastFrame;
 	lastFrame = currentFrame;
 
@@ -309,30 +336,6 @@ void update()
 	camera->Update();
 
 	blob->Update();
-
-	glm::vec2 cum_input(0.f);
-	float num_inputs = 0.f;
-	while (rakPeer->GetReceiveBufferSize() > 0)
-	{
-		RakNet::Packet *p = rakPeer->Receive();
-		unsigned char packet_type = p->data[0];
-		if (packet_type == ID_USER_PACKET_ENUM)
-		{
-			BlobInput i = (BlobInput)p->data[1];
-			if (i & Forward)
-				cum_input += glm::vec2(0.f, 1.f);
-			if (i & Backward)
-				cum_input += glm::vec2(0.f, -1.f);
-			if (i & Right)
-				cum_input += glm::vec2(1.f, 0.f);
-			if (i & Left)
-				cum_input += glm::vec2(-1.f, 0.f);
-			num_inputs += 1.f;
-		}
-	}
-	if (num_inputs > 0.f)
-		cum_input /= num_inputs;
-	current_input = cum_input;
 }
 
 void draw()
