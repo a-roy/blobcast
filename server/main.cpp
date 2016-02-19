@@ -251,17 +251,21 @@ bool init_stream()
 	if (!codec)
 		return false;
 	avctx = avcodec_alloc_context3(codec);
-	avctx->pix_fmt = AV_PIX_FMT_YUV444P;
+	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = width;
 	avctx->height = height;
+	avctx->gop_size = 0;
+	avctx->time_base = { 1, 60 };
+	if (avcodec_open2(avctx, codec, &opts) < 0)
+		return false;
 
 	avframe = av_frame_alloc();
-	avframe->format = AV_PIX_FMT_YUV444P;
+	avframe->format = AV_PIX_FMT_YUV420P;
 	avframe->width = width;
 	avframe->height = height;
 	avframe->linesize[0] = width;
-	avframe->linesize[1] = width;
-	avframe->linesize[2] = width;
+	avframe->linesize[1] = width / 2;
+	avframe->linesize[2] = width / 2;
 	if (av_frame_get_buffer(avframe, 0) != 0)
 		return false;
 
@@ -269,11 +273,6 @@ bool init_stream()
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
 	glBufferData(
 			GL_PIXEL_PACK_BUFFER, avframe->width * avframe->height * 3, NULL, GL_STREAM_READ);
-	avctx->gop_size = 1;
-	avctx->has_b_frames = 0;
-	avctx->time_base = { 1, 60 };
-	if (avcodec_open2(avctx, codec, &opts) < 0)
-		return false;
 
 	av_register_all();
 	avformat_network_init();
@@ -281,7 +280,7 @@ bool init_stream()
 	std::string filename = "udp://236.0.0.1:2000";
 	avfmt->oformat = av_guess_format("mpegts", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->bit_rate = 80000000;
+	avfmt->bit_rate = 20*1024*1024;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
@@ -297,7 +296,7 @@ bool init_stream()
 
 	swctx = sws_getContext(
 			width, height, AV_PIX_FMT_RGB24,
-			width, height, AV_PIX_FMT_YUV444P,
+			width, height, AV_PIX_FMT_YUV420P,
 			0, NULL, NULL, NULL);
 	if (swctx == NULL)
 		return false;

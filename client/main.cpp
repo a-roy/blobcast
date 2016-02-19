@@ -120,6 +120,8 @@ bool init()
 	shaders.clear();
 
 	AVDictionary *opts = NULL;
+	av_dict_set(&opts, "tune", "zerolatency", 0);
+	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_register_all();
 	avformat_network_init();
 	if (avformat_open_input(
@@ -138,7 +140,7 @@ bool init()
 		return 1;
 
 	swctx = sws_getContext(
-			width, height, AV_PIX_FMT_YUV444P,
+			width, height, AV_PIX_FMT_YUV420P,
 			width, height, AV_PIX_FMT_BGRA,
 			0, NULL, NULL, NULL);
 
