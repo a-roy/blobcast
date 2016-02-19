@@ -269,7 +269,7 @@ bool init_stream()
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
 	glBufferData(
 			GL_PIXEL_PACK_BUFFER, avframe->width * avframe->height * 3, NULL, GL_STREAM_READ);
-	avctx->gop_size = 2;
+	avctx->gop_size = 1;
 	avctx->has_b_frames = 0;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
@@ -312,6 +312,11 @@ void update()
 {
 	btVector3 cum_input(0, 0, 0);
 	float num_inputs = 0.f;
+	int forward_count = 0;
+	int backward_count = 0;
+	int right_count = 0;
+	int left_count = 0;
+	int jump_count = 0;
 	while (rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
@@ -320,21 +325,25 @@ void update()
 		{
 			BlobInput i = (BlobInput)p->data[1];
 			if (i & Forward)
-				cum_input += btVector3(0.f, 0.f, 1.f);
+				forward_count++;
 			if (i & Backward)
-				cum_input += btVector3(0.f, 0.f, -1.f);
+				backward_count++;
 			if (i & Right)
-				cum_input += btVector3(-1.f, 0.f, 0.f);
+				right_count++;
 			if (i & Left)
-				cum_input += btVector3(1.f, 0.f, 0.f);
+				left_count++;
 			if (i & Jump)
-				cum_input += btVector3(0.f, 2.f, 0.f);
+				jump_count++;
 			num_inputs += 1.f;
 		}
 	}
 	if (num_inputs > 0.f)
 		cum_input /= num_inputs;
-	blob->AddForce(cum_input * 0.2f);
+	blob->AddForce(4 * btVector3(0, 0, 1) * forward_count / num_inputs);
+	blob->AddForce(4 * btVector3(0, 0, -1) * backward_count / num_inputs);
+	blob->AddForce(4 * btVector3(-1, 0, 0) * right_count / num_inputs);
+	blob->AddForce(4 * btVector3(1, 0, 0) * left_count / num_inputs);
+	blob->AddForce(4 * btVector3(0, 1, 0) * jump_count / num_inputs);
 
 	currentFrame = glfwGetTime();
 
