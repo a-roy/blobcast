@@ -353,11 +353,16 @@ void update()
 	}
 	if (num_inputs > 0.f)
 		cum_input /= num_inputs;
-	blob->AddForce(4 * btVector3(0, 0, 1) * forward_count / num_inputs);
-	blob->AddForce(4 * btVector3(0, 0, -1) * backward_count / num_inputs);
-	blob->AddForce(4 * btVector3(-1, 0, 0) * right_count / num_inputs);
-	blob->AddForce(4 * btVector3(1, 0, 0) * left_count / num_inputs);
-	blob->AddForce(4 * btVector3(0, 1, 0) * jump_count / num_inputs);
+	btVector3 forward(0, 0, blob->speed);
+	btVector3 backward(0, 0, -blob->speed);
+	btVector3 right(-blob->speed, 0, 0);
+	btVector3 left(blob->speed, 0, 0);
+	btVector3 jump(0, blob->speed, 0);
+	blob->AddForce(forward * forward_count / num_inputs);
+	blob->AddForce(backward * backward_count / num_inputs);
+	blob->AddForce(right * right_count / num_inputs);
+	blob->AddForce(left * left_count / num_inputs);
+	blob->AddForce(jump * jump_count / num_inputs);
 
 	currentFrame = glfwGetTime();
 
@@ -456,6 +461,7 @@ void gui()
 		ImGui::SliderFloat("Damping coefficient [0,1]", &blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
 		ImGui::InputFloat("Lift coefficient [0,+inf]", &blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
 		ImGui::SliderFloat("Pose matching coefficient [0,1]", &blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
+		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
 		
 		ImGui::End();
 	}
