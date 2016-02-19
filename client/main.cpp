@@ -122,7 +122,12 @@ bool init()
 	AVDictionary *opts = NULL;
 	av_register_all();
 	avformat_network_init();
-	if (avformat_open_input(&avfmt, "udp://236.0.0.1:2000?fifo_size=1000000&overrun_nonfatal=1", NULL, &opts) < 0)
+	if (avformat_open_input(
+				&avfmt,
+				"udp://236.0.0.1:2000?fifo_size=1000000&overrun_nonfatal=1",
+				NULL,
+				&opts
+				) < 0)
 		return 1;
 	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
 	if (codec == NULL)
