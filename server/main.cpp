@@ -25,6 +25,9 @@ extern "C"
 #include "config.h"
 #define MAX_PROXIES 32766
 
+#include <imgui.h>
+#include "imgui_impl_glfw.h"
+
 bool init();
 bool init_physics();
 bool init_graphics();
@@ -86,6 +89,10 @@ int main(int argc, char *argv[])
 	if (!window)
 		return 1;
 
+	// Setup ImGui binding
+
+	ImGui_ImplGlfw_Init(window, true);
+
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_pos_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -135,6 +142,7 @@ int main(int argc, char *argv[])
 	delete dispatcher;
 	delete broadphase;
 
+	ImGui_ImplGlfw_Shutdown();
 	glfwTerminate();
 	return 0;
 }
@@ -353,9 +361,22 @@ void update()
 		r->Update();
 }
 
+bool show_test_window = true;
+
 void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	ImGui_ImplGlfw_NewFrame();
+
+	{
+		static float f = 0.0f;
+		ImGui::Text("Hello, world!");
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
+		ImGui::ColorEdit3("clear color", (float*)&ImColor(114, 144, 154));
+		if (ImGui::Button("Test Window")) show_test_window ^= 1;
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	}
 
 	glm::mat4 mvpMatrix;
 	glm::mat4 viewMatrix = camera->GetMatrix();
@@ -381,6 +402,8 @@ void draw()
 		r->Render();
 	}
 	platformShaderProgram->Uninstall();
+
+	ImGui::Render();
 
 	glfwSwapBuffers(window);
 }
