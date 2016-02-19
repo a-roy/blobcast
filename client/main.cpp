@@ -52,7 +52,7 @@ BlobInput current_input;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Client Test", 1024, 576);
+	window = GLFWProject::Init("Client Test", 1600, 900);
 	if (!window)
 		return 1;
 
@@ -122,7 +122,7 @@ bool init()
 	AVDictionary *opts = NULL;
 	av_register_all();
 	avformat_network_init();
-	if (avformat_open_input(&avfmt, "udp://236.0.0.1:2000", NULL, &opts) < 0)
+	if (avformat_open_input(&avfmt, "udp://236.0.0.1:2000?fifo_size=1000000&overrun_nonfatal=1", NULL, &opts) < 0)
 		return 1;
 	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
 	if (codec == NULL)
@@ -214,11 +214,12 @@ void draw()
 
 	AVPacket *pkt = av_packet_alloc();
 	av_init_packet(pkt);
+	avformat_flush(avfmt);
 	if (av_read_frame(avfmt, pkt) < 0)
-		exit(1);
+		return;
 	int got_picture;
 	if (avcodec_decode_video2(avctx, avframe, &got_picture, pkt) < 0)
-		exit(1);
+		return;
 	av_packet_unref(pkt);
 	av_packet_free(&pkt);
 	if (got_picture == 0)
