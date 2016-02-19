@@ -34,6 +34,7 @@ bool init_graphics();
 bool init_stream();
 void update();
 void draw();
+void gui();
 void stream();
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
@@ -82,6 +83,8 @@ double deltaTime;
 Camera *camera;
 
 double xcursor, ycursor;
+bool bGui = true;
+bool bShowBlobCfg = true;
 
 int main(int argc, char *argv[])
 {
@@ -367,17 +370,6 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	ImGui_ImplGlfw_NewFrame();
-
-	{
-		static float f = 0.0f;
-		ImGui::Text("Hello, world!");
-		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-		ImGui::ColorEdit3("clear color", (float*)&ImColor(114, 144, 154));
-		if (ImGui::Button("Test Window")) show_test_window ^= 1;
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-	}
-
 	glm::mat4 mvpMatrix;
 	glm::mat4 viewMatrix = camera->GetMatrix();
 
@@ -403,9 +395,65 @@ void draw()
 	}
 	platformShaderProgram->Uninstall();
 
-	ImGui::Render();
+	if(bGui)
+		gui();
 
 	glfwSwapBuffers(window);
+}
+
+void gui()
+{
+	ImGui_ImplGlfw_NewFrame();
+
+	ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");	
+	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::End();
+
+	if (bShowBlobCfg)
+	{
+#pragma region Bullet Softbody cfg variables not yet exposed
+		//eAeroModel::_			aeromodel;		// Aerodynamic model (default: V_Point)
+		//btScalar				kVCF;			// Velocities correction factor (Baumgarte)	
+		//btScalar				kCHR;			// Rigid contacts hardness [0,1]
+		//btScalar				kKHR;			// Kinetic contacts hardness [0,1]
+		//btScalar				kSHR;			// Soft contacts hardness [0,1]
+		//btScalar				kAHR;			// Anchors hardness [0,1]
+
+		//btScalar				kSRHR_CL;		// Soft vs rigid hardness [0,1] (cluster only)
+		//btScalar				kSKHR_CL;		// Soft vs kinetic hardness [0,1] (cluster only)
+		//btScalar				kSSHR_CL;		// Soft vs soft hardness [0,1] (cluster only)
+		//btScalar				kSR_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
+		//btScalar				kSK_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
+		//btScalar				kSS_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
+
+		//btScalar				maxvolume;		// Maximum volume ratio for pose
+		//btScalar				timescale;		// Time scale
+		//int						viterations;	// Velocities solver iterations
+		//int						piterations;	// Positions solver iterations
+		//int						diterations;	// Drift solver iterations
+		//int						citerations;	// Cluster solver iterations
+		//int						collisions;		// Collisions flags
+		//tVSolverArray			m_vsequence;	// Velocity solvers sequence
+		//tPSolverArray			m_psequence;	// Position solvers sequence
+		//tPSolverArray			m_dsequence;	// Drift solvers sequence
+#pragma endregion
+
+		ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
+		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
+		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", &blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
+		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", &blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
+		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", &blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
+		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", &blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
+		ImGui::InputFloat("Drag coefficient [0, +inf]", &blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
+		ImGui::SliderFloat("Damping coefficient [0,1]", &blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
+		ImGui::InputFloat("Lift coefficient [0,+inf]", &blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
+		ImGui::SliderFloat("Pose matching coefficient [0,1]", &blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
+		
+		ImGui::End();
+	}
+
+	ImGui::Render();
 }
 
 void stream()
@@ -455,7 +503,7 @@ void cursor_pos_callback(
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-	/*if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-		popup_menu();*/
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+		bGui = !bGui;
 	GLFWProject::ClickDisablesCursor(&xcursor, &ycursor, window, button, action, mods);
 }
