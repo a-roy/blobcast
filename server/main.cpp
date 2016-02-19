@@ -123,6 +123,10 @@ int main(int argc, char *argv[])
 		update();
 		draw();
 		stream();
+		if(bGui)
+			gui();
+
+		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 	av_write_trailer(avfmt);
@@ -402,11 +406,6 @@ void draw()
 		r->Render();
 	}
 	platformShaderProgram->Uninstall();
-
-	if(bGui)
-		gui();
-
-	glfwSwapBuffers(window);
 }
 
 void gui()
