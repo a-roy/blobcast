@@ -82,7 +82,7 @@ double xcursor, ycursor;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", 1024, 576);
+	window = GLFWProject::Init("Stream Test", 1600, 900);
 	if (!window)
 		return 1;
 
@@ -178,10 +178,19 @@ bool init_physics()
 	btblob->m_cfg.kPR = 2500;
 	btblob->setTotalMass(30, true);
 	
-	glm::vec3 scale = glm::vec3(30.0f, 1.0f, 30.0f);
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), glm::vec3(0, -5, 0), glm::quat(), scale, 0/*mass*/)); 
-	//0 is infinite mass i.e. immovable	
-	dynamicsWorld->addRigidBody(rigidBodies[rigidBodies.size()-1]->rigidbody);
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(200.0f, 1.0f, 200.0f), 
+		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
+
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+		glm::vec3(10, 10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
+
+	for(RigidBody* r : rigidBodies)
+		dynamicsWorld->addRigidBody(r->rigidbody);
 
 	blob = new Blob(btblob); //Blob #2
 	//blob->AddAnchor(anchor);
@@ -260,7 +269,8 @@ bool init_stream()
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
 	glBufferData(
 			GL_PIXEL_PACK_BUFFER, avframe->width * avframe->height * 3, NULL, GL_STREAM_READ);
-	avctx->gop_size = 0;
+	avctx->gop_size = 2;
+	avctx->has_b_frames = 0;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
 		return false;
@@ -271,7 +281,7 @@ bool init_stream()
 	std::string filename = "udp://236.0.0.1:2000";
 	avfmt->oformat = av_guess_format("mpegts", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->bit_rate = 8000000;
+	avfmt->bit_rate = 80000000;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
@@ -318,13 +328,13 @@ void update()
 			if (i & Left)
 				cum_input += btVector3(1.f, 0.f, 0.f);
 			if (i & Jump)
-				cum_input += btVector3(0.f, 10.f, 0.f);
+				cum_input += btVector3(0.f, 2.f, 0.f);
 			num_inputs += 1.f;
 		}
 	}
 	if (num_inputs > 0.f)
 		cum_input /= num_inputs;
-	blob->softbody->addForce(cum_input * 0.2f);
+	blob->AddForce(cum_input * 0.2f);
 
 	currentFrame = glfwGetTime();
 
@@ -338,6 +348,9 @@ void update()
 	camera->Update();
 
 	blob->Update();
+
+	for (RigidBody* r : rigidBodies)
+		r->Update();
 }
 
 void draw()
@@ -360,9 +373,9 @@ void draw()
 	blobShaderProgram->Uninstall();
 
 	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("uColor", glm::vec4(0.85f, 0.85f, 0.85f, 1.0f));
 	for (RigidBody* r : rigidBodies)
 	{
+		platformShaderProgram->SetUniform("uColor", r->color);
 		mvpMatrix = projMatrix * viewMatrix * r->GetModelMatrix();
 		platformShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 		r->Render();

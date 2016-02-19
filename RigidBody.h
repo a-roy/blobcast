@@ -23,11 +23,15 @@ public:
 	glm::quat orientation;
 	glm::vec3 scale;
 
+	glm::vec4 color;
+
 	float mass;
 
-	RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, float p_mass = 0)
-		: mesh(p_mesh), translation(p_translation), orientation(p_orientation), scale(p_scale), mass(p_mass)
+	RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, float p_mass = 0)
+		: mesh(p_mesh), translation(p_translation), orientation(p_orientation), scale(p_scale), color(p_color), mass(p_mass)
 	{	
+		scale *= 0.5f;
+
 		//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 		btCollisionShape* shape;
 		shape = new btBoxShape(btVector3(convert(scale)));
@@ -35,6 +39,12 @@ public:
 		btDefaultMotionState* transform = new btDefaultMotionState(btTransform(btQuaternion(convert(p_orientation)), btVector3(convert(p_translation))));
 		btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(mass, transform, shape);
 		rigidbody = new btRigidBody(groundRigidBodyCI);
+
+		btTransform trans;
+		rigidbody->getMotionState()->getWorldTransform(trans);
+		translation = convert(&trans.getOrigin());
+
+		std::cout << "";
 	}
 
 	~RigidBody()
