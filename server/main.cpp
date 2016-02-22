@@ -88,7 +88,7 @@ bool bShowBlobCfg = true;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", 1600, 900);
+	window = GLFWProject::Init("Stream Test", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -267,8 +267,8 @@ bool init_stream()
 		return false;
 	avctx = avcodec_alloc_context3(codec);
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
-	avctx->width = width;
-	avctx->height = height;
+	avctx->width = STREAM_WIDTH;
+	avctx->height = STREAM_HEIGHT;
 	avctx->gop_size = 0;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
@@ -276,26 +276,26 @@ bool init_stream()
 
 	avframe = av_frame_alloc();
 	avframe->format = AV_PIX_FMT_YUV420P;
-	avframe->width = width;
-	avframe->height = height;
-	avframe->linesize[0] = width;
-	avframe->linesize[1] = width / 2;
-	avframe->linesize[2] = width / 2;
+	avframe->width = STREAM_WIDTH;
+	avframe->height = STREAM_HEIGHT;
+	avframe->linesize[0] = STREAM_WIDTH;
+	avframe->linesize[1] = STREAM_WIDTH / 2;
+	avframe->linesize[2] = STREAM_WIDTH / 2;
 	if (av_frame_get_buffer(avframe, 0) != 0)
 		return false;
 
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
 	glBufferData(
-			GL_PIXEL_PACK_BUFFER, avframe->width * avframe->height * 3, NULL, GL_STREAM_READ);
+			GL_PIXEL_PACK_BUFFER, width * height * 3, NULL, GL_STREAM_READ);
 
 	av_register_all();
 	avformat_network_init();
 	avfmt = avformat_alloc_context();
-	std::string filename = "udp://236.0.0.1:2000";
+	std::string filename = STREAM_ADDRESS;
 	avfmt->oformat = av_guess_format("mpegts", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->bit_rate = 100*1024*1024;
+	avfmt->bit_rate = 200*1024*1024;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
@@ -311,8 +311,8 @@ bool init_stream()
 
 	swctx = sws_getContext(
 			width, height, AV_PIX_FMT_RGB24,
-			width, height, AV_PIX_FMT_YUV420P,
-			0, NULL, NULL, NULL);
+			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
+			SWS_BICUBIC, NULL, NULL, NULL);
 	if (swctx == NULL)
 		return false;
 
