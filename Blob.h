@@ -5,37 +5,36 @@
 
 #include <iostream>
 #include <algorithm>
+#include <sstream>
+
+#include "Line.h"
+#include "Helper.h"
+#include "ShaderProgram.h"
 
 typedef std::pair<int, btSoftBody::Node*> SoftBodyNode;
 
-enum MoveMode { Average, Multi };
+enum MovementMode { averaging, stretch };
 
 class Blob : public SoftBody
 {
 
 private:
 
-	std::vector<SoftBodyNode> xAxis;
-	std::vector<SoftBodyNode> zAxis;
-
-	int halfSize;
-
 public:
 
-	MoveMode moveMode = MoveMode::Multi;
+	btVector3 forward;
 	float speed = 2.2f;
+
+	float invSize;
+
+	MovementMode movementMode = MovementMode::stretch;
 
 	Blob(btSoftBody* p_softBody)
 		: SoftBody(p_softBody)
 	{
-		for (int i = 0; i < softbody->m_nodes.size(); i++)
-		{
-			xAxis.push_back(std::make_pair(i, &softbody->m_nodes[i]));
-			zAxis.push_back(std::make_pair(i, &softbody->m_nodes[i]));
-			//TODO - sort along arbitrary axes
-		}
+		forward = btVector3(0, 0, 1);
 
-		halfSize = softbody->m_nodes.size() / 2;
+		invSize = 1.0f / softbody->m_nodes.size();
 	}
 
 	~Blob()
@@ -46,79 +45,82 @@ public:
 	void Move(int key, int action)
 	{
 		if (key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT))
-			AddForce(btVector3(0, 0, speed));
+			AddForce(btVector3(0, 0, 1));
 		if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT))
-			AddForce(btVector3(0, 0, -speed));
+			AddForce(btVector3(0, 0, -1));
 		if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
-			AddForce(btVector3(-speed, 0, 0));
+			AddForce(btVector3(1, 0, 0));
 		if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
-			AddForce(btVector3(speed, 0, 0));
+			AddForce(btVector3(-1, 0, 0));
 		if (key == GLFW_KEY_SPACE && (action == GLFW_PRESS || action == GLFW_REPEAT))
-			AddForce(btVector3(0, speed, 0));
-
-		//static int idx;
-		//if (key == GLFW_KEY_I)
-		//	idx++;
-		//idx = idx % softbody->m_nodes.size();
-		//if(key == GLFW_KEY_J)
-		//	softbody->addForce(btVector3(0, 1000, 0), idx); //Their distribution is random
-	
-		/*std::sort(xAxis.begin(), xAxis.end(), NodeSortXfnc);
-		for (std::pair<int, btSoftBody::Node*> n : xAxis)
-			std::cout << n.second->m_x.getX() << "\n";*/
+			AddForce(btVector3(0, 1, 0));
 	}
 
 	void AddForce(const btVector3 &force)
 	{
-		if (moveMode == MoveMode::Average)
+		if(force.length() > 0.0f)
+			softbody->addForce(force * speed);
+	}
+
+	void AddForces(float magFwd, float magBack, float magLeft, float magRight)
+	{
+		btVector3 right = forward.cross(btVector3(0, 1, 0));
+
+		btVector3 L = forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
+		btVector3 R = forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>());
+
+		for (int i = 0; i < softbody->m_nodes.size(); i++)
 		{
-			softbody->addForce(force);
-		}
-		else if (moveMode == MoveMode::Multi)
-		{
-			if (force.dot(btVector3(0, 0, 1)) > 0)
-			{
-				std::sort(zAxis.begin(), zAxis.end(), NodeSortZfnc);
+			btVector3 blobSpaceNode = softbody->m_nodes[i].m_x - GetCentroid();
 
-				for (int i = halfSize * 2 - 1; i >= halfSize; i--)
-					softbody->addForce(force, zAxis[i].first);
-			}
-			else if (force.dot(btVector3(0, 0, -1)) > 0)
-			{
-				std::sort(zAxis.begin(), zAxis.end(), NodeSortZfnc);
-
-				for (int i = 0; i < halfSize; i++)
-					softbody->addForce(force, zAxis[i].first);
-			}
-			else if (force.dot(btVector3(1, 0, 0)) > 0)
-			{
-				std::sort(xAxis.begin(), xAxis.end(), NodeSortXfnc);
-
-				for (int i = halfSize * 2 - 1; i >= halfSize; i--)
-					softbody->addForce(force, xAxis[i].first);
-			}
-			else if (force.dot(btVector3(-1, 0, 0)) > 0)
-			{
-				std::sort(xAxis.begin(), xAxis.end(), NodeSortXfnc);
-
-				for (int i = 0; i < halfSize; i++)
-					softbody->addForce(force, xAxis[i].first);
-			}
+			if (blobSpaceNode.dot(L) > 0)
+				if (blobSpaceNode.dot(R) > 0)
+					if(magLeft > 0)
+						softbody->addForce(-right * magLeft * speed, i);
+				else
+					if(magFwd > 0)
+						softbody->addForce(forward * magFwd * speed, i);
+			else
+				if (blobSpaceNode.dot(R) > 0)
+					if(magBack > 0)
+						softbody->addForce(-forward * magBack * speed, i);
+				else
+					if(magRight > 0)
+						softbody->addForce(right * magRight * speed, i);
 		}
 	}
 
-	/*void AddAnchor(btRigidBody* anchor)
+	btVector3 GetCentroid()
 	{
-		softbody->appendAnchor(0, anchor, true, 1.0f);
-	}*/
+		btVector3 centroid = btVector3(0, 0, 0);
+		for (int i = 0; i < softbody->m_nodes.size(); i++)
+			centroid += softbody->m_nodes[i].m_x;
+		centroid *= invSize;
 
-	static int NodeSortXfnc(const SoftBodyNode& a, const SoftBodyNode& b)
-	{
-		return a.second->m_x.getX() < b.second->m_x.getX();
+		return centroid;
 	}
 
-	static int NodeSortZfnc(const SoftBodyNode& a, const SoftBodyNode& b)
-	{
-		return a.second->m_x.getZ() < b.second->m_x.getZ();
+	void DrawGizmos(ShaderProgram* shaderProgram)
+	{		
+		glm::vec3 L = convert(&forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()));
+		glm::vec3 R = convert(&forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>()));
+		glm::vec3 BL = -R;
+		glm::vec3 BR = -L;
+
+		glm::vec3 c = convert(&GetCentroid());
+
+		Line l(c, c + L * 10.0f);
+		Line r(c, c + R * 10.0f);
+		Line bl(c, c + BL * 10.0f);
+		Line br(c, c + BR * 10.0f);
+		Line fwd(c, c + convert(&forward) * 10.0f);
+
+		l.Render();
+		r.Render();
+		bl.Render();
+		br.Render();
+
+		shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+		fwd.Render();
 	}
 };

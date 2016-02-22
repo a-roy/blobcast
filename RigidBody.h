@@ -12,7 +12,6 @@ class RigidBody
 {
 
 private:
-	//glm::mat4 modelMatrix;
 
 public:
 
@@ -39,12 +38,6 @@ public:
 		btDefaultMotionState* transform = new btDefaultMotionState(btTransform(btQuaternion(convert(p_orientation)), btVector3(convert(p_translation))));
 		btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(mass, transform, shape);
 		rigidbody = new btRigidBody(groundRigidBodyCI);
-
-		btTransform trans;
-		rigidbody->getMotionState()->getWorldTransform(trans);
-		translation = convert(&trans.getOrigin());
-
-		std::cout << "";
 	}
 
 	~RigidBody()
