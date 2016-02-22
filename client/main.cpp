@@ -142,7 +142,7 @@ bool init()
 	swctx = sws_getContext(
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
 			width, height, AV_PIX_FMT_BGRA,
-			SWS_BICUBIC, NULL, NULL, NULL);
+			SWS_LANCZOS, NULL, NULL, NULL);
 
 	avframe = av_frame_alloc();
 	data = (uint8_t *)malloc(width * height * 4);
