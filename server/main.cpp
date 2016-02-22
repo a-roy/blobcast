@@ -269,7 +269,7 @@ bool init_stream()
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = STREAM_WIDTH;
 	avctx->height = STREAM_HEIGHT;
-	avctx->gop_size = 0;
+	avctx->gop_size = 10;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
 		return false;
@@ -293,7 +293,7 @@ bool init_stream()
 	avformat_network_init();
 	avfmt = avformat_alloc_context();
 	std::string filename = STREAM_ADDRESS;
-	avfmt->oformat = av_guess_format("mpegts", 0, 0);
+	avfmt->oformat = av_guess_format("flv", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
 	avfmt->bit_rate = 200*1024*1024;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
@@ -491,7 +491,7 @@ void stream()
 	if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
 		exit(1);
 	if (got_packet == 1)
-		av_write_frame(avfmt, avpkt);
+		av_interleaved_write_frame(avfmt, avpkt);
 	av_packet_free(&avpkt);
 }
 

@@ -122,22 +122,24 @@ bool init()
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
+	av_dict_set(&opts, "rtmp_live", "live", 0);
 	av_register_all();
 	avformat_network_init();
 	if (avformat_open_input(
 				&avfmt,
-				STREAM_ADDRESS "?fifo_size=1000000&overrun_nonfatal=1",
+				STREAM_ADDRESS,
 				NULL,
 				&opts
 				) < 0)
-		return 1;
-	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
+		return false;
+	//AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
+	AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 	if (codec == NULL)
-		return 1;
+		return false;
 
 	avctx = avcodec_alloc_context3(codec);
 	if (avcodec_open2(avctx, NULL, &opts) < 0)
-		return 1;
+		return false;
 
 	swctx = sws_getContext(
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
@@ -160,7 +162,10 @@ bool init()
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
 
-	rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	RakNet::StartupResult rakStart =
+		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	if (rakStart != RakNet::RAKNET_STARTED)
+		return false;
 }
 
 void update()
@@ -185,6 +190,7 @@ void draw()
 {
 	if (hostAddress == RakNet::UNASSIGNED_SYSTEM_ADDRESS)
 	{
+		bool connected = false;
 		while (rakPeer->GetReceiveBufferSize() > 0)
 		{
 			RakNet::Packet *p = rakPeer->Receive();
@@ -196,10 +202,12 @@ void draw()
 				hostAddress = sender;
 				const char *host = sender.ToString();
 				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
+				connected = true;
 				break;
 			}
 		}
-		rakPeer->Ping("255.255.255.255", REMOTE_GAME_PORT, true);
+		if (!connected)
+			rakPeer->Ping("255.255.255.255", REMOTE_GAME_PORT, true);
 	}
 	else
 	{
