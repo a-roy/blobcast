@@ -52,7 +52,7 @@ BlobInput current_input;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Client Test", 1600, 900);
+	window = GLFWProject::Init("Client Test", CLIENT_WIDTH, CLIENT_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -126,7 +126,7 @@ bool init()
 	avformat_network_init();
 	if (avformat_open_input(
 				&avfmt,
-				"udp://236.0.0.1:2000?fifo_size=1000000&overrun_nonfatal=1",
+				STREAM_ADDRESS "?fifo_size=1000000&overrun_nonfatal=1",
 				NULL,
 				&opts
 				) < 0)
@@ -140,9 +140,9 @@ bool init()
 		return 1;
 
 	swctx = sws_getContext(
-			width, height, AV_PIX_FMT_YUV420P,
+			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
 			width, height, AV_PIX_FMT_BGRA,
-			0, NULL, NULL, NULL);
+			SWS_LANCZOS, NULL, NULL, NULL);
 
 	avframe = av_frame_alloc();
 	data = (uint8_t *)malloc(width * height * 4);
@@ -242,7 +242,7 @@ void draw()
 		sws_scale(
 				swctx,
 				avframe->data, avframe->linesize,
-				0, height,
+				0, STREAM_HEIGHT,
 				dstSlice, dstStride);
 	av_frame_unref(avframe);
 	glClear(GL_COLOR_BUFFER_BIT);
