@@ -262,6 +262,7 @@ bool init_stream()
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
+	av_dict_set(&opts, "rtmp_live", "live", 0);
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
 		return false;
