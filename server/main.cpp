@@ -276,6 +276,7 @@ bool init_stream()
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_dict_set(&opts, "rtmp_live", "live", 0);
+	av_dict_set(&opts, "crf", "23", 0);
 	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
