@@ -49,6 +49,7 @@ ShaderProgram *text_program;
 Font *vera;
 Text *text;
 int width, height;
+bool blobcast = false;
 
 glm::mat4 modelMatrix;
 glm::mat4 projMatrix;
@@ -122,19 +123,23 @@ int main(int argc, char *argv[])
 	{
 		update();
 		draw();
-		stream();
+		if (blobcast)
+			stream();
 		if(bGui)
 			gui();
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-	av_write_trailer(avfmt);
-	avcodec_close(avctx);
+	if (blobcast)
+	{
+		av_write_trailer(avfmt);
+		avcodec_close(avctx);
 
-	rakPeer->Shutdown(0);
-	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-	av_free(avfmt->pb);
+		rakPeer->Shutdown(0);
+		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
+		av_free(avfmt->pb);
+	}
 	avformat_free_context(avfmt);
 	avformat_network_deinit();
 	//avcodec_free_context(&avctx);
@@ -263,6 +268,7 @@ bool init_stream()
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_dict_set(&opts, "rtmp_live", "live", 0);
+	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
 		return false;
@@ -270,7 +276,6 @@ bool init_stream()
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = STREAM_WIDTH;
 	avctx->height = STREAM_HEIGHT;
-	avctx->gop_size = 10;
 	avctx->time_base = { 1, 60 };
 	if (avcodec_open2(avctx, codec, &opts) < 0)
 		return false;
@@ -296,16 +301,18 @@ bool init_stream()
 	std::string filename = STREAM_ADDRESS;
 	avfmt->oformat = av_guess_format("flv", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->bit_rate = 200*1024*1024;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
 	if (s == NULL)
 		return false;
 	s->codec = avctx;
-	AVIOContext *ioctx;
-	if (avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts) < 0)
-		return false;
+	blobcast = !(avio_open2(
+					&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts) < 0);
+	if (!blobcast)
+	{
+		return true;
+	}
 	avfmt->pb = ioctx;
 	if (avformat_write_header(avfmt, &opts) != 0)
 		return false;
@@ -332,7 +339,7 @@ void update()
 	int right_count = 0;
 	int left_count = 0;
 	int jump_count = 0;
-	while (rakPeer->GetReceiveBufferSize() > 0)
+	while (blobcast && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
 		unsigned char packet_type = p->data[0];
@@ -418,7 +425,10 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");	
+	if (blobcast)
+		ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");
+	else
+		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
 	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	ImGui::End();

@@ -13,6 +13,7 @@ extern "C"
 #include <RakNet/RakPeerInterface.h>
 #include <RakNet/RakNetTypes.h>
 
+#include <thread>
 #include <iostream>
 #include <sstream>
 #include "GLFWProject.h"
@@ -24,6 +25,7 @@ extern "C"
 
 #include "config.h"
 
+bool connect();
 bool init();
 void update();
 void draw();
@@ -38,6 +40,7 @@ Font *vera;
 ShaderProgram *stream_program;
 ShaderProgram *text_program;
 int width, height;
+std::string stream_address;
 uint8_t *data;
 GLuint tex;
 
@@ -52,6 +55,8 @@ BlobInput current_input;
 
 int main(int argc, char *argv[])
 {
+	if (!connect())
+		return 1;
 	window = GLFWProject::Init("Client Test", CLIENT_WIDTH, CLIENT_HEIGHT);
 	if (!window)
 		return 1;
@@ -69,7 +74,7 @@ int main(int argc, char *argv[])
 		glfwPollEvents();
 	}
 	free(data);
-	rakPeer->Shutdown(0);
+	rakPeer->Shutdown(100);
 	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
 	avcodec_close(avctx);
 	avcodec_free_context(&avctx);
@@ -84,6 +89,44 @@ int main(int argc, char *argv[])
 
 	glfwTerminate();
 	return 0;
+}
+
+bool connect()
+{
+	RakNet::StartupResult rakStart =
+		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	if (rakStart != RakNet::RAKNET_STARTED)
+		return false;
+
+	while (hostAddress == RakNet::UNASSIGNED_SYSTEM_ADDRESS)
+	{
+		bool connected = false;
+		while (rakPeer->GetReceiveBufferSize() > 0)
+		{
+			RakNet::Packet *p = rakPeer->Receive();
+			unsigned char packet_type = p->data[0];
+			RakNet::SystemAddress sender = p->systemAddress;
+			rakPeer->DeallocatePacket(p);
+			if (packet_type == ID_UNCONNECTED_PONG)
+			{
+				hostAddress = sender;
+				const char *host = sender.ToString();
+				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
+				connected = true;
+				std::ostringstream ss;
+				ss << "rtmp://" << sender.ToString(false) << "/live/test";
+				stream_address = ss.str();
+				break;
+			}
+		}
+		if (!connected)
+		{
+			rakPeer->Ping("255.255.255.255", REMOTE_GAME_PORT, true);
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+
+	return true;
 }
 
 bool init()
@@ -123,17 +166,19 @@ bool init()
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_dict_set(&opts, "rtmp_live", "live", 0);
+	av_dict_set(&opts, "analyzeduration", "100000", 0);
 	av_register_all();
 	avformat_network_init();
 	if (avformat_open_input(
 				&avfmt,
-				STREAM_ADDRESS,
+				stream_address.c_str(),
 				NULL,
 				&opts
 				) < 0)
 		return false;
-	//AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
-	AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+	if (avfmt->streams[0]->codec->codec_id == AV_CODEC_ID_NONE)
+		avfmt->streams[0]->codec->codec_id = AV_CODEC_ID_H264;
+	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
 	if (codec == NULL)
 		return false;
 
@@ -161,11 +206,6 @@ bool init()
 	vera->BindTexture(uAtlas);
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
-
-	RakNet::StartupResult rakStart =
-		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
-	if (rakStart != RakNet::RAKNET_STARTED)
-		return false;
 }
 
 void update()
@@ -203,6 +243,8 @@ void draw()
 				const char *host = sender.ToString();
 				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
 				connected = true;
+				std::ostringstream ss;
+				ss << "rtmp://" << sender.ToString(false) << "/live/test";
 				break;
 			}
 		}
@@ -229,7 +271,6 @@ void draw()
 
 	AVPacket *pkt = av_packet_alloc();
 	av_init_packet(pkt);
-	avformat_flush(avfmt);
 	if (av_read_frame(avfmt, pkt) < 0)
 		return;
 	int got_picture;
