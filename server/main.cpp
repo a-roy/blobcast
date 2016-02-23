@@ -23,10 +23,11 @@ extern "C"
 #include "RigidBody.h"
 
 #include "config.h"
-#define MAX_PROXIES 32766
 
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
+
+#include "Line.h"
 
 bool init();
 bool init_physics();
@@ -34,6 +35,7 @@ bool init_graphics();
 bool init_stream();
 void update();
 void draw();
+void drawGizmos();
 void gui();
 void stream();
 void key_callback(
@@ -41,7 +43,6 @@ void key_callback(
 void cursor_pos_callback(
 	GLFWwindow *window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
-
 
 GLFWwindow *window;
 VertexArray *vao;
@@ -73,6 +74,7 @@ std::vector<RigidBody*> rigidBodies;
 
 ShaderProgram *blobShaderProgram;
 ShaderProgram *platformShaderProgram;
+ShaderProgram *debugdrawShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -86,6 +88,8 @@ Camera *camera;
 double xcursor, ycursor;
 bool bGui = true;
 bool bShowBlobCfg = true;
+
+bool bGizmos = true;
 
 int main(int argc, char *argv[])
 {
@@ -125,6 +129,8 @@ int main(int argc, char *argv[])
 		draw();
 		if (blobcast)
 			stream();
+		if(bGizmos)
+			drawGizmos();
 		if(bGui)
 			gui();
 
@@ -250,6 +256,8 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
+	debugdrawShaderProgram = platformShaderProgram;
+
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
 	modelMatrix = glm::mat4(1.f);
@@ -361,16 +369,18 @@ void update()
 	}
 	if (num_inputs > 0.f)
 		cum_input /= num_inputs;
-	btVector3 forward(0, 0, blob->speed);
-	btVector3 backward(0, 0, -blob->speed);
-	btVector3 right(-blob->speed, 0, 0);
-	btVector3 left(blob->speed, 0, 0);
-	btVector3 jump(0, blob->speed, 0);
-	blob->AddForce(forward * forward_count / num_inputs);
-	blob->AddForce(backward * backward_count / num_inputs);
-	blob->AddForce(right * right_count / num_inputs);
-	blob->AddForce(left * left_count / num_inputs);
-	blob->AddForce(jump * jump_count / num_inputs);
+
+	if (blob->movementMode == MovementMode::averaging)
+	{
+		blob->AddForce(btVector3(left_count - right_count, jump_count,
+			forward_count - backward_count) / cum_input);
+	}
+	else if (blob->movementMode == MovementMode::stretch)
+	{
+		blob->AddForces(forward_count / num_inputs, backward_count / num_inputs,
+			left_count / num_inputs, right_count / num_inputs);
+		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
+	}
 
 	currentFrame = glfwGetTime();
 
@@ -421,6 +431,28 @@ void draw()
 	platformShaderProgram->Uninstall();
 }
 
+void drawGizmos()
+{
+	debugdrawShaderProgram->Install();
+
+	glm::mat4 mvpMatrix = projMatrix * camera->GetMatrix();
+	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
+
+	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
+	x.Render();
+	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	y.Render();
+	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+	z.Render();
+
+	blob->DrawGizmos(debugdrawShaderProgram);
+
+	debugdrawShaderProgram->Uninstall();
+}
+
 void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
@@ -431,6 +463,7 @@ void gui()
 		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
 	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+	ImGui::Checkbox("Show Gizmos", &bGizmos);
 	ImGui::End();
 
 	if (bShowBlobCfg)
