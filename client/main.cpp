@@ -114,7 +114,8 @@ bool connect()
 				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
 				connected = true;
 				std::ostringstream ss;
-				ss << "rtmp://" << sender.ToString(false) << "/live/test";
+				ss << STREAM_PROTOCOL << sender.ToString(false)
+					<< STREAM_SUFFIX;
 				stream_address = ss.str();
 				break;
 			}

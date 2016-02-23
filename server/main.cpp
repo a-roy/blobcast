@@ -298,7 +298,7 @@ bool init_stream()
 	av_register_all();
 	avformat_network_init();
 	avfmt = avformat_alloc_context();
-	std::string filename = STREAM_ADDRESS;
+	std::string filename = STREAM_PATH;
 	avfmt->oformat = av_guess_format("flv", 0, 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
