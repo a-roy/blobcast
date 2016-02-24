@@ -50,7 +50,7 @@ ShaderProgram *text_program;
 Font *vera;
 Text *text;
 int width, height;
-bool blobcast = false;
+bool streaming = false;
 
 glm::mat4 modelMatrix;
 glm::mat4 projMatrix;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 	{
 		update();
 		draw();
-		if (blobcast)
+		if (streaming)
 			stream();
 		if(bGizmos)
 			drawGizmos();
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-	if (blobcast)
+	if (streaming)
 	{
 		av_write_trailer(avfmt);
 		avcodec_close(avctx);
@@ -309,6 +309,7 @@ bool init_stream()
 	avfmt = avformat_alloc_context();
 	std::string filename = STREAM_PATH;
 	avfmt->oformat = av_guess_format("flv", 0, 0);
+	av_dict_set(&opts, "live", "1", 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
@@ -316,12 +317,11 @@ bool init_stream()
 	if (s == NULL)
 		return false;
 	s->codec = avctx;
-	blobcast = !(avio_open2(
-					&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts) < 0);
-	if (!blobcast)
-	{
+	int io_result =
+		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts);
+	streaming = (io_result >= 0);
+	if (!streaming)
 		return true;
-	}
 	avfmt->pb = ioctx;
 	if (avformat_write_header(avfmt, &opts) != 0)
 		return false;
@@ -348,7 +348,7 @@ void update()
 	int right_count = 0;
 	int left_count = 0;
 	int jump_count = 0;
-	while (blobcast && rakPeer->GetReceiveBufferSize() > 0)
+	while (streaming && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
 		unsigned char packet_type = p->data[0];
@@ -458,7 +458,7 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	if (blobcast)
+	if (streaming)
 		ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");
 	else
 		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
