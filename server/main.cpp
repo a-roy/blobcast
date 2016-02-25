@@ -172,14 +172,14 @@ bool init_physics()
 	btVector3 worldAabbMax(1000, 1000, 1000);
 	broadphase = new btAxisSweep3(worldAabbMin, worldAabbMax, MAX_PROXIES);
 
-	collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration(); 
+	collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
 	dispatcher = new btCollisionDispatcher(collisionConfiguration);
 	solver = new btSequentialImpulseConstraintSolver();
 	softBodySolver = new btDefaultSoftBodySolver();
 	dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
 
 	dynamicsWorld->setGravity(btVector3(0, -10, 0));
-	
+
 	//Experiment with environment variables
 	softBodyWorldInfo.m_broadphase = broadphase;
 	softBodyWorldInfo.m_dispatcher = dispatcher;
@@ -190,8 +190,9 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	btSoftBody* btblob = btSoftBodyHelpers::CreateEllipsoid(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
-	
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
+	btSoftBody *btblob = blob->softbody;
+
 	//Experiment with blob variables
 	btblob->m_materials[0]->m_kLST = 0.1;
 	btblob->m_cfg.kDF = 1;
@@ -213,7 +214,6 @@ bool init_physics()
 	for(RigidBody* r : rigidBodies)
 		dynamicsWorld->addRigidBody(r->rigidbody);
 
-	blob = new Blob(btblob); //Blob #2
 	//blob->AddAnchor(anchor);
 	dynamicsWorld->addSoftBody(blob->softbody);
 

@@ -17,14 +17,16 @@ class Blob : public SoftBody
 {
 
 private:
-	float invSize;
+	unsigned int sampleIndices[6] = { 0 };
 
 public:
 	btVector3 forward;
 	float speed = 2.2f;
 	MovementMode movementMode = MovementMode::stretch;
 
-	Blob(btSoftBody* p_softBody);
+	Blob(
+			btSoftBodyWorldInfo& softBodyWorldInfo,
+			const btVector3& center, const btVector3& scale, int vertices);
 	~Blob();
 
 	void Move(int key, int action);
