@@ -113,10 +113,14 @@ bool connect()
 				const char *host = sender.ToString();
 				rakPeer->Connect(host, REMOTE_GAME_PORT, NULL, 0);
 				connected = true;
+#ifdef RTMP_STREAM
 				std::ostringstream ss;
 				ss << STREAM_PROTOCOL << sender.ToString(false)
-					<< STREAM_SUFFIX;
+					<< RTMP_PATH;
 				stream_address = ss.str();
+#else // RTMP_STREAM
+				stream_address = STREAM_PATH;
+#endif // RTMP_STREAM
 				break;
 			}
 		}

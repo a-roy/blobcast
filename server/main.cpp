@@ -275,8 +275,10 @@ bool init_stream()
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "rtmp_live", "live", 0);
 	av_dict_set(&opts, "crf", "23", 0);
+#ifdef RTMP_STREAM
+	av_dict_set(&opts, "rtmp_live", "live", 0);
+#endif // RTMP_STREAM
 	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
@@ -286,6 +288,9 @@ bool init_stream()
 	avctx->width = STREAM_WIDTH;
 	avctx->height = STREAM_HEIGHT;
 	avctx->time_base = { 1, 60 };
+#ifdef UDP_STREAM
+	avctx->gop_size = 0;
+#endif // UDP_STREAM
 	if (avcodec_open2(avctx, codec, &opts) < 0)
 		return false;
 
