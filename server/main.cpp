@@ -388,7 +388,7 @@ bool init_stream()
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "crf", "23", 0);
+	av_dict_set(&opts, "crf", xstr(CODEC_CRF), 0);
 #ifdef RTMP_STREAM
 	av_dict_set(&opts, "rtmp_live", "live", 0);
 #endif // RTMP_STREAM
