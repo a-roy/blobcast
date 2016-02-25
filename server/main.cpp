@@ -631,44 +631,44 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 camPos(0.0f, 0.0f, 0.0f); // TO DO : BLOB CENTER
+	glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(camPos, glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, dynamicCubeMap, 0);
 	drawPlatforms();
 	drawSkybox();
