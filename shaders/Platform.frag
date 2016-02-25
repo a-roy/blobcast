@@ -23,6 +23,7 @@ struct DirectionalLight
 uniform vec3 viewPos;
 uniform vec4 objectColor;
 
+
 layout (binding = 0) uniform sampler2DShadow depthMap;
 
 uniform DirectionalLight directionalLight;
@@ -39,6 +40,9 @@ float CalcShadowFactor(vec4 LightSpacePos)
     UVCoords.x = 0.5 * projCoords.x + 0.5;
     UVCoords.y = 0.5 * projCoords.y + 0.5;
     float z = 0.5 * projCoords.z + 0.5;
+	
+	if(projCoords.z > 1.0)
+		return 0.0;
 	
 	float xOffset = 1.0/mapSize.x;
 	float yOffset = 1.0/mapSize.y;
@@ -60,7 +64,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.5f;
+	float ambientStrength = 0.1f;
     vec3 ambient = ambientStrength * directionalLight.base.color;
 	
 	// Diffuse
@@ -70,15 +74,15 @@ void main()
     vec3 diffuse = diff * directionalLight.base.color;
 	
 	// Specular
-    float specularStrength = 0.8f;
+    float specularStrength = 0.2f;
     vec3 viewDir = normalize(FragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
-	float spec = pow(max(dot(normal, halfwayDir), 0.0), 64);
+	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.base.color;
 	
 	float ShadowFactor = CalcShadowFactor(lightSpacePos);
     vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);
 	
-    fragColor = vec4(result, 0.8f);
+    fragColor = vec4(result, 1.0f);
 }

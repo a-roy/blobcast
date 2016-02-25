@@ -221,7 +221,7 @@ bool init_physics()
 	btblob->setTotalMass(30, true);
 	
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(200.0f, 1.0f, 200.0f), 
+		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
 		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
@@ -289,7 +289,9 @@ bool init_graphics()
 	debugdrawShaderProgram = platformShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(1.0f, 4.0f, -1.0f);
+	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
+	dirLight.ambientIntensity = 0.5f;
+	dirLight.diffuseIntensity = 0.9f;
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -305,7 +307,7 @@ bool init_graphics()
 
 	modelMatrix = glm::mat4(1.f);
 
-	camera = new FlyCam(glm::vec3(0.f, 3.0f, -1.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	camera = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
 
 	return true;
 }
@@ -370,7 +372,6 @@ bool init_frameBuffers()
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	return true;
 }
 
@@ -536,20 +537,28 @@ void draw()
 
 void depthPass()
 {
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
-	glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(-4.0f, 4.0f, -5.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	depthShaderProgram->Install();
 	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	depthShaderProgram->SetUniform("model", glm::mat4());
 	blob->Render();
+	for (int i = 1; i < rigidBodies.size(); i++) {
+		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
+		rigidBodies[i]->Render();
+	}
 	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_CULL_FACE);
 }
 
 void drawBlob()

@@ -50,7 +50,7 @@ void main()
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(directionalLight.direction);
+    vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diff * directionalLight.base.color;
 	
