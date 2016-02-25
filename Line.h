@@ -4,7 +4,6 @@
 #include <vector>
 #include <glm\glm.hpp>
 
-//Can be used to draw Line, Triangle, Simplex
 class Line
 {
 private:
