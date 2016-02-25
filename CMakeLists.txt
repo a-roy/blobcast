@@ -3,11 +3,19 @@ set(CMAKE_CXX_STANDARD 11)
 set(LIB_NAME blobcast)
 project(${LIB_NAME})
 
+option(BLOBCAST_RTMP
+	"Stream to a local RTMP server instead oF UDP multicast"
+	OFF)
+
 include_directories(include)
 if (MSVC)
 	set(MSVC_DIR msvc14)
 	link_directories(${MSVC_DIR}/lib)
 endif()
+
+if(BLOBCAST_RTMP)
+	add_definitions(-DRTMP_STREAM)
+endif(BLOBCAST_RTMP)
 
 file(GLOB GLB_SRC_FILES "*.cpp" "*.h")
 add_library(${LIB_NAME} STATIC ${GLB_SRC_FILES})
