@@ -23,8 +23,7 @@ struct DirectionalLight
 uniform vec3 viewPos;
 uniform vec4 objectColor;
 
-layout (binding = 1) uniform sampler2DShadow depthMap;
-layout (binding = 0) uniform samplerCube cubeMap;
+layout (binding = 0) uniform sampler2DShadow depthMap;
 
 uniform DirectionalLight directionalLight;
 
@@ -80,11 +79,6 @@ void main()
 	
 	float ShadowFactor = CalcShadowFactor(lightSpacePos);
     vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);
-	
-	vec3 R = reflect(viewDir, normal);
-	vec3 reflection = texture(cubeMap, R).rgb;
-	
-	vec3 solidColor = mix(result, reflection, 0.5);
 	
     fragColor = vec4(result, 0.8f);
 }

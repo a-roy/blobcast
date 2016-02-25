@@ -531,6 +531,7 @@ void draw()
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
+	viewMatrix = camera->GetMatrix();
 }
 
 void depthPass()
@@ -584,7 +585,7 @@ void drawPlatforms()
 	platformShaderProgram->SetUniform("view", viewMatrix);
 	platformShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
 
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
 
@@ -604,8 +605,8 @@ void drawSkybox()
 	skyboxShaderProgram->SetUniform("view", viewMatrix);
 	skyboxShaderProgram->SetUniform("projection", projMatrix);
 
-	glActiveTexture(GL_TEXTURE2);
-	skyboxShaderProgram->SetUniform("skybox", 2);
+	glActiveTexture(GL_TEXTURE0);
+	skyboxShaderProgram->SetUniform("skybox", 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
 	skybox.render();
 
