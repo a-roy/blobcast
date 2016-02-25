@@ -3,6 +3,7 @@
 #define RootDir "../../"
 #define ShaderDir RootDir "shaders/"
 #define FontDir RootDir "fonts/"
+#define TextureDir RootDir "textures/"
 
 #ifdef RTMP_STREAM
 #define STREAM_PROTOCOL "rtmp://"
@@ -21,6 +22,10 @@
 #define STREAM_HEIGHT 720
 #define CLIENT_WIDTH 1366
 #define CLIENT_HEIGHT 768
+#define TEX_WIDTH 256
+#define TEX_HEIGHT 256
+#define SHADOW_WIDTH 2048
+#define SHADOW_HEIGHT 2048
 #define REMOTE_GAME_PORT 61000
 
 #define MAX_PROXIES 32766

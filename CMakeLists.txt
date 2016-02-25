@@ -24,6 +24,7 @@ target_link_libraries(${LIB_NAME}
 	glu32
 	opengl32
 	glfw3
+	SOIL
 	${OPENGL_glu_LIBRARY}
 	legacy_stdio_definitions
 	freetype

@@ -1,16 +1,19 @@
-#version 330 core
+#version 420 core
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 normal;
 
-layout (location = 0) in vec3 aPosition;
-layout (location = 1) in vec3 aNormal;
+uniform mat4 view;
+uniform mat4 projection;
+uniform mat4 lightSpaceMat;
 
-out vec3 vPosition;
-out vec3 vNormal;
-
-uniform mat4 uMVPMatrix;
+out vec3 FragPos;
+out vec3 Normal;
+out vec4 lightSpacePos;
 
 void main()
 {
-	vPosition = aPosition;
-	vNormal = normalize(aNormal);
-	gl_Position = uMVPMatrix * vec4(aPosition, 1);
+	gl_Position = projection * view * vec4(position, 1.0);
+	FragPos = position;
+	Normal = normalize(normal);
+	lightSpacePos = lightSpaceMat * vec4(position, 1.0);
 }
