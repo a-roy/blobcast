@@ -13,13 +13,12 @@ private:
 
 	Mesh* mesh;
 
-	glm::vec3 translation;
-	glm::quat orientation;
-	glm::vec3 scale;
-	
 public:
 
 	btRigidBody* rigidbody;
+	glm::vec3 translation;
+	glm::quat orientation;
+	glm::vec3 scale;
 	glm::vec4 color;
 	float mass;
 

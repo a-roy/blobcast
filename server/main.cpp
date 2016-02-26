@@ -23,6 +23,7 @@ extern "C"
 #include "RigidBody.h"
 #include "Light.hpp"
 #include "Skybox.h"
+#include "Level.h"
 
 #include "config.h"
 
@@ -92,6 +93,7 @@ btSoftRigidDynamicsWorld *dynamicsWorld;
 
 Blob *blob;
 std::vector<RigidBody*> rigidBodies;
+Level *level;
 
 ShaderProgram *blobShaderProgram;
 ShaderProgram *platformShaderProgram;
@@ -228,9 +230,23 @@ bool init_physics()
 	btblob->m_cfg.kPR = 2500;
 	btblob->setTotalMass(30, true);
 	
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
-		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
+	level = new Level();
+	level->AddBox(
+			glm::vec3(0, -10, 0),
+			glm::quat(),
+			glm::vec3(50.0f, 1.0f, 50.0f),
+			glm::vec4(0.85f, 0.85f, 0.85f, 1.0f));
+	level->AddBox(
+			glm::vec3(50, -5, 0),
+			glm::angleAxis(glm::half_pi<float>() / 3.f, glm::vec3(0, 0, 1)),
+			glm::vec3(10.0f, 1.0f, 10.0f),
+			glm::vec4(1.0f, 0.1f, 0.1f, 1.0f));
+	level->Serialize("test_level.json");
+	delete level;
+	level = Level::Deserialize("test_level.json");
+	//rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
+	//	glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
+	//	glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
@@ -242,6 +258,8 @@ bool init_physics()
 		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
 		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
 
+	for(RigidBody* r : level->Objects)
+		dynamicsWorld->addRigidBody(r->rigidbody);
 	for(RigidBody* r : rigidBodies)
 		dynamicsWorld->addRigidBody(r->rigidbody);
 
@@ -575,11 +593,13 @@ void depthPass()
 	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
 	depthShaderProgram->SetUniform("model", glm::mat4());
 	blob->Render();
-	for (int i = 1; i < rigidBodies.size(); i++) {
+	GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+	level->Render(uMMatrix, -1);
+	depthShaderProgram->Uninstall();
+	for (int i = 0; i < rigidBodies.size(); i++) {
 		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
 		rigidBodies[i]->Render();
 	}
-	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
@@ -622,6 +642,9 @@ void drawPlatforms()
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
 
+	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
+	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
+	level->Render(uMMatrix, uColor);
 	for (RigidBody* r : rigidBodies) {
 		platformShaderProgram->SetUniform("model", r->GetModelMatrix());
 		platformShaderProgram->SetUniform("objectColor", r->color);
