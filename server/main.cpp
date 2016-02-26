@@ -40,6 +40,9 @@ void update();
 void draw();
 void depthPass();
 void dynamicCubePass();
+void geometryPass();
+void drawCubeFace(
+		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face);
 void drawBlob();
 void drawPlatforms();
 void drawSkybox();
@@ -58,6 +61,7 @@ ShaderProgram *text_program;
 Font *vera;
 Text *text;
 int width, height;
+bool streaming = false;
 
 glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
@@ -66,6 +70,7 @@ glm::mat4 lightSpaceMatrix;
 
 GLuint cubeMapFBO;
 GLuint depthMapFBO;
+GLuint gBuffer;
 GLuint dynamicCubeMap;
 GLuint depthMap;
 
@@ -140,6 +145,7 @@ int main(int argc, char *argv[])
 	vera->BindTexture(uAtlas);
 	text_program->Uninstall();
 
+	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
@@ -147,7 +153,8 @@ int main(int argc, char *argv[])
 	{
 		update();
 		draw();
-		stream();
+		if (streaming)
+			stream();
 		if(bGizmos)
 			drawGizmos();
 		if(bGui)
@@ -156,12 +163,15 @@ int main(int argc, char *argv[])
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
-	av_write_trailer(avfmt);
-	avcodec_close(avctx);
+	if (streaming)
+	{
+		av_write_trailer(avfmt);
+		avcodec_close(avctx);
 
-	rakPeer->Shutdown(0);
-	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-	av_free(avfmt->pb);
+		rakPeer->Shutdown(0);
+		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
+		av_free(avfmt->pb);
+	}
 	avformat_free_context(avfmt);
 	avformat_network_deinit();
 	//avcodec_free_context(&avctx);
@@ -221,16 +231,19 @@ bool init_physics()
 	btblob->m_cfg.kPR = 2500;
 	btblob->setTotalMass(30, true);
 	
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
+		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(50.0f, 5.0f, 50.0f), 
 		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
-		glm::vec3(10, 10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
+		glm::vec3(-10, 10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
 		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
+		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
+		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
 
 	for(RigidBody* r : rigidBodies)
 		dynamicsWorld->addRigidBody(r->rigidbody);
@@ -286,19 +299,11 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
-	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
-	platformShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	debugdrawShaderProgram = platformShaderProgram;
+	debugdrawShaderProgram = blobShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(0.5f, 2.0f, 2.0f);
-	dirLight.ambientIntensity = 0.5f;
-	dirLight.diffuseIntensity = 0.9f;
+	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
+
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -319,10 +324,12 @@ bool init_graphics()
 	return true;
 }
 
+// TO DO : move buffer creation out of main
 bool init_frameBuffers()
 {
 	// FBO for CUBE MAP
 	glGenFramebuffers(1, &cubeMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
 
 	glGenTextures(1, &dynamicCubeMap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
@@ -336,8 +343,6 @@ bool init_frameBuffers()
 			TEX_WIDTH, TEX_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
-
 	GLuint depthRenderBuffer;
 	glGenRenderbuffers(1, &depthRenderBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
@@ -348,13 +353,13 @@ bool init_frameBuffers()
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
 		return false;
-	}
-	
+	}	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 	// FBO for DEPTH MAP
 	glGenFramebuffers(1, &depthMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 
 	// Create depth buffer
 	glGenTextures(1, &depthMap);
@@ -367,8 +372,7 @@ bool init_frameBuffers()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+	
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
 	// Disable writing to color buffer
@@ -379,8 +383,52 @@ bool init_frameBuffers()
 		std::cout << "Depth map FBO error" << std::endl;
 		return false;
 	}
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+	// FBO for GEOMETRY PASS
+	glGenFramebuffers(1, &gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	GLuint gPositionDepth, gNormal, gAlbedo;
+	// Position + lin depth color buffer
+	glGenTextures(1, &gPositionDepth);
+	glBindTexture(GL_TEXTURE_2D, gPositionDepth);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPositionDepth, 0);
+	// Normal color buffer
+	glGenTextures(1, &gNormal);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+	// Albedo color buffer
+	glGenTextures(1, &gAlbedo);
+	glBindTexture(GL_TEXTURE_2D, gAlbedo);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
+
+	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
+
+	GLuint rboDepth;
+	glGenRenderbuffers(1, &rboDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, RENDER_WIDTH, RENDER_HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "Geometry frame buffer not complete" << std::endl;
+		return false;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	return true;
 }
 
@@ -392,6 +440,11 @@ bool init_stream()
 	AVDictionary *opts = NULL;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
+	av_dict_set(&opts, "crf", xstr(CODEC_CRF), 0);
+#ifdef RTMP_STREAM
+	av_dict_set(&opts, "rtmp_live", "live", 0);
+#endif // RTMP_STREAM
+	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
 		return false;
@@ -399,8 +452,10 @@ bool init_stream()
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = STREAM_WIDTH;
 	avctx->height = STREAM_HEIGHT;
-	avctx->gop_size = 0;
 	avctx->time_base = { 1, 60 };
+#ifdef UDP_STREAM
+	avctx->gop_size = 0;
+#endif // UDP_STREAM
 	if (avcodec_open2(avctx, codec, &opts) < 0)
 		return false;
 
@@ -422,19 +477,21 @@ bool init_stream()
 	av_register_all();
 	avformat_network_init();
 	avfmt = avformat_alloc_context();
-	std::string filename = STREAM_ADDRESS;
-	avfmt->oformat = av_guess_format("mpegts", 0, 0);
+	std::string filename = STREAM_PATH;
+	avfmt->oformat = av_guess_format("flv", 0, 0);
+	av_dict_set(&opts, "live", "1", 0);
 	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->bit_rate = 200*1024*1024;
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
 	if (s == NULL)
 		return false;
 	s->codec = avctx;
-	AVIOContext *ioctx;
-	if (avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts) < 0)
-		return false;
+	int io_result =
+		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts);
+	streaming = (io_result >= 0);
+	if (!streaming)
+		return true;
 	avfmt->pb = ioctx;
 	if (avformat_write_header(avfmt, &opts) != 0)
 		return false;
@@ -461,7 +518,7 @@ void update()
 	int right_count = 0;
 	int left_count = 0;
 	int jump_count = 0;
-	while (rakPeer->GetReceiveBufferSize() > 0)
+	while (streaming && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
 		unsigned char packet_type = p->data[0];
@@ -559,10 +616,12 @@ void depthPass()
 	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
 	depthShaderProgram->SetUniform("model", glm::mat4());
 	blob->Render();
+	glFrontFace(GL_CW);
 	for (int i = 1; i < rigidBodies.size(); i++) {
 		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
 		rigidBodies[i]->Render();
 	}
+	glFrontFace(GL_CCW);
 	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -572,8 +631,9 @@ void depthPass()
 void drawBlob()
 {
 	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 0.8f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
+	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
 
@@ -586,6 +646,10 @@ void drawBlob()
 	blobShaderProgram->SetUniform("cubeMap", 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
+	glActiveTexture(GL_TEXTURE1);
+	blobShaderProgram->SetUniform("depthMap", 1);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+
 	blob->Render();
 	blobShaderProgram->Uninstall();
 }
@@ -594,7 +658,8 @@ void drawBlob()
 void drawPlatforms()
 {
 	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	platformShaderProgram->SetUniform("viewPos", camera->Position);
 
@@ -631,7 +696,6 @@ void drawSkybox()
 	glDepthMask(GL_LESS);
 }
 
-
 void dynamicCubePass()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
@@ -639,58 +703,62 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 blobCenter = convert(&blob->GetCentroid());
-
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	glm::vec3 position = convert(&blob->GetCentroid());
+	drawCubeFace(
+			position,
+			glm::vec3(1.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(-1.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 0.0f, 1.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 0.0f, -1.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, dynamicCubeMap, 0);
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 1.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	drawCubeFace(position,
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, -1.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face)
+{
+	viewMatrix = glm::lookAt(position, position + direction, up);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face, dynamicCubeMap, 0);
+
+	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
+	drawSkybox();
 }
 
 
@@ -720,7 +788,10 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");	
+	if (streaming)
+		ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");
+	else
+		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
 	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	ImGui::Checkbox("Show Gizmos", &bGizmos);
@@ -795,7 +866,7 @@ void stream()
 	if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
 		exit(1);
 	if (got_packet == 1)
-		av_write_frame(avfmt, avpkt);
+		av_interleaved_write_frame(avfmt, avpkt);
 	av_packet_free(&avpkt);
 }
 

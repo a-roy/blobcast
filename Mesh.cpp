@@ -137,6 +137,91 @@ Mesh *Mesh::CreateCube(VertexArray *vao)
 	return cube;
 }
 
+Mesh *Mesh::CreateCubeWithNormals(VertexArray *vao)
+{
+	Mesh *cube = new Mesh(vao, 2, 24, 12);
+	GLfloat vbo[] = {
+		-1, -1, -1,   // 0
+		-1, -1,  1,   // 1
+		-1,  1, -1,   // 2
+		-1,  1,  1,   // 3
+		 1, -1, -1,   // 4
+		 1, -1,  1,   // 5
+		 1,  1, -1,   // 6
+		 1,  1,  1,	  // 7
+		-1, -1, -1,   // 8
+		-1, -1,  1,   // 9
+		-1,  1, -1,   // 10
+		-1,  1,  1,   // 11
+		 1, -1, -1,   // 12
+		 1, -1,  1,   // 13
+		 1,  1, -1,   // 14
+		 1,  1,  1,   // 15
+		-1, -1, -1,   // 16
+		-1, -1,  1,   // 17
+		-1,  1, -1,   // 18
+		-1,  1,  1,   // 19
+		 1, -1, -1,   // 20
+		 1, -1,  1,   // 21
+		 1,  1, -1,   // 22
+		 1,  1,  1	  //23
+	};
+	cube->SetVertexData(0, vbo, 3);
+
+	GLfloat normals[] = {
+		0, 0, -1,	//front/back
+		0, 0, 1,
+		0, 0, -1,
+		0, 0, 1,
+		0, 0, -1,
+		0, 0, 1,
+		0, 0, -1,
+		0, 0, 1,
+
+		-1, 0, 0, //left/right
+		-1, 0, 0,
+		-1, 0, 0,
+		-1, 0, 0,
+		1, 0, 0,
+		1, 0, 0,
+		1, 0, 0,
+		1, 0, 0,
+
+		0, -1, 0, //top/bottom
+		0, -1, 0,
+		0, 1, 0,
+		0, 1, 0,
+		0, -1, 0,
+		0, -1, 0,
+		0, 1, 0,
+		0, 1, 0
+	};
+	cube->SetVertexData(1, normals, 3);
+
+	unsigned int ibo[] = {
+		// front (-Z)
+		0, 6, 2,
+		6, 0, 4,
+		// back (+Z)
+		5, 3, 7,
+		3, 5, 1,
+		// left (-X)
+		9, 10, 11,
+		10, 9, 8,
+		// right (+X)
+		12, 15, 14,
+		15, 12, 13,
+		// top (+Y)
+		18, 23, 19,
+		23, 18, 22,
+		// bottom (-Y)
+		17, 20, 16,
+		20, 17, 21 };
+	cube->SetIndexData(ibo);
+
+	return cube;
+}
+
 Mesh *Mesh::CreateTriplePlane(VertexArray *vao)
 {
 	Mesh *triple_plane = new Mesh(vao, 1, 12, 6);

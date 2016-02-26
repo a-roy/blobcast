@@ -6,6 +6,7 @@ GLFWwindow *GLFWProject::Init(const char *title, int width, int height)
 	if (!glfwInit())
 		return NULL;
 
+	glfwWindowHint(GLFW_SAMPLES, 4);
 	GLFWwindow *window;
 	if (width * height == 0)
 	{

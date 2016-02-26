@@ -2,22 +2,15 @@
 
 in vec3 fragPos;
 in vec3 Normal;
-in vec2 fragTexCoord;
-in vec4 lightSpacePos;
+in vec4 LightSpacePos;
 
-out vec4 fragColor;
-
-struct BaseLight
-{
-	vec3 color;
-	float ambientIntensity;
-	float diffuseIntensity;                                                 
-};                                                                                  
+out vec4 fragColor;                                                                               
 
 struct DirectionalLight
 {
-	BaseLight base;                                                          
+	vec3 color;                                                       
     vec3 direction;
+	vec3 ambientColor;
 };
 
 uniform DirectionalLight directionalLight;
@@ -62,25 +55,25 @@ void main()
 {   
 	// Ambient
 	float ambientStrength = 0.5f;
-    vec3 ambient = ambientStrength * directionalLight.base.color;
+    vec3 ambient = ambientStrength * directionalLight.ambientColor;
 	
 	// Diffuse
+	float diffuseStrength = 1.0f;
 	vec3 normal = normalize(Normal);
     vec3 lightDir = normalize(directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diff * directionalLight.base.color;
+    vec3 diffuse = diffuseStrength * diff * directionalLight.color;
 	
 	// Specular
     float specularStrength = 0.8f;
     vec3 viewDir = normalize(fragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
-	float spec = pow(max(dot(normal, halfwayDir), 0.0), 64);
+	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
+    vec3 specular = specularStrength * spec * directionalLight.color;
 	
-    vec3 specular = specularStrength * spec * directionalLight.base.color;
-	
-	float ShadowFactor = CalcShadowFactor(lightSpacePos);
-    vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
+	float ShadowFactor = CalcShadowFactor(LightSpacePos);
+    vec3 result = (ambient + ShadowFactor * (diffuse)) * vec3(objectColor);
 	
     fragColor = vec4(result, 1.0f);
 }
