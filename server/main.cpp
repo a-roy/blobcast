@@ -143,6 +143,7 @@ int main(int argc, char *argv[])
 	vera->BindTexture(uAtlas);
 	text_program->Uninstall();
 
+	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
@@ -229,14 +230,14 @@ bool init_physics()
 	btblob->setTotalMass(30, true);
 	
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
+		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(50.0f, 5.0f, 50.0f), 
 		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(10, 10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+		glm::vec3(-10, 10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
 		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
@@ -299,9 +300,7 @@ bool init_graphics()
 	debugdrawShaderProgram = blobShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
-	dirLight.ambientIntensity = 0.5f;
-	dirLight.diffuseIntensity = 0.9f;
+	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -563,7 +562,7 @@ void depthPass()
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
 	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	depthShaderProgram->Install();
@@ -583,8 +582,9 @@ void depthPass()
 void drawBlob()
 {
 	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 0.8f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
+	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
 
@@ -597,6 +597,10 @@ void drawBlob()
 	blobShaderProgram->SetUniform("cubeMap", 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
+	glActiveTexture(GL_TEXTURE1);
+	blobShaderProgram->SetUniform("depthMap", 1);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+
 	blob->Render();
 	blobShaderProgram->Uninstall();
 }
@@ -605,7 +609,8 @@ void drawBlob()
 void drawPlatforms()
 {
 	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	platformShaderProgram->SetUniform("viewPos", camera->Position);
 
