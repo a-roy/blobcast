@@ -33,4 +33,5 @@ class Mesh : public Drawable
 		float ComputeRadius(glm::vec3 center) const;
 		static Mesh *CreateCube(VertexArray *vao);
 		static Mesh *CreateTriplePlane(VertexArray *vao);
+		static Mesh *CreateCubeWithNormals(VertexArray *vao);
 };
