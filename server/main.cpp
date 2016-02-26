@@ -228,17 +228,17 @@ bool init_physics()
 	btblob->m_cfg.kPR = 2500;
 	btblob->setTotalMass(30, true);
 	
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
 		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
 		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(10, 10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCube(new VertexArray()), 
+	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
 		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
 
@@ -296,7 +296,7 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
-	debugdrawShaderProgram = platformShaderProgram;
+	debugdrawShaderProgram = blobShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
