@@ -2,7 +2,7 @@
 
 in vec3 FragPos;
 in vec3 Normal;
-in vec4 lightSpacePos;
+in vec4 LightSpacePos;
 
 out vec4 fragColor;                                                                                  
 
@@ -76,7 +76,7 @@ void main()
 	
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	float ShadowFactor = CalcShadowFactor(lightSpacePos);
+	float ShadowFactor = CalcShadowFactor(LightSpacePos);
     vec3 diffuseColor = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
 	
 	// Reflection + refraction
