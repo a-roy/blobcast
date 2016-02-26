@@ -296,7 +296,12 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
-	debugdrawShaderProgram = blobShaderProgram;
+	shaders.push_back(new Shader(ShaderDir "Gizmo.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Gizmo.frag", GL_FRAGMENT_SHADER));
+	debugdrawShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
