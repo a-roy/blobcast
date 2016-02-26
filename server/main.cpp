@@ -40,6 +40,8 @@ void update();
 void draw();
 void depthPass();
 void dynamicCubePass();
+void drawCubeFace(
+		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face);
 void drawBlob();
 void drawPlatforms();
 void drawSkybox();
@@ -640,7 +642,6 @@ void drawSkybox()
 	glDepthMask(GL_LESS);
 }
 
-
 void dynamicCubePass()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
@@ -648,52 +649,63 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
-
-	viewMatrix = glm::lookAt(position, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	viewMatrix = glm::lookAt(position, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
+	glm::vec3 position = convert(&blob->GetCentroid());
+	drawCubeFace(
+			position,
+			glm::vec3(1.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_X);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(-1.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 0.0f, 1.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 0.0f, -1.0f),
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, dynamicCubeMap, 0);
-	drawPlatforms();
-	drawSkybox();
+	drawCubeFace(position,
+			glm::vec3(0.0f, 1.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f),
+			GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	drawCubeFace(position,
+			glm::vec3(0.0f, -1.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, -1.0f),
+			GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void drawCubeFace(
+		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face)
+{
+	viewMatrix = glm::lookAt(position, position + direction, up);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face, dynamicCubeMap, 0);
+
+	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
+	drawSkybox();
 }
 
 
