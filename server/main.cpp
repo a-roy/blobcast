@@ -286,10 +286,17 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
+	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
+	platformShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
+
 	debugdrawShaderProgram = platformShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
+	dirLight.direction = glm::vec3(0.5f, 2.0f, 2.0f);
 	dirLight.ambientIntensity = 0.5f;
 	dirLight.diffuseIntensity = 0.9f;
 
@@ -349,6 +356,7 @@ bool init_frameBuffers()
 	// FBO for DEPTH MAP
 	glGenFramebuffers(1, &depthMapFBO);
 
+	// Create depth buffer
 	glGenTextures(1, &depthMap);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
@@ -363,6 +371,7 @@ bool init_frameBuffers()
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
+	// Disable writing to color buffer
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 
@@ -518,16 +527,15 @@ void draw()
 
 	glm::mat4 mvpMatrix;
 	viewMatrix = camera->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 1000.f);
 
 	//text_program->Install();
 	//mvpMatrix = projMatrix * viewMatrix * modelMatrix;
 	//text_program->SetUniform("uMVPMatrix", mvpMatrix);
 	//text->Draw();
 	//text_program->Uninstall();
-
+	
 	drawBlob();
-
 	drawPlatforms();
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
@@ -537,14 +545,14 @@ void draw()
 
 void depthPass()
 {
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
+	//glEnable(GL_CULL_FACE);
+	//glCullFace(GL_FRONT);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
 	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	depthShaderProgram->Install();
@@ -558,7 +566,7 @@ void depthPass()
 	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDisable(GL_CULL_FACE);
+	//glDisable(GL_CULL_FACE);
 }
 
 void drawBlob()
@@ -631,46 +639,52 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+	glm::vec3 blobCenter = convert(&blob->GetCentroid());
 
-	viewMatrix = glm::lookAt(position, glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	viewMatrix = glm::lookAt(position, glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+	viewMatrix = glm::lookAt(blobCenter, blobCenter + glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, dynamicCubeMap, 0);
 	drawPlatforms();
+	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);

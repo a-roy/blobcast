@@ -23,23 +23,7 @@ uniform DirectionalLight directionalLight;
 uniform vec3 viewPos;
 uniform vec3 objectColor;
 
-layout (binding = 1) uniform sampler2D depthMap;
 layout (binding = 0) uniform samplerCube cubeMap;
-
-float CalcShadowFactor(vec4 LightSpacePos)
-{
-    vec3 projCoords = LightSpacePos.xyz / LightSpacePos.w;
-    vec2 UVCoords;
-    UVCoords.x = 0.5 * projCoords.x + 0.5;
-    UVCoords.y = 0.5 * projCoords.y + 0.5;
-    float z = 0.5 * projCoords.z + 0.5;
-    float Depth = texture(depthMap, UVCoords).x;
-    if (Depth < (z + 0.00001))
-        return 0.5;
-    else
-        return 1.0;
-}
-
 
 
 void main()
@@ -50,7 +34,7 @@ void main()
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(-directionalLight.direction);
+    vec3 lightDir = normalize(directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diff * directionalLight.base.color;
 	

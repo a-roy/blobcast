@@ -1,6 +1,6 @@
 #version 420 core
 
-in vec3 FragPos;
+in vec3 fragPos;
 in vec3 Normal;
 in vec2 fragTexCoord;
 in vec4 lightSpacePos;
@@ -20,18 +20,15 @@ struct DirectionalLight
     vec3 direction;
 };
 
+uniform DirectionalLight directionalLight;
 uniform vec3 viewPos;
-uniform vec4 objectColor;
-
+uniform vec3 objectColor;
 
 layout (binding = 0) uniform sampler2DShadow depthMap;
-
-uniform DirectionalLight directionalLight;
 
 const vec2 mapSize = vec2(2048, 2048);
 
 #define EPSILON 0.00001
-
 
 float CalcShadowFactor(vec4 LightSpacePos)
 {
@@ -40,9 +37,6 @@ float CalcShadowFactor(vec4 LightSpacePos)
     UVCoords.x = 0.5 * projCoords.x + 0.5;
     UVCoords.y = 0.5 * projCoords.y + 0.5;
     float z = 0.5 * projCoords.z + 0.5;
-	
-	if(projCoords.z > 1.0)
-		return 0.0;
 	
 	float xOffset = 1.0/mapSize.x;
 	float yOffset = 1.0/mapSize.y;
@@ -53,18 +47,21 @@ float CalcShadowFactor(vec4 LightSpacePos)
 		for(int x = -2; x <= 2; x++){
 			vec2 offsets = vec2(x * xOffset, y * yOffset);
 			vec3 UVC = vec3(UVCoords + offsets, z + EPSILON);
-			factor += texture(depthMap, UVC);
+			if(textureSize(depthMap, 0).x > 1){
+				factor += texture(depthMap, UVC);
+			}
 		}
 	}
 	
 	return (0.5 + (factor / 18.0));
+	//return factor;
 }
 
 
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.1f;
+	float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * directionalLight.base.color;
 	
 	// Diffuse
@@ -74,15 +71,16 @@ void main()
     vec3 diffuse = diff * directionalLight.base.color;
 	
 	// Specular
-    float specularStrength = 0.2f;
-    vec3 viewDir = normalize(FragPos - viewPos);
+    float specularStrength = 0.8f;
+    vec3 viewDir = normalize(fragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
-	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
+	float spec = pow(max(dot(normal, halfwayDir), 0.0), 64);
+	
     vec3 specular = specularStrength * spec * directionalLight.base.color;
 	
 	float ShadowFactor = CalcShadowFactor(lightSpacePos);
-    vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);
+    vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
 	
     fragColor = vec4(result, 1.0f);
 }
