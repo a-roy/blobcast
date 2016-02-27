@@ -23,15 +23,11 @@ void main()
 		tcCurve[0] * gl_TessCoord.x * gl_TessCoord.y -
 		tcCurve[1] * gl_TessCoord.y * gl_TessCoord.z -
 		tcCurve[2] * gl_TessCoord.x * gl_TessCoord.z;
-	vec3 normal =
+	Normal = normalize(
 		tcNormal[0] * gl_TessCoord.x +
 		tcNormal[1] * gl_TessCoord.y +
-		tcNormal[2] * gl_TessCoord.z -
-		tcCurve[0] * gl_TessCoord.x * gl_TessCoord.y -
-		tcCurve[1] * gl_TessCoord.y * gl_TessCoord.z -
-		tcCurve[2] * gl_TessCoord.x * gl_TessCoord.z;
+		tcNormal[2] * gl_TessCoord.z);
 
-	Normal = normalize(normal);
 	gl_Position = projection * view * vec4(position, 1.0);
 	FragPos = position;
 	LightSpacePos = lightSpaceMat * vec4(position, 1.0);
