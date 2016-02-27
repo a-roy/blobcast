@@ -221,7 +221,7 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 160);
 	btSoftBody *btblob = blob->softbody;
 
 	//Experiment with blob variables
@@ -285,6 +285,8 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
+	shaders.push_back(new Shader(ShaderDir "Blob.tesc", GL_TESS_CONTROL_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Blob.tese", GL_TESS_EVALUATION_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
 	blobShaderProgram = new ShaderProgram(shaders);
@@ -639,6 +641,8 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
+	blobShaderProgram->SetUniform("blobDistance",
+			glm::distance(convert(&blob->GetCentroid()), camera->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -653,7 +657,7 @@ void drawBlob()
 	blobShaderProgram->SetUniform("depthMap", 1);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
-	blob->Render();
+	blob->RenderPatches();
 	blobShaderProgram->Uninstall();
 }
 
