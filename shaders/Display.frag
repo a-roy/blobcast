@@ -10,7 +10,7 @@ uniform float uBackward;
 uniform float uRight;
 uniform float uLeft;
 
-#define LINE_WIDTH 0.01
+#define LINE_WIDTH 0.02
 
 void main()
 {
