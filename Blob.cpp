@@ -4,7 +4,8 @@ Blob::Blob(
 		btSoftBodyWorldInfo& softBodyWorldInfo,
 		const btVector3& center, const btVector3& scale, int vertices) :
 	SoftBody(btSoftBodyHelpers::CreateEllipsoid(
-				softBodyWorldInfo, center, scale, vertices))
+				softBodyWorldInfo, center, scale, vertices)),
+	centroid(center)
 {
 	forward = btVector3(0, 0, 1);
 	btVector3 points[6] = {
@@ -30,6 +31,12 @@ Blob::Blob(
 Blob::~Blob()
 {
 
+}
+
+void Blob::Update()
+{
+	SoftBody::Update();
+	ComputeCentroid();
 }
 
 void Blob::Move(int key, int action)
@@ -82,13 +89,16 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 	}
 }
 
-btVector3 Blob::GetCentroid()
+void Blob::ComputeCentroid()
 {
-	btVector3 centroid = btVector3(0, 0, 0);
+	centroid = btVector3(0, 0, 0);
 	for (int i = 0; i < 6; i++)
 		centroid += softbody->m_nodes[sampleIndices[i]].m_x;
 	centroid *= (1.f/6.f);
+}
 
+btVector3 Blob::GetCentroid()
+{
 	return centroid;
 }
 
