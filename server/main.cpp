@@ -41,6 +41,7 @@ void update();
 void draw();
 void depthPass();
 void dynamicCubePass();
+void geometryPass();
 void drawCubeFace(
 		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face);
 void drawBlob();
@@ -70,6 +71,7 @@ glm::mat4 lightSpaceMatrix;
 
 GLuint cubeMapFBO;
 GLuint depthMapFBO;
+GLuint gBuffer;
 GLuint dynamicCubeMap;
 GLuint depthMap;
 
@@ -145,6 +147,7 @@ int main(int argc, char *argv[])
 	vera->BindTexture(uAtlas);
 	text_program->Uninstall();
 
+	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
@@ -220,7 +223,7 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 160);
 	btSoftBody *btblob = blob->softbody;
 
 	//Experiment with blob variables
@@ -252,7 +255,7 @@ bool init_physics()
 		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(10, 10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+		glm::vec3(-10, 10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
 		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
 		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
@@ -300,6 +303,8 @@ bool init_graphics()
 		delete shaders[i];
 	shaders.clear();
 
+	shaders.push_back(new Shader(ShaderDir "Blob.tesc", GL_TESS_CONTROL_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Blob.tese", GL_TESS_EVALUATION_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
 	blobShaderProgram = new ShaderProgram(shaders);
@@ -322,9 +327,7 @@ bool init_graphics()
 	shaders.clear();
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(1.0f, -1.0f, 1.0f);
-	dirLight.ambientIntensity = 0.5f;
-	dirLight.diffuseIntensity = 0.9f;
+	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -345,10 +348,12 @@ bool init_graphics()
 	return true;
 }
 
+// TO DO : move buffer creation out of main
 bool init_frameBuffers()
 {
 	// FBO for CUBE MAP
 	glGenFramebuffers(1, &cubeMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
 
 	glGenTextures(1, &dynamicCubeMap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
@@ -362,8 +367,6 @@ bool init_frameBuffers()
 			TEX_WIDTH, TEX_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	}
 
-	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
-
 	GLuint depthRenderBuffer;
 	glGenRenderbuffers(1, &depthRenderBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
@@ -374,13 +377,13 @@ bool init_frameBuffers()
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
 		return false;
-	}
-	
+	}	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
 	// FBO for DEPTH MAP
 	glGenFramebuffers(1, &depthMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 
 	glGenTextures(1, &depthMap);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -392,8 +395,7 @@ bool init_frameBuffers()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+	
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
 	glDrawBuffer(GL_NONE);
@@ -403,8 +405,52 @@ bool init_frameBuffers()
 		std::cout << "Depth map FBO error" << std::endl;
 		return false;
 	}
-
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+	// FBO for GEOMETRY PASS
+	glGenFramebuffers(1, &gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	GLuint gPositionDepth, gNormal, gAlbedo;
+	// Position + lin depth color buffer
+	glGenTextures(1, &gPositionDepth);
+	glBindTexture(GL_TEXTURE_2D, gPositionDepth);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPositionDepth, 0);
+	// Normal color buffer
+	glGenTextures(1, &gNormal);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+	// Albedo color buffer
+	glGenTextures(1, &gAlbedo);
+	glBindTexture(GL_TEXTURE_2D, gAlbedo);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
+
+	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
+
+	GLuint rboDepth;
+	glGenRenderbuffers(1, &rboDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, RENDER_WIDTH, RENDER_HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "Geometry frame buffer not complete" << std::endl;
+		return false;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	return true;
 }
 
@@ -586,7 +632,7 @@ void depthPass()
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
 	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	depthShaderProgram->Install();
@@ -594,12 +640,14 @@ void depthPass()
 	depthShaderProgram->SetUniform("model", glm::mat4());
 	blob->Render();
 	GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+	glFrontFace(GL_CW);
 	level->Render(uMMatrix, -1);
-	depthShaderProgram->Uninstall();
 	for (int i = 0; i < rigidBodies.size(); i++) {
 		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
 		rigidBodies[i]->Render();
 	}
+	glFrontFace(GL_CCW);
+	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
@@ -608,10 +656,13 @@ void depthPass()
 void drawBlob()
 {
 	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 0.8f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
+	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
+	blobShaderProgram->SetUniform("blobDistance",
+			glm::distance(convert(&blob->GetCentroid()), camera->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -622,7 +673,11 @@ void drawBlob()
 	blobShaderProgram->SetUniform("cubeMap", 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
-	blob->Render();
+	glActiveTexture(GL_TEXTURE1);
+	blobShaderProgram->SetUniform("depthMap", 1);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+
+	blob->RenderPatches();
 	blobShaderProgram->Uninstall();
 }
 
@@ -630,7 +685,8 @@ void drawBlob()
 void drawPlatforms()
 {
 	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.base.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	platformShaderProgram->SetUniform("viewPos", camera->Position);
 
