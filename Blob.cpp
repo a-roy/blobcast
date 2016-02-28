@@ -5,6 +5,7 @@ Blob::Blob(
 		const btVector3& center, const btVector3& scale, int vertices) :
 	SoftBody(btSoftBodyHelpers::CreateEllipsoid(
 				softBodyWorldInfo, center, scale, vertices)),
+	speed(1120.f / vertices),
 	centroid(center)
 {
 	forward = btVector3(0, 0, 1);

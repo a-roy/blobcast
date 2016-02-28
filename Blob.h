@@ -22,7 +22,7 @@ private:
 
 public:
 	btVector3 forward;
-	float speed = 2.2f;
+	float speed;
 	MovementMode movementMode = MovementMode::stretch;
 
 	Blob(
