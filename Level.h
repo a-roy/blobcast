@@ -14,7 +14,8 @@ class Level
 				glm::vec3 position,
 				glm::quat orientation,
 				glm::vec3 dimensions,
-				glm::vec4 color);
+				glm::vec4 color,
+				float mass = 0.f);
 		void Delete(std::size_t index);
 		int Find(btRigidBody *r);
 		void Render(GLuint uMMatrix, GLuint uColor);

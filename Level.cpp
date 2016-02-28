@@ -12,7 +12,8 @@ std::size_t Level::AddBox(
 		glm::vec3 position,
 		glm::quat orientation,
 		glm::vec3 dimensions,
-		glm::vec4 color)
+		glm::vec4 color,
+		float mass)
 {
 	Mesh *box(Mesh::CreateCubeWithNormals(new VertexArray()));
 	RigidBody *r =
@@ -65,6 +66,7 @@ void Level::Serialize(std::string file)
 			r->scale.x, r->scale.y, r->scale.z };
 		object["color"] = {
 			r->color.r, r->color.g, r->color.b, r->color.a };
+		object["mass"] = r->mass;
 		objects.push_back(object);
 	}
 	nlohmann::json level;
@@ -93,7 +95,8 @@ Level *Level::Deserialize(std::string file)
 		glm::vec3 dimensions(j_dim[0], j_dim[1], j_dim[2]);
 		auto j_col = object["color"];
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
-		level->AddBox(position, orientation, dimensions, color);
+		auto mass = object["mass"];
+		level->AddBox(position, orientation, dimensions, color, mass);
 	}
 	f.close();
 	return level;
