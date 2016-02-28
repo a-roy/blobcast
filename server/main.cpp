@@ -628,8 +628,8 @@ void draw()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glm::mat4 displayMVP = glm::ortho(
-			-1.f, ((float)width / 128.f) - 1.f,
-			-1.f, ((float)height / 128.f) - 1.f);
+			-1.25f, ((float)width  / 128.f) - 1.25f,
+			-1.25f, ((float)height / 128.f) - 1.25f);
 	displayShaderProgram->Install();
 	displayShaderProgram->SetUniform("uMVPMatrix", displayMVP);
 	displayShaderProgram->SetUniform("uInnerRadius", 0.7f);

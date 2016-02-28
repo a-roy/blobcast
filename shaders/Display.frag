@@ -10,6 +10,8 @@ uniform float uBackward;
 uniform float uRight;
 uniform float uLeft;
 
+#define LINE_WIDTH 0.01
+
 void main()
 {
 	float dist = length(vPosition);
@@ -21,14 +23,14 @@ void main()
 		pow(max(dot(dir, vec2(-1,  0)), 0), 2) * uLeft;
 	float radius = uInnerRadius + (uOuterRadius - uInnerRadius) * extrusion;
 	float alphaI = 0.5 * (
-		smoothstep(uInnerRadius - 0.01, uInnerRadius, dist) -
-		smoothstep(uInnerRadius, uInnerRadius + 0.01, dist));
+		smoothstep(uInnerRadius - LINE_WIDTH, uInnerRadius, dist) -
+		smoothstep(uInnerRadius, uInnerRadius + LINE_WIDTH, dist));
 	float alphaO = 0.5 * (
-		smoothstep(uOuterRadius - 0.01, uOuterRadius, dist) -
-		smoothstep(uOuterRadius, uOuterRadius + 0.01, dist));
+		smoothstep(uOuterRadius - LINE_WIDTH, uOuterRadius, dist) -
+		smoothstep(uOuterRadius, uOuterRadius + LINE_WIDTH, dist));
 	float alpha = alphaI + alphaO +
-		smoothstep(radius - 0.01, radius, dist) -
-		smoothstep(radius, radius + 0.01, dist);
+		smoothstep(radius - LINE_WIDTH, radius, dist) -
+		smoothstep(radius, radius + LINE_WIDTH, dist);
 	if (alpha == 0.0)
 		discard;
 	fColor = vec4(0, 0, 0, alpha);
