@@ -120,7 +120,7 @@ bool bGizmos = true;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", RENDER_WIDTH, RENDER_HEIGHT);
+	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
 

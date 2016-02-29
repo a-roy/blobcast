@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 {
 	if (!connect())
 		return 1;
-	window = GLFWProject::Init("Client Test", CLIENT_WIDTH, CLIENT_HEIGHT);
+	window = GLFWProject::Init("Blobclient", CLIENT_WIDTH, CLIENT_HEIGHT);
 	if (!window)
 		return 1;
 
