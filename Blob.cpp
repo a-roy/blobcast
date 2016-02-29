@@ -70,8 +70,8 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 {
 	btVector3 right = forward.cross(btVector3(0, 1, 0));
 
-	btVector3 L = forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
-	btVector3 R = forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>());
+	btVector3 L = forward.rotate(btVector3(0, -1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
+	btVector3 R = forward.rotate(btVector3(0, -1, 0), glm::quarter_pi<float>());
 
 	for (int i = 0; i < softbody->m_nodes.size(); i++)
 	{
@@ -79,14 +79,14 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 
 		if (blobSpaceNode.dot(L) > 0)
 			if (blobSpaceNode.dot(R) > 0)
-				AddForce(-right * magLeft, i);
-			else
 				AddForce(forward * magFwd, i);
+			else
+				AddForce(-right * magLeft, i);
 		else
 			if (blobSpaceNode.dot(R) > 0)
-				AddForce(-forward * magBack, i);
-			else
 				AddForce(right * magRight, i);
+			else
+				AddForce(-forward * magBack, i);
 	}
 }
 
