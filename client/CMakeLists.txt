@@ -32,7 +32,7 @@ target_link_libraries(${EXEC_NAME}
 	avutil
 	swscale
 	ws2_32
-	RakNetLibStatic
+	optimized RakNetLibStatic debug RakNetLibStatic_Debug
 	)
 
 foreach(lib ${EXT_LIBS})
