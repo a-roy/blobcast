@@ -2,13 +2,15 @@
 
 Blob::Blob(
 		btSoftBodyWorldInfo& softBodyWorldInfo,
-		const btVector3& center, const btVector3& scale, int vertices) :
+		const btVector3& center, btScalar r, int vertices) :
 	SoftBody(btSoftBodyHelpers::CreateEllipsoid(
-				softBodyWorldInfo, center, scale, vertices)),
-	speed(1120.f / vertices),
-	centroid(center)
+				softBodyWorldInfo, center, btVector3(1, 1, 1) * r, vertices)),
+	centroid(center),
+	radius(r),
+	speed(1120.f / vertices)
 {
 	forward = btVector3(0, 0, 1);
+	btVector3 scale = btVector3(1, 1, 1) * r;
 	btVector3 points[6] = {
 		btVector3(center[0], center[1] - scale[1], center[2]),
 		btVector3(center[0], center[1] + scale[1], center[2]),
@@ -75,8 +77,18 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 
 	for (int i = 0; i < softbody->m_nodes.size(); i++)
 	{
-		btVector3 blobSpaceNode = softbody->m_nodes[i].m_x - GetCentroid();
+		btVector3 blobSpaceNode =
+			(softbody->m_nodes[i].m_x - centroid) *
+			btVector3(1, 0, 1) / radius;
+		btVector3 force = blobSpaceNode * (
+			btPow(btMax(btDot(blobSpaceNode, forward), 0.f), 2) * magFwd +
+			btPow(btMax(btDot(blobSpaceNode, -forward), 0.f), 2) * magBack +
+			btPow(btMax(btDot(blobSpaceNode, right), 0.f), 2) * magRight +
+			btPow(btMax(btDot(blobSpaceNode, -right), 0.f), 2) * magLeft) /
+			btDistance2(btVector3(0, 0, 0), blobSpaceNode);
+		AddForce(force, i);
 
+		/* Quadrant movement
 		if (blobSpaceNode.dot(L) > 0)
 			if (blobSpaceNode.dot(R) > 0)
 				AddForce(forward * magFwd, i);
@@ -87,6 +99,7 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 				AddForce(right * magRight, i);
 			else
 				AddForce(-forward * magBack, i);
+		*/
 	}
 }
 
