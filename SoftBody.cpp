@@ -53,7 +53,7 @@ SoftBody::~SoftBody()
 
 void SoftBody::Update()
 {
-	vertices.clear();
+	vertices = std::vector<glm::vec3>(softbody->m_nodes.size());
 	normals = std::vector<glm::vec3>(softbody->m_nodes.size());
 	for (int i = 0; i<softbody->m_faces.size(); ++i)
 	{
@@ -66,7 +66,7 @@ void SoftBody::Update()
 	}
 	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
-		vertices.push_back(convert(&softbody->m_nodes[i].m_x));
+		vertices[i] = convert(&softbody->m_nodes[i].m_x);
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
