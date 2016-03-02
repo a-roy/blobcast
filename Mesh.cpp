@@ -25,6 +25,7 @@ Mesh::~Mesh()
 
 void Mesh::Draw() const
 {
+	glBindVertexArray(VAO->Name);
 	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
 	{
 		glEnableVertexAttribArray(i);
@@ -46,6 +47,7 @@ void Mesh::Draw() const
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void Mesh::SetVertexData(

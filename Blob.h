@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoftBody.h"
-#include <GLFW\glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <algorithm>

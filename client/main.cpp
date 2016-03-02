@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
 
 bool connect()
 {
-	RakNet::StartupResult rakStart =
-		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	RakNet::SocketDescriptor sd;
+	RakNet::StartupResult rakStart = rakPeer->Startup(1, &sd, 1);
 	if (rakStart != RakNet::RAKNET_STARTED)
 		return false;
 
@@ -213,6 +213,8 @@ bool init()
 	glUniform4f(uTextColor, 0.f, 0.f, 0.f, 1.f);
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
+
+	return true;
 }
 
 void update()

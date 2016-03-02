@@ -39,8 +39,8 @@ void RigidBody::Update()
 		btTransform trans;
 		rigidbody->getMotionState()->getWorldTransform(trans);
 		//trans.getOpenGLMatrix(glm::value_ptr(modelMatrix));
-		translation = convert(&trans.getOrigin());
-		orientation = convert(&trans.getRotation());
+		translation = convert(trans.getOrigin());
+		orientation = convert(trans.getRotation());
 	}
 }
 
