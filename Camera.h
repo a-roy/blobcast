@@ -38,7 +38,7 @@ class EulerCamera : public Camera
 		
 		virtual void Move();
 		virtual void Turn(float x, float y);
-		virtual glm::mat4 EulerCamera::GetMatrix() const;
+		virtual glm::mat4 GetMatrix() const;
 };
 
 class QuaternionCamera : public Camera

@@ -118,18 +118,18 @@ btVector3 Blob::GetCentroid()
 
 void Blob::DrawGizmos(ShaderProgram* shaderProgram)
 {
-	glm::vec3 L = convert(&forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()));
-	glm::vec3 R = convert(&forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>()));
+	glm::vec3 L = convert(forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()));
+	glm::vec3 R = convert(forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>()));
 	glm::vec3 BL = -R;
 	glm::vec3 BR = -L;
 
-	glm::vec3 c = convert(&GetCentroid());
+	glm::vec3 c = convert(GetCentroid());
 
 	Line l(c, c + L * 10.0f);
 	Line r(c, c + R * 10.0f);
 	Line bl(c, c + BL * 10.0f);
 	Line br(c, c + BR * 10.0f);
-	Line fwd(c, c + convert(&forward) * 10.0f);
+	Line fwd(c, c + convert(forward) * 10.0f);
 
 	l.Render();
 	r.Render();

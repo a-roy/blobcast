@@ -1,4 +1,3 @@
-#pragma once
 #include "Skybox.h"
 
 #define CUBE_TEXTURE_SIZE 800

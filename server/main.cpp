@@ -507,7 +507,8 @@ bool init_stream()
 	if (swctx == NULL)
 		return false;
 
-	rakPeer->Startup(100, &RakNet::SocketDescriptor(REMOTE_GAME_PORT, 0), 1);
+	RakNet::SocketDescriptor sd(REMOTE_GAME_PORT, 0);
+	rakPeer->Startup(100, &sd, 1);
 	rakPeer->SetMaximumIncomingConnections(100);
 
 	return true;
@@ -642,7 +643,7 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
 	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(&blob->GetCentroid()), camera->Position));
+			glm::distance(convert(blob->GetCentroid()), camera->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -700,7 +701,7 @@ void drawSkybox()
 	skybox.render();
 
 	skyboxShaderProgram->Uninstall();
-	glDepthMask(GL_LESS);
+	glDepthFunc(GL_LESS);
 }
 
 void dynamicCubePass()
@@ -710,7 +711,7 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = convert(&blob->GetCentroid());
+	glm::vec3 position = convert(blob->GetCentroid());
 	drawCubeFace(
 			position,
 			glm::vec3(1.0f, 0.0f, 0.0f),
@@ -850,6 +851,8 @@ void gui()
 	}
 
 	ImGui::Render();
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void stream()
