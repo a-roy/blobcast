@@ -30,7 +30,12 @@ extern "C"
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 
+#include "Point.h"
 #include "Line.h"
+
+#include "LevelEditor.h"
+
+#include "BulletDebugDrawer.h"
 
 bool init();
 bool init_physics();
@@ -48,6 +53,7 @@ void drawBlob();
 void drawPlatforms();
 void drawSkybox();
 void drawGizmos();
+void drawBulletDebug();
 void gui();
 void stream();
 void key_callback(
@@ -110,13 +116,18 @@ double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
 
-Camera *camera;
+bool bShowBlobCfg = false;
+bool bShowGizmos = true;
+bool bShowBulletDebug = true;
 
+LevelEditor *levelEditor;
+
+Camera *camera;
 double xcursor, ycursor;
 bool bGui = true;
-bool bShowBlobCfg = true;
+double xpos_, ypos_;
 
-bool bGizmos = true;
+BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 
 int main(int argc, char *argv[])
 {
@@ -138,6 +149,8 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
+	levelEditor = new LevelEditor(dynamicsWorld);
+
 	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
 	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
 	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
@@ -146,6 +159,8 @@ int main(int argc, char *argv[])
 	glUniform4f(uTextColor, 0.5f, 1.0f, 1.0f, 1.0f);
 	vera->BindTexture(uAtlas);
 	text_program->Uninstall();
+
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
@@ -157,8 +172,10 @@ int main(int argc, char *argv[])
 		draw();
 		if (streaming)
 			stream();
-		if(bGizmos)
+		if(bShowGizmos)
 			drawGizmos();
+		if (bShowBulletDebug)
+			drawBulletDebug();
 		if(bGui)
 			gui();
 
@@ -187,6 +204,10 @@ int main(int argc, char *argv[])
 	delete collisionConfiguration;
 	delete dispatcher;
 	delete broadphase;
+
+	delete blob;
+	delete levelEditor;
+	delete camera;
 
 	ImGui_ImplGlfw_Shutdown();
 	glfwTerminate();
@@ -266,8 +287,9 @@ bool init_physics()
 	for(RigidBody* r : rigidBodies)
 		dynamicsWorld->addRigidBody(r->rigidbody);
 
-	//blob->AddAnchor(anchor);
 	dynamicsWorld->addSoftBody(blob->softbody);
+
+	dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	return true;
 }
@@ -592,8 +614,6 @@ void update()
 		r->Update();
 }
 
-bool show_test_window = true;
-
 void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -810,54 +830,73 @@ void drawGizmos()
 	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
 	z.Render();
 
-	blob->DrawGizmos(debugdrawShaderProgram);
+	Point p(glm::vec3(0));
+	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 0, 1));
+	p.Render(1.0f/glm::distance(camera->Position, glm::vec3(0)) * 50.0f);
 
+	Line ray(levelEditor->out_origin, levelEditor->out_end);
+	ray.Render();
+
+	blob->DrawGizmos(debugdrawShaderProgram);
 	debugdrawShaderProgram->Uninstall();
+}
+
+void drawBulletDebug()
+{
+	bulletDebugDrawer.SetMatrices(viewMatrix, projMatrix);
+	dynamicsWorld->debugDrawWorld();
 }
 
 void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	if (streaming)
-		ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");
-	else
-		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
-	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
-	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-	ImGui::Checkbox("Show Gizmos", &bGizmos);
-	ImGui::End();
+	ImGui::SetNextWindowPos(ImVec2(10, height - 160));
+	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
+		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
+	{
+		if (streaming)
+			ImGui::Text("We are blobcasting live!");
+		else
+			ImGui::Text("Blobcast server unavailable");
+		ImGui::Separator();
+		ImGui::Text("Right click to turn the camera");
+		ImGui::Separator();
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::Separator();
+		ImGui::Text("Mouse Position: (%.1f,%.1f)", xpos_, ypos_);
+
+		FlyCam* fc = (FlyCam*)camera;
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", camera->Position.x, camera->Position.y, camera->Position.z);
+		ImGui::Text("Camera Forward: (%.1f,%.1f,%.1f)", fc->Forward.x, fc->Forward.y, fc->Forward.z);
+
+		ImGui::End();
+	}
+
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("View"))
+		{
+			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
+				bShowBlobCfg ^= 1;
+			if (ImGui::MenuItem("Gizmos", NULL, bShowGizmos))
+				bShowGizmos ^= 1;
+			if (ImGui::MenuItem("Bullet Debug", NULL, bShowBulletDebug))
+				bShowBulletDebug ^= 1;
+		
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+
+	//ImGui::ShowTestWindow();
 
 	if (bShowBlobCfg)
 	{
-#pragma region Bullet Softbody cfg variables not yet exposed
-		//eAeroModel::_			aeromodel;		// Aerodynamic model (default: V_Point)
-		//btScalar				kVCF;			// Velocities correction factor (Baumgarte)	
-		//btScalar				kCHR;			// Rigid contacts hardness [0,1]
-		//btScalar				kKHR;			// Kinetic contacts hardness [0,1]
-		//btScalar				kSHR;			// Soft contacts hardness [0,1]
-		//btScalar				kAHR;			// Anchors hardness [0,1]
-
-		//btScalar				kSRHR_CL;		// Soft vs rigid hardness [0,1] (cluster only)
-		//btScalar				kSKHR_CL;		// Soft vs kinetic hardness [0,1] (cluster only)
-		//btScalar				kSSHR_CL;		// Soft vs soft hardness [0,1] (cluster only)
-		//btScalar				kSR_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
-		//btScalar				kSK_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
-		//btScalar				kSS_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
-
-		//btScalar				maxvolume;		// Maximum volume ratio for pose
-		//btScalar				timescale;		// Time scale
-		//int						viterations;	// Velocities solver iterations
-		//int						piterations;	// Positions solver iterations
-		//int						diterations;	// Drift solver iterations
-		//int						citerations;	// Cluster solver iterations
-		//int						collisions;		// Collisions flags
-		//tVSolverArray			m_vsequence;	// Velocity solvers sequence
-		//tPSolverArray			m_psequence;	// Position solvers sequence
-		//tPSolverArray			m_dsequence;	// Drift solvers sequence
-#pragma endregion
-
 		ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
+		
 		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
 		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", &blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
 		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", &blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
@@ -905,24 +944,42 @@ void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods)
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-	{
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	}
+	
+	if (key == GLFW_KEY_G && action == GLFW_PRESS)
+		bGui ^= 1;
 
 	blob->Move(key, action);
 
 	GLFWProject::WASDStrafe(camera, window, key, scancode, action, mods);
 }
 
-void cursor_pos_callback(
-	GLFWwindow *window, double xpos, double ypos)
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos)
 {
+	xpos_ = xpos;
+	ypos_ = ypos;
+
 	GLFWProject::MouseTurn(camera, &xcursor, &ycursor, window, xpos, ypos);
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-		bGui = !bGui;
-	GLFWProject::ClickDisablesCursor(&xcursor, &ycursor, window, button, action, mods);
+	{
+		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			glfwGetCursorPos(window, &xcursor, &ycursor);
+		}
+		else
+		{
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		}
+	}	
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
+			levelEditor->Mouse(xpos_, height - ypos_, width, height, viewMatrix, projMatrix);
+	}
 }

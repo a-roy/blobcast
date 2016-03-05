@@ -1,22 +1,22 @@
 #pragma once
 
-#include <GL/glew.h>
+#include <gl\glew.h>
 #include <vector>
 #include <glm\glm.hpp>
 
-class Line
+class Point
 {
 private:
 	GLuint vao;
 	GLuint *VBOs;
-	std::vector<glm::vec3> vertices;
 
 public:
 
-	Line(glm::vec3 from, glm::vec3 to)
+	glm::vec3 point;
+
+	Point(glm::vec3 p)
 	{
-		vertices.push_back(from);
-		vertices.push_back(to);
+		point = p;
 
 		glGenVertexArrays(1, &vao);
 		VBOs = new GLuint[1];
@@ -25,7 +25,7 @@ public:
 		glBindVertexArray(vao);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &point, GL_STREAM_DRAW);
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -34,26 +34,31 @@ public:
 		glBindVertexArray(0);
 	}
 
-	~Line()
+	~Point()
 	{
 		glDeleteVertexArrays(1, &vao);
 		glDeleteBuffers(1, VBOs);
+
+		vao = 0;
+		VBOs[0] = 0;
 	}
 
-	/*void Update(glm::vec3 from, glm::vec3 to)
+	void Update(glm::vec3 p_p)
 	{
-		vertices.clear();
-		vertices.push_back(from);
-		vertices.push_back(to);
+		point = p_p;
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STREAM_DRAW);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3), &point);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}*/
+	}
 
-	void Render()
+	void Render(float size)
 	{
 		glBindVertexArray(vao);
-		glDrawArrays(GL_LINE_LOOP, 0, vertices.size());
+
+		glPointSize(size);
+		glDrawArrays(GL_POINTS, 0, 1);
+
+		glBindVertexArray(0);
 	}
 };

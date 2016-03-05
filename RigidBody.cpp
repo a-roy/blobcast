@@ -17,6 +17,8 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientat
 	btDefaultMotionState* transform = new btDefaultMotionState(btTransform(btQuaternion(convert(p_orientation)), btVector3(convert(p_translation))));
 	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(mass, transform, shape);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
+
+	rigidbody->setUserPointer(this);
 }
 
 RigidBody::~RigidBody()

@@ -68,15 +68,7 @@ class FlyCam : public EulerCamera
 		virtual glm::mat4 GetMatrix() const;
 };
 
-//TODO
-class ThirdPersonCam : public Camera
-{
-	public:
-
-};
-
-//TODO
-class DynamicCam : public ThirdPersonCam
+class BlobCam : public Camera
 {
 	public:
 
