@@ -122,6 +122,8 @@ bool bShowBulletDebug = true;
 bool bShowImguiDemo = false;
 bool bShowCameraSettings = true;
 
+bool bStepPhysics = false;
+
 LevelEditor *levelEditor;
 
 double xcursor, ycursor;
@@ -615,7 +617,8 @@ void update()
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
-	dynamicsWorld->stepSimulation(deltaTime, 10);
+	if(bStepPhysics)
+		dynamicsWorld->stepSimulation(deltaTime, 10);
 
 	blobCam->Target = convert(&blob->GetCentroid());
 	activeCam->Update();
@@ -885,10 +888,10 @@ void gui()
 
 	if (ImGui::BeginMainMenuBar())
 	{
-		/*if (ImGui::BeginMenu("File"))
+		if (ImGui::BeginMenu("File"))
 		{
 			ImGui::EndMenu();
-		}*/
+		}
 
 		if (ImGui::BeginMenu("View"))
 		{
@@ -914,11 +917,21 @@ void gui()
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("Settings"))
+		{
+			if(ImGui::MenuItem("Step Physics", NULL, bStepPhysics))
+				bStepPhysics ^= 1;
+
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 
-	if(bShowImguiDemo)
+	if (bShowImguiDemo)
+	{
 		ImGui::ShowTestWindow();
+	}
 
 	if (bShowCameraSettings)
 	{
@@ -965,13 +978,13 @@ void gui()
 		if(ImGui::InputFloat3("", vec3))
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Set Position"))
-			blob->softbody->translate(btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
+			blob->softbody->translate(
+				btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
 		
 		ImGui::End();
 	}
 
-	if (bShowImguiDemo)
-		ImGui::ShowTestWindow();
+	levelEditor->Gui();
 
 	ImGui::Render();
 }

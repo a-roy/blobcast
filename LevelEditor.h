@@ -24,7 +24,7 @@ private:
 
 public:
 
-	Level *level;
+	//Level *level;
 
 	//For drawing ray
 	glm::vec3 out_origin = glm::vec3(0);
@@ -40,6 +40,68 @@ public:
 	~LevelEditor()
 	{
 
+	}
+
+	void Gui()
+	{
+		if (selection.size() > 0)
+		{
+			ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiSetCond_FirstUseEver);
+
+			ImGui::Begin("Selection");
+			
+			//Translation
+			glm::vec3 centroid = glm::vec3(0);
+			for (auto rb : selection)
+				centroid += rb->translation;
+			centroid /= selection.size();
+			glm::vec3 before = centroid;
+			if (ImGui::DragFloat3("Position", glm::value_ptr(centroid)))
+			{
+				glm::vec3 relTrans = centroid - before;
+				for (auto rb : selection)
+				{
+					rb->translation += relTrans;
+					rb->rigidbody->setWorldTransform(btTransform(
+						rb->rigidbody->getOrientation(),
+						btVector3(rb->translation.x, rb->translation.y,
+							rb->translation.z)));
+				}
+			}
+
+			//Rotation
+			//RigidBody* first = *selection.begin();
+			//
+			//glm::vec3 euler = glm::eulerAngles(first->orientation); //first->rigidbody->getWorldTransform().getRotation().
+			//float x, y, z;
+			//x = glm::degrees(euler.x);
+			//y = glm::degrees(euler.y);
+			//z = glm::degrees(euler.z);
+
+			////glm::degrees
+
+			////euler = glm::vec3(x, y, z);
+
+			//if (ImGui::InputFloat("X ", &x, 15.0f, 15.0f) ||
+			//	ImGui::InputFloat("Y ", &y, 15.0f, 15.0f) ||
+			//	ImGui::InputFloat("Z ", &z, 15.0f, 15.0f))
+			//{
+			//	//glm::vec3 relRot = glm::vec3(x,y,z) - before;
+			//	euler = glm::vec3(glm::radians(x), 
+			//		glm::radians(y), glm::radians(z));
+			//	for (auto rb : selection)
+			//	{
+			//		btQuaternion qtn = btQuaternion(euler.y, 
+			//			euler.x, euler.z);
+			//		rb->orientation = convert(&qtn);
+			//		rb->rigidbody->setWorldTransform(btTransform(qtn,
+			//			rb->rigidbody->getWorldTransform().getOrigin()));
+			//	}
+			//}
+			//glm::angleAxis(glm::half_pi<float>() / 3.f, glm::vec3(0, 0, 1)),
+
+			ImGui::End();
+		}
 	}
                                                                                 
 	void Mouse(double xcursor, double ycursor, int width, int height,
@@ -66,6 +128,7 @@ public:
 			//TODO - Use Bullet collision masks
 			if (typeid(*RayCallback.m_collisionObject) != typeid(btRigidBody))
 				return; 
+			//if(RayCallback.m_collisionObject->ma)
 
 			RigidBody* newSelection = (RigidBody*)
 				RayCallback.m_collisionObject->getUserPointer();

@@ -12,7 +12,7 @@ class RigidBody
 private:
 
 	Mesh* mesh;
-
+	
 public:
 
 	btRigidBody* rigidbody;
