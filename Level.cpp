@@ -17,7 +17,7 @@ std::size_t Level::AddBox(
 {
 	Mesh *box(Mesh::CreateCubeWithNormals(new VertexArray()));
 	RigidBody *r =
-		new RigidBody(box, position, orientation, 2.f * dimensions, color, 0);
+		new RigidBody(box, position, orientation, dimensions, color, 0);
 	Objects.push_back(r);
 	return Objects.size() - 1;
 }

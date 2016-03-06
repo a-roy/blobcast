@@ -20,6 +20,7 @@ public:
 	glm::quat orientation;
 	glm::vec3 scale;
 	glm::vec4 color;
+	glm::vec4 trueColor;
 	float mass;
 
 	RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, float p_mass = 0);

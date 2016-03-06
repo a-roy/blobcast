@@ -14,21 +14,23 @@
 #include "RigidBody.h"
 
 #include <typeinfo>
+#include <set>
 
 class LevelEditor
 {
 
 private:
 	btSoftRigidDynamicsWorld *dynamicsWorld;
-	
+
 public:
+
+	Level *level;
 
 	//For drawing ray
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 
-	RigidBody* selection = NULL;
-	glm::vec4 selectionOriginalColour;
+	std::set<RigidBody*> selection;
 
 	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld)
 	{
@@ -65,18 +67,16 @@ public:
 			if (typeid(*RayCallback.m_collisionObject) != typeid(btRigidBody))
 				return; 
 
-			if (selection != NULL)
-				selection->color = selectionOriginalColour;	
-			selection = (RigidBody*)
+			RigidBody* newSelection = (RigidBody*)
 				RayCallback.m_collisionObject->getUserPointer();
-			selectionOriginalColour = selection->color;
-			selection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+			newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+			selection.insert(newSelection);
 		}
 		else
 		{
-			if(selection != NULL)
-				selection->color = selectionOriginalColour;
-			selection = NULL;
+			for (auto s : selection)
+				s->color = s->trueColor;
+			selection.clear();
 		}
 	}
 

@@ -260,6 +260,9 @@ bool init_physics()
 	btblob->setTotalMass(30, true);
 	
 	level = new Level();
+
+	//levelEditor->level = level;
+
 	level->AddBox(
 			glm::vec3(0, -10, 0),
 			glm::quat(),
@@ -903,6 +906,14 @@ void gui()
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("Create"))
+		{
+			if (ImGui::MenuItem("Box"))
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1), glm::vec4(.5f, .5f, .5f, 1.f));
+
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 
@@ -911,7 +922,7 @@ void gui()
 
 	if (bShowCameraSettings)
 	{
-		ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
 
 		ImGui::Begin("Camera Settings", &bShowCameraSettings);
 		static int n;
@@ -934,7 +945,7 @@ void gui()
 
 	if (bShowBlobCfg)
 	{
-		ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
 		
 		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
 		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", &blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
@@ -945,10 +956,22 @@ void gui()
 		ImGui::SliderFloat("Damping coefficient [0,1]", &blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
 		ImGui::InputFloat("Lift coefficient [0,+inf]", &blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
 		ImGui::SliderFloat("Pose matching coefficient [0,1]", &blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
+		
+		ImGui::Separator();
+
 		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
+		
+		static float vec3[3] = { 0.f, 0.f, 0.f };
+		if(ImGui::InputFloat3("", vec3))
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Set Position"))
+			blob->softbody->translate(btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
 		
 		ImGui::End();
 	}
+
+	if (bShowImguiDemo)
+		ImGui::ShowTestWindow();
 
 	ImGui::Render();
 }
