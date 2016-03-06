@@ -119,13 +119,17 @@ double deltaTime;
 bool bShowBlobCfg = false;
 bool bShowGizmos = true;
 bool bShowBulletDebug = true;
+bool bShowImguiDemo = false;
+bool bShowCameraSettings = true;
 
 LevelEditor *levelEditor;
 
-Camera *camera;
 double xcursor, ycursor;
 bool bGui = true;
-double xpos_, ypos_;
+
+Camera *activeCam;
+FlyCam* flyCam;
+BlobCam* blobCam;
 
 BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 
@@ -207,7 +211,8 @@ int main(int argc, char *argv[])
 
 	delete blob;
 	delete levelEditor;
-	delete camera;
+	delete flyCam;
+	delete blobCam;
 
 	ImGui_ImplGlfw_Shutdown();
 	glfwTerminate();
@@ -365,7 +370,10 @@ bool init_graphics()
 
 	modelMatrix = glm::mat4(1.f);
 
-	camera = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	flyCam = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 2.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	blobCam = new BlobCam();
+
+	activeCam = flyCam;
 
 	return true;
 }
@@ -606,7 +614,8 @@ void update()
 
 	dynamicsWorld->stepSimulation(deltaTime, 10);
 
-	camera->Update();
+	blobCam->Target = convert(&blob->GetCentroid());
+	activeCam->Update();
 
 	blob->Update();
 
@@ -625,7 +634,7 @@ void draw()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 mvpMatrix;
-	viewMatrix = camera->GetMatrix();
+	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
 	//text_program->Install();
@@ -640,7 +649,7 @@ void draw()
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
-	viewMatrix = camera->GetMatrix();
+	viewMatrix = activeCam->GetMatrix();
 }
 
 void depthPass()
@@ -680,9 +689,9 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
 	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	blobShaderProgram->SetUniform("viewPos", camera->Position);
+	blobShaderProgram->SetUniform("viewPos", activeCam->Position);
 	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(&blob->GetCentroid()), camera->Position));
+			glm::distance(convert(&blob->GetCentroid()), activeCam->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -708,7 +717,7 @@ void drawPlatforms()
 	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
 	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
 	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	platformShaderProgram->SetUniform("viewPos", camera->Position);
+	platformShaderProgram->SetUniform("viewPos", activeCam->Position);
 
 	platformShaderProgram->SetUniform("projection", projMatrix);
 	platformShaderProgram->SetUniform("view", viewMatrix);
@@ -817,7 +826,7 @@ void drawGizmos()
 {
 	debugdrawShaderProgram->Install();
 
-	glm::mat4 mvpMatrix = projMatrix * camera->GetMatrix();
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
 
 	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
@@ -832,12 +841,12 @@ void drawGizmos()
 
 	Point p(glm::vec3(0));
 	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 0, 1));
-	p.Render(1.0f/glm::distance(camera->Position, glm::vec3(0)) * 50.0f);
+	p.Render(1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f);
 
 	Line ray(levelEditor->out_origin, levelEditor->out_end);
 	ray.Render();
 
-	blob->DrawGizmos(debugdrawShaderProgram);
+	//blob->DrawGizmos(debugdrawShaderProgram);
 	debugdrawShaderProgram->Uninstall();
 }
 
@@ -851,7 +860,7 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	ImGui::SetNextWindowPos(ImVec2(10, height - 160));
+	ImGui::SetNextWindowPos(ImVec2(50, height - 160));
 	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
@@ -865,17 +874,19 @@ void gui()
 		ImGui::Separator();
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::Separator();
-		ImGui::Text("Mouse Position: (%.1f,%.1f)", xpos_, ypos_);
-
-		FlyCam* fc = (FlyCam*)camera;
-		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", camera->Position.x, camera->Position.y, camera->Position.z);
-		ImGui::Text("Camera Forward: (%.1f,%.1f,%.1f)", fc->Forward.x, fc->Forward.y, fc->Forward.z);
+		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x, activeCam->Position.y, activeCam->Position.z);
 
 		ImGui::End();
 	}
 
 	if (ImGui::BeginMainMenuBar())
 	{
+		/*if (ImGui::BeginMenu("File"))
+		{
+			ImGui::EndMenu();
+		}*/
+
 		if (ImGui::BeginMenu("View"))
 		{
 			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
@@ -884,6 +895,10 @@ void gui()
 				bShowGizmos ^= 1;
 			if (ImGui::MenuItem("Bullet Debug", NULL, bShowBulletDebug))
 				bShowBulletDebug ^= 1;
+			if (ImGui::MenuItem("ImGui Demo", NULL, bShowImguiDemo))
+				bShowImguiDemo ^= 1;
+			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
+				bShowCameraSettings ^= 1;
 		
 			ImGui::EndMenu();
 		}
@@ -891,7 +906,31 @@ void gui()
 		ImGui::EndMainMenuBar();
 	}
 
-	//ImGui::ShowTestWindow();
+	if(bShowImguiDemo)
+		ImGui::ShowTestWindow();
+
+	if (bShowCameraSettings)
+	{
+		ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
+
+		ImGui::Begin("Camera Settings", &bShowCameraSettings);
+		static int n;
+		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
+	
+		if (n == 0)
+		{
+			activeCam = flyCam;	
+			ImGui::SliderFloat("Move Speed [1,100]", &flyCam->MoveSpeed, 0.0f, 20.0f);
+		}
+		else
+		{
+			activeCam = blobCam;
+			ImGui::SliderFloat("Distance [1,100]", &blobCam->Distance, 1.0f, 100.0f);
+			ImGui::SliderFloat("Height [1,100]", &blobCam->Height, 1.0f, 100.0f);
+		}
+
+		ImGui::End();
+	}
 
 	if (bShowBlobCfg)
 	{
@@ -951,15 +990,15 @@ void key_callback(
 
 	blob->Move(key, action);
 
-	GLFWProject::WASDStrafe(camera, window, key, scancode, action, mods);
+	GLFWProject::WASDStrafe(activeCam, window, key, scancode, action, mods);
 }
 
 void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos)
 {
-	xpos_ = xpos;
-	ypos_ = ypos;
+	GLFWProject::MouseTurn(activeCam, &xcursor, &ycursor, window, xpos, ypos);
 
-	GLFWProject::MouseTurn(camera, &xcursor, &ycursor, window, xpos, ypos);
+	xcursor = xpos;
+	ycursor = ypos;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
@@ -967,19 +1006,15 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
 	{
 		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
-		{
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			glfwGetCursorPos(window, &xcursor, &ycursor);
-		}
 		else
-		{
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		}
 	}	
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
-		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
-			levelEditor->Mouse(xpos_, height - ypos_, width, height, viewMatrix, projMatrix);
+		if(!ImGui::GetIO().WantCaptureMouse)
+			if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
+				levelEditor->Mouse(xcursor, height - ycursor, width, height, viewMatrix, projMatrix);
 	}
 }

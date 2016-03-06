@@ -25,7 +25,7 @@ public:
 
 	//For drawing ray
 	glm::vec3 out_origin = glm::vec3(0);
-	glm::vec3 out_end = glm::vec3(0.0,0.0,10.0);
+	glm::vec3 out_end = glm::vec3(0);
 
 	RigidBody* selection = NULL;
 	glm::vec4 selectionOriginalColour;

@@ -72,12 +72,9 @@ bool GLFWProject::MouseTurn(
 		GLFWwindow *window, double xpos, double ypos)
 {
 	if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
-	{
 		camera->Turn((float)(xpos - *xcursor), (float)(ypos - *ycursor));
-		*xcursor = xpos;
-		*ycursor = ypos;
-	}
-	else return false;
+	else
+		return false;
 	return true;
 }
 
