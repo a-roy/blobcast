@@ -106,7 +106,7 @@ public:
 
 			btVector3 scale = 
 				first->rigidbody->getCollisionShape()->getLocalScaling();
-			glm::vec3 s = convert(&scale);
+			glm::vec3 s = convert(scale);
 			if (ImGui::DragFloat3("Scale", glm::value_ptr(s)))
 			{
 				first->rigidbody->

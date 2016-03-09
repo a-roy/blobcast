@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 {
 	if (!connect())
 		return 1;
-	window = GLFWProject::Init("Client Test", CLIENT_WIDTH, CLIENT_HEIGHT);
+	window = GLFWProject::Init("Blobclient", CLIENT_WIDTH, CLIENT_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -93,8 +93,8 @@ int main(int argc, char *argv[])
 
 bool connect()
 {
-	RakNet::StartupResult rakStart =
-		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	RakNet::SocketDescriptor sd;
+	RakNet::StartupResult rakStart = rakPeer->Startup(1, &sd, 1);
 	if (rakStart != RakNet::RAKNET_STARTED)
 		return false;
 
@@ -206,11 +206,15 @@ bool init()
 
 	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
 	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
+	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
 	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
 	text_program->Install();
 	vera->BindTexture(uAtlas);
+	glUniform4f(uTextColor, 0.f, 0.f, 0.f, 1.f);
 	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
 	text_program->Uninstall();
+
+	return true;
 }
 
 void update()

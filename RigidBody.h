@@ -32,10 +32,10 @@ public:
 
 	glm::quat GetOrientation() 
 	{
-		return convert(&rigidbody->getOrientation());
+		return convert(rigidbody->getOrientation());
 	}
 	glm::vec3 GetTranslation() 
 	{
-		return convert(&rigidbody->getWorldTransform().getOrigin());
+		return convert(rigidbody->getWorldTransform().getOrigin());
 	}
 };

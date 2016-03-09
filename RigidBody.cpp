@@ -37,11 +37,11 @@ RigidBody::~RigidBody()
 glm::mat4 RigidBody::GetModelMatrix()
 {
 	return glm::translate(glm::mat4(1), 
-		convert(&rigidbody->getWorldTransform().getOrigin()))
-		* glm::toMat4(convert(&rigidbody->getWorldTransform().getRotation()))
+		convert(rigidbody->getWorldTransform().getOrigin()))
+		* glm::toMat4(convert(rigidbody->getWorldTransform().getRotation()))
 		* glm::scale(glm::mat4(1), globalScale)
 		* glm::scale(glm::mat4(1), 
-			convert(&rigidbody->getCollisionShape()->getLocalScaling()));
+			convert(rigidbody->getCollisionShape()->getLocalScaling()));
 }
 
 void RigidBody::Render()

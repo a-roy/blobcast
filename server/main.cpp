@@ -69,6 +69,8 @@ Text *text;
 int width, height;
 bool streaming = false;
 
+FloatBuffer *display_vbo;
+
 glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
 glm::mat4 projMatrix;
@@ -102,6 +104,7 @@ Blob *blob;
 std::vector<RigidBody*> rigidBodies;
 Level *level;
 
+ShaderProgram *displayShaderProgram;
 ShaderProgram *blobShaderProgram;
 ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
@@ -110,7 +113,6 @@ ShaderProgram *depthShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
-btVector3 current_input;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
@@ -139,7 +141,7 @@ std::map<std::string, Measurement> Profiler::measurements;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", RENDER_WIDTH, RENDER_HEIGHT);
+	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -263,10 +265,9 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 160);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
 	btSoftBody *btblob = blob->softbody;
 	
-	level = new Level();
 	level = Level::Deserialize("test_level.json");	
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
@@ -279,6 +280,9 @@ bool init_physics()
 bool init_graphics()
 {
 	vao = new VertexArray();
+	display_vbo = new FloatBuffer(vao, 2, 4);
+	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
+	display_vbo->SetData(vertex_data);
 
 	vera = new Font(FontDir "Vera.ttf", 48.f);
 	text = new Text(vao, vera);
@@ -289,6 +293,13 @@ bool init_graphics()
 	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
 	text_program = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "Display.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Display.frag", GL_FRAGMENT_SHADER));
+	displayShaderProgram = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 	shaders.clear();
@@ -532,7 +543,8 @@ bool init_stream()
 	if (swctx == NULL)
 		return false;
 
-	rakPeer->Startup(100, &RakNet::SocketDescriptor(REMOTE_GAME_PORT, 0), 1);
+	RakNet::SocketDescriptor sd(REMOTE_GAME_PORT, 0);
+	rakPeer->Startup(100, &sd, 1);
 	rakPeer->SetMaximumIncomingConnections(100);
 
 	return true;
@@ -581,6 +593,15 @@ void update()
 			left_count / num_inputs, right_count / num_inputs);
 		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
 	}
+	if (num_inputs > 0.f)
+	{
+		displayShaderProgram->Install();
+		displayShaderProgram->SetUniform("uForward", forward_count / num_inputs);
+		displayShaderProgram->SetUniform("uBackward", backward_count / num_inputs);
+		displayShaderProgram->SetUniform("uRight", right_count / num_inputs);
+		displayShaderProgram->SetUniform("uLeft", left_count / num_inputs);
+		displayShaderProgram->Uninstall();
+	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
@@ -603,7 +624,7 @@ void update()
 		dynamicsWorld->stepSimulation(deltaTime, 10);
 	Profiler::Finish("Physics");
 
-	blobCam->Target = convert(&blob->GetCentroid());
+	blobCam->Target = convert(blob->GetCentroid());
 	activeCam->Update();
 
 	blob->Update();
@@ -636,6 +657,22 @@ void draw()
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 	viewMatrix = activeCam->GetMatrix();
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glm::mat4 displayMVP = glm::ortho(
+			-1.25f, ((float)width  / 128.f) - 1.25f,
+			-1.25f, ((float)height / 128.f) - 1.25f);
+	displayShaderProgram->Install();
+	displayShaderProgram->SetUniform("uMVPMatrix", displayMVP);
+	displayShaderProgram->SetUniform("uInnerRadius", 0.7f);
+	displayShaderProgram->SetUniform("uOuterRadius", 0.9f);
+	glEnableVertexAttribArray(0);
+	display_vbo->BufferData(0);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDisableVertexAttribArray(0);
+	displayShaderProgram->Uninstall();
+	glDisable(GL_BLEND);
 }
 
 void depthPass()
@@ -677,7 +714,7 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", activeCam->Position);
 	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(&blob->GetCentroid()), activeCam->Position));
+			glm::distance(convert(blob->GetCentroid()), activeCam->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -738,7 +775,7 @@ void drawSkybox()
 	skybox.render();
 
 	skyboxShaderProgram->Uninstall();
-	glDepthMask(GL_LESS);
+	glDepthFunc(GL_LESS);
 }
 
 void dynamicCubePass()
@@ -748,7 +785,7 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = convert(&blob->GetCentroid());
+	glm::vec3 position = convert(blob->GetCentroid());
 	drawCubeFace(
 			position,
 			glm::vec3(1.0f, 0.0f, 0.0f),
@@ -987,6 +1024,8 @@ void gui()
 	levelEditor->Gui();
 
 	ImGui::Render();
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void stream()

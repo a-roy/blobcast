@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoftBody.h"
-#include <GLFW\glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <algorithm>
@@ -19,6 +19,7 @@ class Blob : public SoftBody
 private:
 	unsigned int sampleIndices[6] = { 0 };
 	btVector3 centroid;
+	btScalar radius;
 
 public:
 	btVector3 forward;
@@ -27,7 +28,7 @@ public:
 
 	Blob(
 			btSoftBodyWorldInfo& softBodyWorldInfo,
-			const btVector3& center, const btVector3& scale, int vertices);
+			const btVector3& center, btScalar scale, int vertices);
 	~Blob();
 
 	void Update();
