@@ -18,8 +18,10 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 		new btDefaultMotionState(btTransform(
 							 btQuaternion(convert(p_orientation)), 
 							 btVector3(convert(p_translation))));
+	btVector3 inertia; 
+	shape->calculateLocalInertia(mass, inertia);
 	btRigidBody::btRigidBodyConstructionInfo 
-		groundRigidBodyCI(mass, transform, shape);
+		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
 	if (mass != 0)
