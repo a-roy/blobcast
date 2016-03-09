@@ -46,59 +46,105 @@ public:
 	{
 		if (selection.size() > 0)
 		{
-			ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(300, 300), 
+				ImGuiSetCond_FirstUseEver);
 
 			ImGui::Begin("Selection");
 			
 			//Translation
 			glm::vec3 centroid = glm::vec3(0);
 			for (auto rb : selection)
-				centroid += rb->translation;
+				centroid += rb->GetTranslation();
 			centroid /= selection.size();
 			glm::vec3 before = centroid;
 			if (ImGui::DragFloat3("Position", glm::value_ptr(centroid)))
 			{
-				glm::vec3 relTrans = centroid - before;
+				btVector3 relTrans = convert(centroid - before);
 				for (auto rb : selection)
 				{
-					rb->translation += relTrans;
 					rb->rigidbody->setWorldTransform(btTransform(
-						rb->rigidbody->getOrientation(),
-						btVector3(rb->translation.x, rb->translation.y,
-							rb->translation.z)));
+						rb->rigidbody->getOrientation(), 
+						rb->rigidbody->getWorldTransform().getOrigin() 
+						+ relTrans));
+				}
+			}
+			                                                                             
+			//Rotation
+			RigidBody* first = *selection.begin();
+			glm::vec3 euler = 
+				glm::degrees(glm::eulerAngles(first->GetOrientation()));        
+			float x = euler.x;
+			float y = euler.y;
+			float z = euler.z;
+			bool set = false;
+			btQuaternion qtn;
+			if (ImGui::InputFloat("RotationX", &x, 15.0f, 15.0f))
+			{
+				euler = glm::radians(glm::vec3(x, euler.y, euler.z));
+				set = true;
+			}
+			if (ImGui::InputFloat("RotationY", &y, 15.0f, 15.0f))
+			{
+				euler = glm::radians(glm::vec3(euler.x, y, euler.z));	
+				set = true;
+			}
+			if (ImGui::InputFloat("RotationZ", &z, 15.0f, 15.0f))
+			{
+				euler = glm::radians(glm::vec3(euler.x, euler.y, z));
+				set = true;
+			}
+			if (set)
+			{
+				qtn = btQuaternion(euler.y, euler.x, euler.z);
+				for (auto rb : selection)
+				{
+					rb->rigidbody->setWorldTransform(btTransform(qtn,
+						rb->rigidbody->getWorldTransform().getOrigin()));
+					//rb->Update();
 				}
 			}
 
-			//Rotation
-			//RigidBody* first = *selection.begin();
-			//
-			//glm::vec3 euler = glm::eulerAngles(first->orientation); //first->rigidbody->getWorldTransform().getRotation().
-			//float x, y, z;
-			//x = glm::degrees(euler.x);
-			//y = glm::degrees(euler.y);
-			//z = glm::degrees(euler.z);
+			btVector3 scale = 
+				first->rigidbody->getCollisionShape()->getLocalScaling();
+			glm::vec3 s = convert(&scale);
+			if (ImGui::DragFloat3("Scale", glm::value_ptr(s)))
+			{
+				first->rigidbody->
+					getCollisionShape()->setLocalScaling(convert(s));
+				//first->Update();
+				//btVector3 relTrans = convert(centroid - before);
+				//for (auto rb : selection)
+				//{
+					
+					//rb->Update();
+				//}
+			}
 
-			////glm::degrees
 
-			////euler = glm::vec3(x, y, z);
+			//Scale
+			/*glm::vec3 centroid = glm::vec3(0);
+			for (auto rb : selection)
+				centroid += rb->translation;
+			centroid /= selection.size();
+			glm::vec3 before = centroid;*/
+			//glm::vec3 scale = glm::vec3(0);
 
-			//if (ImGui::InputFloat("X ", &x, 15.0f, 15.0f) ||
-			//	ImGui::InputFloat("Y ", &y, 15.0f, 15.0f) ||
-			//	ImGui::InputFloat("Z ", &z, 15.0f, 15.0f))
+			//first->rigidbody->getCollisionShape()->
+
+			//	btCollisionShape::setLocalScaling().
+			//		//btCollisionWorld::updateSingleAABB(rigidbody)
+			//if (ImGui::DragFloat3("Scale", glm::value_ptr(centroid)))
 			//{
-			//	//glm::vec3 relRot = glm::vec3(x,y,z) - before;
-			//	euler = glm::vec3(glm::radians(x), 
-			//		glm::radians(y), glm::radians(z));
+			//	btVector3 relTrans = convert(centroid - before);
 			//	for (auto rb : selection)
 			//	{
-			//		btQuaternion qtn = btQuaternion(euler.y, 
-			//			euler.x, euler.z);
-			//		rb->orientation = convert(&qtn);
-			//		rb->rigidbody->setWorldTransform(btTransform(qtn,
-			//			rb->rigidbody->getWorldTransform().getOrigin()));
+			//		rb->rigidbody->setWorldTransform(btTransform(
+			//			rb->rigidbody->getOrientation(),
+			//			rb->rigidbody->getWorldTransform().getOrigin()
+			//			+ relTrans));
+			//		rb->Update();
 			//	}
-			//}
-			//glm::angleAxis(glm::half_pi<float>() / 3.f, glm::vec3(0, 0, 1)),
+			//}*/
 
 			ImGui::End();
 		}

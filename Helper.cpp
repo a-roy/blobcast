@@ -15,6 +15,11 @@ glm::vec3 convert(btVector3* v)
 	return glm::vec3(v->getX(), v->getY(), v->getZ());
 }
 
+glm::vec3 convert(const btVector3* v)
+{
+	return glm::vec3(v->getX(), v->getY(), v->getZ());
+}
+
 glm::quat convert(btQuaternion* q)
 {
 	return glm::quat(q->getW(), q->getX(), q->getY(), q->getZ());

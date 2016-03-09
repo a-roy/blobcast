@@ -27,6 +27,12 @@ Blob::Blob(
 			}
 		}
 	}
+
+	softbody->m_materials[0]->m_kLST = 0.1;
+	softbody->m_cfg.kDF = 1;
+	softbody->m_cfg.kDP = 0.001;
+	softbody->m_cfg.kPR = 2500;
+	softbody->setTotalMass(30, true);
 }
 
 Blob::~Blob()

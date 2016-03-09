@@ -32,10 +32,9 @@ extern "C"
 
 #include "Point.h"
 #include "Line.h"
-
 #include "LevelEditor.h"
-
 #include "BulletDebugDrawer.h"
+#include "Profiler.h"
 
 bool init();
 bool init_physics();
@@ -122,7 +121,7 @@ bool bShowBulletDebug = true;
 bool bShowImguiDemo = false;
 bool bShowCameraSettings = true;
 
-bool bStepPhysics = false;
+bool bStepPhysics = true;
 
 LevelEditor *levelEditor;
 
@@ -134,6 +133,9 @@ FlyCam* flyCam;
 BlobCam* blobCam;
 
 BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
+
+double frameCounterTime = 0.0f;
+std::map<std::string, Measurement> Profiler::measurements;
 
 int main(int argc, char *argv[])
 {
@@ -174,10 +176,17 @@ int main(int argc, char *argv[])
 
 	while (!glfwWindowShouldClose(window))
 	{
+		Profiler::Start("Frame");
 		update();
+		
+		Profiler::Start("Rendering");
 		draw();
-		if (streaming)
-			stream();
+		Profiler::Finish("Rendering", false);
+
+		Profiler::Start("Streaming");
+		stream();
+		Profiler::Finish("Streaming");
+
 		if(bShowGizmos)
 			drawGizmos();
 		if (bShowBulletDebug)
@@ -185,8 +194,12 @@ int main(int argc, char *argv[])
 		if(bGui)
 			gui();
 
+		Profiler::Start("Rendering");
 		glfwSwapBuffers(window);
+		Profiler::Finish("Rendering", true);
+		
 		glfwPollEvents();
+		Profiler::Finish("Frame");
 	}
 	if (streaming)
 	{
@@ -241,7 +254,6 @@ bool init_physics()
 
 	dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
-	//Experiment with environment variables
 	softBodyWorldInfo.m_broadphase = broadphase;
 	softBodyWorldInfo.m_dispatcher = dispatcher;
 	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
@@ -253,52 +265,12 @@ bool init_physics()
 
 	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 160);
 	btSoftBody *btblob = blob->softbody;
-
-	//Experiment with blob variables
-	btblob->m_materials[0]->m_kLST = 0.1;
-	btblob->m_cfg.kDF = 1;
-	btblob->m_cfg.kDP = 0.001;
-	btblob->m_cfg.kPR = 2500;
-	btblob->setTotalMass(30, true);
 	
 	level = new Level();
-
-	//levelEditor->level = level;
-
-	level->AddBox(
-			glm::vec3(0, -10, 0),
-			glm::quat(),
-			glm::vec3(50.0f, 1.0f, 50.0f),
-			glm::vec4(0.85f, 0.85f, 0.85f, 1.0f));
-	level->AddBox(
-			glm::vec3(50, -5, 0),
-			glm::angleAxis(glm::half_pi<float>() / 3.f, glm::vec3(0, 0, 1)),
-			glm::vec3(10.0f, 1.0f, 10.0f),
-			glm::vec4(1.0f, 0.1f, 0.1f, 1.0f));
-	level->Serialize("test_level.json");
-	delete level;
-	level = Level::Deserialize("test_level.json");
-	//rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
-	//	glm::vec3(0, -10, 0), glm::quat(), glm::vec3(100.0f, 1.0f, 100.0f), 
-	//	glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
-
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
-		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(-10, 10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
-		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
-		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
-
+	level = Level::Deserialize("test_level.json");	
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
-	for(RigidBody* r : rigidBodies)
-		dynamicsWorld->addRigidBody(r->rigidbody);
-
 	dynamicsWorld->addSoftBody(blob->softbody);
-
 	dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	return true;
@@ -610,23 +582,31 @@ void update()
 		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
 	}
 
-	currentFrame = glfwGetTime();
-
-	deltaTime = currentFrame - lastFrame;
-	lastFrame = currentFrame;
-
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
+	currentFrame = glfwGetTime();
+	deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;	
+
+	frameCounterTime += deltaTime;
+	if (frameCounterTime >= 1.0f)
+	{
+		for (auto itr = Profiler::measurements.begin();
+		itr != Profiler::measurements.end(); itr++)
+			if(itr->second.avg)
+				itr->second.SetAvg();
+		frameCounterTime = 0;
+	}
+	
+	Profiler::Start("Physics");
 	if(bStepPhysics)
 		dynamicsWorld->stepSimulation(deltaTime, 10);
+	Profiler::Finish("Physics");
 
 	blobCam->Target = convert(&blob->GetCentroid());
 	activeCam->Update();
 
 	blob->Update();
-
-	for (RigidBody* r : rigidBodies)
-		r->Update();
 }
 
 void draw()
@@ -866,7 +846,7 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	ImGui::SetNextWindowPos(ImVec2(50, height - 160));
+	ImGui::SetNextWindowPos(ImVec2(50, height - 200));
 	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
@@ -878,10 +858,30 @@ void gui()
 		ImGui::Separator();
 		ImGui::Text("Right click to turn the camera");
 		ImGui::Separator();
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 
+			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS)", 
+			Profiler::measurements["Physics"].result*1000,
+			(Profiler::measurements["Physics"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Physics"].result);
+		ImGui::Text("Streaming average %.3f ms/frame | %.1f percent | %.1f FPS)",
+			Profiler::measurements["Streaming"].result * 1000,
+			(Profiler::measurements["Streaming"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Streaming"].result);
+		ImGui::Text("Rendering average %.3f ms/frame | %.1f percent | %.1f FPS)",
+			Profiler::measurements["Rendering"].result * 1000,
+			(Profiler::measurements["Rendering"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Rendering"].result);
+		
 		ImGui::Separator();
 		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
-		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x, activeCam->Position.y, activeCam->Position.z);
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x, 
+			activeCam->Position.y, activeCam->Position.z);
 
 		ImGui::End();
 	}

@@ -17,7 +17,7 @@ std::size_t Level::AddBox(
 {
 	Mesh *box(Mesh::CreateCubeWithNormals(new VertexArray()));
 	RigidBody *r =
-		new RigidBody(box, position, orientation, dimensions, color, 0);
+		new RigidBody(box, position, orientation, dimensions, color, mass);
 	Objects.push_back(r);
 	return Objects.size() - 1;
 }
@@ -54,16 +54,19 @@ void Level::Serialize(std::string file)
 	for (RigidBody *r : Objects)
 	{
 		nlohmann::json object;
+
+		btVector3 translation = r->rigidbody->getWorldTransform().getOrigin();
+		btQuaternion orientation = r->rigidbody->getOrientation();
+
 		object["type"] = "box";
 		object["position"] = {
-			r->translation.x, r->translation.y, r->translation.z };
+			translation.getX(), translation.getY(), 
+			translation.getZ() };
 		object["orientation"] = {
-			r->orientation.w,
-			r->orientation.x,
-			r->orientation.y,
-			r->orientation.z };
+			orientation.getW(), orientation.getX(),
+			orientation.getY(), orientation.getZ() };
 		object["dimensions"] = {
-			r->scale.x, r->scale.y, r->scale.z };
+			r->globalScale.x, r->globalScale.y, r->globalScale.z };
 		object["color"] = {
 			r->color.r, r->color.g, r->color.b, r->color.a };
 		object["mass"] = r->mass;
