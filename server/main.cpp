@@ -2,13 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libswscale/swscale.h>
-}
 #include <RakNet/MessageIdentifiers.h>
 #include <RakNet/RakPeerInterface.h>
 
@@ -17,6 +10,7 @@ extern "C"
 #include "ShaderProgram.h"
 #include "Text.h"
 #include "BlobInput.h"
+#include "StreamWriter.h"
 
 #include "SoftBody.h"
 #include "Blob.h"
@@ -54,7 +48,6 @@ void drawSkybox();
 void drawGizmos();
 void drawBulletDebug();
 void gui();
-void stream();
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
 void cursor_pos_callback(
@@ -67,7 +60,8 @@ ShaderProgram *text_program;
 Font *vera;
 Text *text;
 int width, height;
-bool streaming = false;
+
+FloatBuffer *display_vbo;
 
 glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
@@ -84,11 +78,7 @@ Skybox skybox;
 
 DirectionalLight dirLight;
 
-AVFrame *avframe;
-AVCodecContext *avctx;
-AVFormatContext *avfmt;
-SwsContext *swctx;
-GLuint pbo;
+StreamWriter *stream;
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 btCollisionDispatcher *dispatcher;
@@ -102,6 +92,7 @@ Blob *blob;
 std::vector<RigidBody*> rigidBodies;
 Level *level;
 
+ShaderProgram *displayShaderProgram;
 ShaderProgram *blobShaderProgram;
 ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
@@ -110,7 +101,6 @@ ShaderProgram *depthShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
-btVector3 current_input;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
@@ -139,7 +129,7 @@ std::map<std::string, Measurement> Profiler::measurements;
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", RENDER_WIDTH, RENDER_HEIGHT);
+	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -184,7 +174,8 @@ int main(int argc, char *argv[])
 		Profiler::Finish("Rendering", false);
 
 		Profiler::Start("Streaming");
-		stream();
+		if (stream->IsOpen())
+			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
 		if(bShowGizmos)
@@ -201,19 +192,12 @@ int main(int argc, char *argv[])
 		glfwPollEvents();
 		Profiler::Finish("Frame");
 	}
-	if (streaming)
+	if (stream->IsOpen())
 	{
-		av_write_trailer(avfmt);
-		avcodec_close(avctx);
-
 		rakPeer->Shutdown(0);
 		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-		av_free(avfmt->pb);
 	}
-	avformat_free_context(avfmt);
-	avformat_network_deinit();
-	//avcodec_free_context(&avctx);
-	av_frame_free(&avframe);
+	delete stream;
 	delete text_program;
 	delete text;
 	delete vera;
@@ -263,10 +247,9 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 160);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
 	btSoftBody *btblob = blob->softbody;
 	
-	level = new Level();
 	level = Level::Deserialize(LevelDir "test_level.json");
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
@@ -279,56 +262,43 @@ bool init_physics()
 bool init_graphics()
 {
 	vao = new VertexArray();
+	display_vbo = new FloatBuffer(vao, 2, 4);
+	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
+	display_vbo->SetData(vertex_data);
 
 	vera = new Font(FontDir "Vera.ttf", 48.f);
 	text = new Text(vao, vera);
 	text->SetText("Hello world");
 
-	std::vector<Shader *> shaders;
-	
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	text_program = new ShaderProgram(2,
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Skybox.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Skybox.frag", GL_FRAGMENT_SHADER));
-	skyboxShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	displayShaderProgram = new ShaderProgram(2,
+			ShaderDir "Display.vert",
+			ShaderDir "Display.frag");
 
-	shaders.push_back(new Shader(ShaderDir "DepthShader.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "DepthShader.frag", GL_FRAGMENT_SHADER));
-	depthShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	skyboxShaderProgram = new ShaderProgram(2,
+			ShaderDir "Skybox.vert",
+			ShaderDir "Skybox.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Blob.tesc", GL_TESS_CONTROL_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.tese", GL_TESS_EVALUATION_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
-	blobShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	depthShaderProgram = new ShaderProgram(2,
+			ShaderDir "DepthShader.vert",
+			ShaderDir "DepthShader.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
-	platformShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	blobShaderProgram = new ShaderProgram(4,
+			ShaderDir "Blob.vert",
+			ShaderDir "Blob.tesc",
+			ShaderDir "Blob.tese",
+			ShaderDir "Blob.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Gizmo.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Gizmo.frag", GL_FRAGMENT_SHADER));
-	debugdrawShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	platformShaderProgram = new ShaderProgram(2,
+			ShaderDir "Platform.vert",
+			ShaderDir "Platform.frag");
+
+	debugdrawShaderProgram = new ShaderProgram(2,
+			ShaderDir "Gizmo.vert",
+			ShaderDir "Gizmo.frag");
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
@@ -463,76 +433,10 @@ bool init_frameBuffers()
 
 bool init_stream()
 {
-	glGenBuffers(1, &pbo);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	avcodec_register_all();
-	AVDictionary *opts = NULL;
-	av_dict_set(&opts, "tune", "zerolatency", 0);
-	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "crf", xstr(CODEC_CRF), 0);
-#ifdef RTMP_STREAM
-	av_dict_set(&opts, "rtmp_live", "live", 0);
-#endif // RTMP_STREAM
-	AVIOContext *ioctx;
-	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
-	if (!codec)
-		return false;
-	avctx = avcodec_alloc_context3(codec);
-	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
-	avctx->width = STREAM_WIDTH;
-	avctx->height = STREAM_HEIGHT;
-	avctx->time_base = { 1, 60 };
-#ifdef UDP_STREAM
-	avctx->gop_size = 0;
-#endif // UDP_STREAM
-	if (avcodec_open2(avctx, codec, &opts) < 0)
-		return false;
+	stream = new StreamWriter(width, height);
 
-	avframe = av_frame_alloc();
-	avframe->format = AV_PIX_FMT_YUV420P;
-	avframe->width = STREAM_WIDTH;
-	avframe->height = STREAM_HEIGHT;
-	avframe->linesize[0] = STREAM_WIDTH;
-	avframe->linesize[1] = STREAM_WIDTH / 2;
-	avframe->linesize[2] = STREAM_WIDTH / 2;
-	if (av_frame_get_buffer(avframe, 0) != 0)
-		return false;
-
-	int linesize_align[AV_NUM_DATA_POINTERS];
-	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
-	glBufferData(
-			GL_PIXEL_PACK_BUFFER, width * height * 3, NULL, GL_STREAM_READ);
-
-	av_register_all();
-	avformat_network_init();
-	avfmt = avformat_alloc_context();
-	std::string filename = STREAM_PATH;
-	avfmt->oformat = av_guess_format("flv", 0, 0);
-	av_dict_set(&opts, "live", "1", 0);
-	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->start_time_realtime = AV_NOPTS_VALUE;
-	AVStream *s = avformat_new_stream(avfmt, codec);
-	s->time_base = { 1, 60 };
-	if (s == NULL)
-		return false;
-	s->codec = avctx;
-	int io_result =
-		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts);
-	streaming = (io_result >= 0);
-	if (!streaming)
-		return true;
-	avfmt->pb = ioctx;
-	if (avformat_write_header(avfmt, &opts) != 0)
-		return false;
-
-	swctx = sws_getContext(
-			width, height, AV_PIX_FMT_RGB24,
-			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
-			SWS_BICUBIC, NULL, NULL, NULL);
-	if (swctx == NULL)
-		return false;
-
-	rakPeer->Startup(100, &RakNet::SocketDescriptor(REMOTE_GAME_PORT, 0), 1);
+	RakNet::SocketDescriptor sd(REMOTE_GAME_PORT, 0);
+	rakPeer->Startup(100, &sd, 1);
 	rakPeer->SetMaximumIncomingConnections(100);
 
 	return true;
@@ -547,7 +451,7 @@ void update()
 	int right_count = 0;
 	int left_count = 0;
 	int jump_count = 0;
-	while (streaming && rakPeer->GetReceiveBufferSize() > 0)
+	while (stream->IsOpen() && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
 		unsigned char packet_type = p->data[0];
@@ -581,6 +485,15 @@ void update()
 			left_count / num_inputs, right_count / num_inputs);
 		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
 	}
+	if (num_inputs > 0.f)
+	{
+		displayShaderProgram->Install();
+		displayShaderProgram->SetUniform("uForward", forward_count / num_inputs);
+		displayShaderProgram->SetUniform("uBackward", backward_count / num_inputs);
+		displayShaderProgram->SetUniform("uRight", right_count / num_inputs);
+		displayShaderProgram->SetUniform("uLeft", left_count / num_inputs);
+		displayShaderProgram->Uninstall();
+	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
@@ -603,7 +516,7 @@ void update()
 		dynamicsWorld->stepSimulation(deltaTime, 10);
 	Profiler::Finish("Physics");
 
-	blobCam->Target = convert(&blob->GetCentroid());
+	blobCam->Target = convert(blob->GetCentroid());
 	activeCam->Update();
 
 	blob->Update();
@@ -636,6 +549,22 @@ void draw()
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
 	viewMatrix = activeCam->GetMatrix();
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glm::mat4 displayMVP = glm::ortho(
+			-1.25f, ((float)width  / 128.f) - 1.25f,
+			-1.25f, ((float)height / 128.f) - 1.25f);
+	displayShaderProgram->Install();
+	displayShaderProgram->SetUniform("uMVPMatrix", displayMVP);
+	displayShaderProgram->SetUniform("uInnerRadius", 0.7f);
+	displayShaderProgram->SetUniform("uOuterRadius", 0.9f);
+	glEnableVertexAttribArray(0);
+	display_vbo->BufferData(0);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	glDisableVertexAttribArray(0);
+	displayShaderProgram->Uninstall();
+	glDisable(GL_BLEND);
 }
 
 void depthPass()
@@ -677,7 +606,7 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", activeCam->Position);
 	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(&blob->GetCentroid()), activeCam->Position));
+			glm::distance(convert(blob->GetCentroid()), activeCam->Position));
 
 	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
@@ -738,7 +667,7 @@ void drawSkybox()
 	skybox.render();
 
 	skyboxShaderProgram->Uninstall();
-	glDepthMask(GL_LESS);
+	glDepthFunc(GL_LESS);
 }
 
 void dynamicCubePass()
@@ -748,7 +677,7 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = convert(&blob->GetCentroid());
+	glm::vec3 position = convert(blob->GetCentroid());
 	drawCubeFace(
 			position,
 			glm::vec3(1.0f, 0.0f, 0.0f),
@@ -851,7 +780,7 @@ void gui()
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
 	{
-		if (streaming)
+		if (stream->IsOpen())
 			ImGui::Text("We are blobcasting live!");
 		else
 			ImGui::Text("Blobcast server unavailable");
@@ -995,32 +924,8 @@ void gui()
 	debugdrawShaderProgram->Uninstall();
 
 	ImGui::Render();
-}
-
-void stream()
-{
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	uint8_t *data =
-		(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-	uint8_t *const srcSlice[] = { data };
-	int srcStride[] = { width * 3 };
-	if (data != NULL)
-		sws_scale(
-				swctx,
-				srcSlice, srcStride,
-				0, height,
-				avframe->data, avframe->linesize);
-	avframe->pts += 1500;
-	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	AVPacket *avpkt = av_packet_alloc();
-	int got_packet;
-	if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
-		exit(1);
-	if (got_packet == 1)
-		av_interleaved_write_frame(avfmt, avpkt);
-	av_packet_free(&avpkt);
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void key_callback(

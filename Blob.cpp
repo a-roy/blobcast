@@ -2,13 +2,15 @@
 
 Blob::Blob(
 		btSoftBodyWorldInfo& softBodyWorldInfo,
-		const btVector3& center, const btVector3& scale, int vertices) :
+		const btVector3& center, btScalar r, int vertices) :
 	SoftBody(btSoftBodyHelpers::CreateEllipsoid(
-				softBodyWorldInfo, center, scale, vertices)),
-	speed(1120.f / vertices),
-	centroid(center)
+				softBodyWorldInfo, center, btVector3(1, 1, 1) * r, vertices)),
+	centroid(center),
+	radius(r),
+	speed(1120.f / vertices)
 {
 	forward = btVector3(0, 0, 1);
+	btVector3 scale = btVector3(1, 1, 1) * r;
 	btVector3 points[6] = {
 		btVector3(center[0], center[1] - scale[1], center[2]),
 		btVector3(center[0], center[1] + scale[1], center[2]),
@@ -18,12 +20,15 @@ Blob::Blob(
 		btVector3(center[0], center[1], center[2] + scale[2]) };
 	for (unsigned int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
+		btSoftBody::Node *node = &softbody->m_nodes[i];
 		for (unsigned int j = 0; j < 6; j++)
 		{
-			if (btDistance2(softbody->m_nodes[i].m_x, points[j]) <
-				btDistance2(softbody->m_nodes[sampleIndices[j]].m_x, points[j]))
+			if (sampleNodes[j] == NULL)
+				sampleNodes[j] = node;
+			else if (btDistance2(node->m_x, points[j]) <
+					btDistance2(sampleNodes[j]->m_x, points[j]))
 			{
-				sampleIndices[j] = i;
+				sampleNodes[j] = node;
 			}
 		}
 	}
@@ -76,23 +81,34 @@ void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 {
 	btVector3 right = forward.cross(btVector3(0, 1, 0));
 
-	btVector3 L = forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
-	btVector3 R = forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>());
+	btVector3 L = forward.rotate(btVector3(0, -1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
+	btVector3 R = forward.rotate(btVector3(0, -1, 0), glm::quarter_pi<float>());
 
 	for (int i = 0; i < softbody->m_nodes.size(); i++)
 	{
-		btVector3 blobSpaceNode = softbody->m_nodes[i].m_x - GetCentroid();
+		btVector3 blobSpaceNode =
+			(softbody->m_nodes[i].m_x - centroid) *
+			btVector3(1, 0, 1) / radius;
+		btVector3 force = blobSpaceNode * (
+			btPow(btMax(btDot(blobSpaceNode, forward), 0.f), 2) * magFwd +
+			btPow(btMax(btDot(blobSpaceNode, -forward), 0.f), 2) * magBack +
+			btPow(btMax(btDot(blobSpaceNode, right), 0.f), 2) * magRight +
+			btPow(btMax(btDot(blobSpaceNode, -right), 0.f), 2) * magLeft) /
+			btDistance2(btVector3(0, 0, 0), blobSpaceNode);
+		AddForce(force, i);
 
+		/* Quadrant movement
 		if (blobSpaceNode.dot(L) > 0)
 			if (blobSpaceNode.dot(R) > 0)
-				AddForce(-right * magLeft, i);
-			else
 				AddForce(forward * magFwd, i);
+			else
+				AddForce(-right * magLeft, i);
 		else
 			if (blobSpaceNode.dot(R) > 0)
-				AddForce(-forward * magBack, i);
-			else
 				AddForce(right * magRight, i);
+			else
+				AddForce(-forward * magBack, i);
+		*/
 	}
 }
 
@@ -100,7 +116,7 @@ void Blob::ComputeCentroid()
 {
 	centroid = btVector3(0, 0, 0);
 	for (int i = 0; i < 6; i++)
-		centroid += softbody->m_nodes[sampleIndices[i]].m_x;
+		centroid += sampleNodes[i]->m_x;
 	centroid *= (1.f/6.f);
 }
 
@@ -111,18 +127,18 @@ btVector3 Blob::GetCentroid()
 
 void Blob::DrawGizmos(ShaderProgram* shaderProgram)
 {
-	glm::vec3 L = convert(&forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()));
-	glm::vec3 R = convert(&forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>()));
+	glm::vec3 L = convert(forward.rotate(btVector3(0, 1, 0), -glm::quarter_pi<float>()));
+	glm::vec3 R = convert(forward.rotate(btVector3(0, 1, 0), glm::quarter_pi<float>()));
 	glm::vec3 BL = -R;
 	glm::vec3 BR = -L;
 
-	glm::vec3 c = convert(&GetCentroid());
+	glm::vec3 c = convert(GetCentroid());
 
 	Line l(c, c + L * 10.0f);
 	Line r(c, c + R * 10.0f);
 	Line bl(c, c + BL * 10.0f);
 	Line br(c, c + BR * 10.0f);
-	Line fwd(c, c + convert(&forward) * 10.0f);
+	Line fwd(c, c + convert(forward) * 10.0f);
 
 	l.Render();
 	r.Render();

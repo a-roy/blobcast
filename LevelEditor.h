@@ -54,6 +54,7 @@ public:
 			ImGui::SetNextWindowSize(ImVec2(300, 300), 
 				ImGuiSetCond_FirstUseEver);
 
+
 			ImGui::Begin("Selection");	
 			Translation();
 			Rotation(shaderProgram);
@@ -274,7 +275,7 @@ private:
 	{
 		glm::vec3 centroid = glm::vec3(0);
 		for (auto rb : selection)
-			centroid += convert(&rb->rigidbody->getCollisionShape()->
+			centroid += convert(rb->rigidbody->getCollisionShape()->
 				getLocalScaling());
 		centroid /= selection.size();
 		glm::vec3 before = centroid;
