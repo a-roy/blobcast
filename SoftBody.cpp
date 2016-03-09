@@ -4,6 +4,7 @@ SoftBody::SoftBody(btSoftBody* p_softBody)
 {
 	softbody = p_softBody;
 
+	vertices = std::vector<glm::vec3>(softbody->m_nodes.size());
 	normals = std::vector<glm::vec3>(softbody->m_nodes.size());
 	for (int i = 0; i<softbody->m_faces.size(); ++i)
 	{
@@ -12,14 +13,12 @@ SoftBody::SoftBody(btSoftBody* p_softBody)
 		indices.push_back(f.m_n[0] - node);
 		indices.push_back(f.m_n[1] - node);
 		indices.push_back(f.m_n[2] - node);
-		btVector3 normal = f.m_normal;
-		normals[f.m_n[0] - node] += convert(normal);
-		normals[f.m_n[1] - node] += convert(normal);
-		normals[f.m_n[2] - node] += convert(normal);
 	}
 	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
 		vertices.push_back(convert(softbody->m_nodes[i].m_x));
+		vertices[i] = convert(softbody->m_nodes[i].m_x);
+		normals[i] = convert(softbody->m_nodes[i].m_n);
 	}
 
 	glGenVertexArrays(1, &vao);
@@ -55,18 +54,10 @@ void SoftBody::Update()
 {
 	vertices = std::vector<glm::vec3>(softbody->m_nodes.size());
 	normals = std::vector<glm::vec3>(softbody->m_nodes.size());
-	for (int i = 0; i<softbody->m_faces.size(); ++i)
-	{
-		const btSoftBody::Face&	f = softbody->m_faces[i];
-		const btSoftBody::Node *node = &softbody->m_nodes[0];
-		btVector3 normal = f.m_normal;
-		normals[f.m_n[0] - node] += convert(normal);
-		normals[f.m_n[1] - node] += convert(normal);
-		normals[f.m_n[2] - node] += convert(normal);
-	}
 	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
 		vertices[i] = convert(softbody->m_nodes[i].m_x);
+		normals[i] = convert(softbody->m_nodes[i].m_n);
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
