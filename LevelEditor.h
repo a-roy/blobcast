@@ -34,7 +34,6 @@ public:
 
 	//Level *level;
 
-	//For drawing ray
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 
@@ -275,57 +274,70 @@ private:
 
 	void Rotation(ShaderProgram *shaderProgram)
 	{
-		RigidBody* first = *selection.begin();
-		//glm::vec3 euler =
-			//glm::degrees(glm::eulerAngles(first->GetOrientation()));
+		for (auto rb : selection)
+		{
+			glm::vec3 xAxis(1.0f, 0.0f, 0.0f);
+			xAxis = glm::toMat3(rb->GetOrientation()) * xAxis;
+			shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+			Line xAxisDraw(rb->GetTranslation() - (xAxis * ROTATION_GIZMO_SIZE),
+				rb->GetTranslation() + (xAxis * ROTATION_GIZMO_SIZE));
+			xAxisDraw.Render();
+
+			glm::vec3 yAxis(0.0f, 1.0f, 0.0f);
+			yAxis = glm::toMat3(rb->GetOrientation()) * yAxis;
+			shaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+			Line yAxisDraw(rb->GetTranslation() - (yAxis * ROTATION_GIZMO_SIZE),
+				rb->GetTranslation() + (yAxis * ROTATION_GIZMO_SIZE));
+			yAxisDraw.Render();
+
+			glm::vec3 zAxis(0.0f, 0.0f, 1.0f);
+			zAxis = glm::toMat3(rb->GetOrientation()) * zAxis;
+			shaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+			Line zAxisDraw(rb->GetTranslation() - (zAxis * ROTATION_GIZMO_SIZE),
+				rb->GetTranslation() + (zAxis * ROTATION_GIZMO_SIZE));
+			zAxisDraw.Render();
+		}
 
 		float x = 0;
-		float y = 0;
-		float z = 0;
-
-		glm::vec3 xAxis(1.0f, 0.0f, 0.0f);
-		xAxis = glm::toMat3(first->GetOrientation()) * xAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
-		Line xAxisDraw(first->GetTranslation() - (xAxis * 10.0f), 
-			first->GetTranslation() + (xAxis * 10.0f));
-		xAxisDraw.Render();
-
-		glm::vec3 yAxis(0.0f, 1.0f, 0.0f);
-		yAxis = glm::toMat3(first->GetOrientation()) * yAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
-		Line yAxisDraw(first->GetTranslation() - (yAxis * 10.0f),
-			first->GetTranslation() + (yAxis * 10.0f));
-		yAxisDraw.Render();
-
-		glm::vec3 zAxis(0.0f, 0.0f, 1.0f);
-		zAxis = glm::toMat3(first->GetOrientation()) * zAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
-		Line zAxisDraw(first->GetTranslation() - (zAxis * 10.0f),
-			first->GetTranslation() + (zAxis * 10.0f));
-		zAxisDraw.Render();
-
-		btQuaternion qtn;
 		if (ImGui::InputFloat("RotationX", &x, 15.0f, 15.0f))
 		{
-			glm::quat qtn =
-				glm::angleAxis(glm::radians(x), xAxis)
-				* first->GetOrientation();
-			first->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				first->rigidbody->getWorldTransform().getOrigin()));
+			for (auto rb : selection)
+			{
+				glm::quat qtn = glm::angleAxis(glm::radians(x),
+					glm::toMat3(rb->GetOrientation()) 
+					* glm::vec3(1.0f, 0.0f, 0.0f))
+					* rb->GetOrientation();
+				rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
+					rb->rigidbody->getWorldTransform().getOrigin()));
+			}
 		}
+		
+		float y = 0;
 		if (ImGui::InputFloat("RotationY", &y, 15.0f, 15.0f))
 		{
-			glm::quat qtn = glm::angleAxis(glm::radians(y), yAxis)
-				* first->GetOrientation();
-			first->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				first->rigidbody->getWorldTransform().getOrigin()));
+			for (auto rb : selection)
+			{
+				glm::quat qtn = glm::angleAxis(glm::radians(y),
+					glm::toMat3(rb->GetOrientation())
+					* glm::vec3(0.0f, 1.0f, 0.0f))
+					* rb->GetOrientation();
+				rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
+					rb->rigidbody->getWorldTransform().getOrigin()));
+			}
 		}
+
+		float z = 0;
 		if (ImGui::InputFloat("RotationZ", &z, 15.0f, 15.0f))
 		{
-			glm::quat qtn = glm::angleAxis(glm::radians(z), zAxis)
-				* first->GetOrientation();
-			first->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				first->rigidbody->getWorldTransform().getOrigin()));
+			for (auto rb : selection)
+			{
+				glm::quat qtn = glm::angleAxis(glm::radians(z),
+					glm::toMat3(rb->GetOrientation()) *
+					glm::vec3(0.0f, 0.0f, 1.0f))
+					* rb->GetOrientation();
+				rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
+					rb->rigidbody->getWorldTransform().getOrigin()));
+			}
 		}
 	}
 
