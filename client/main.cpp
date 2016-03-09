@@ -2,13 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libswscale/swscale.h>
-}
 #include <RakNet/MessageIdentifiers.h>
 #include <RakNet/RakPeerInterface.h>
 #include <RakNet/RakNetTypes.h>
@@ -22,6 +15,7 @@ extern "C"
 #include "Text.h"
 #include "BlobInput.h"
 #include "HostData.h"
+#include "StreamReceiver.h"
 
 #include "config.h"
 
@@ -43,11 +37,7 @@ int width, height;
 std::string stream_address;
 uint8_t *data;
 GLuint tex;
-
-AVFormatContext *avfmt = NULL;
-AVCodecContext *avctx = NULL;
-AVFrame *avframe = NULL;
-SwsContext *swctx = NULL;
+StreamReceiver *stream;
 
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 RakNet::SystemAddress hostAddress = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
@@ -76,10 +66,6 @@ int main(int argc, char *argv[])
 	free(data);
 	rakPeer->Shutdown(100);
 	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-	avcodec_close(avctx);
-	avcodec_free_context(&avctx);
-	avformat_network_deinit();
-	av_frame_free(&avframe);
 	delete stream_program;
 	delete text_program;
 	delete input_display;
@@ -167,36 +153,7 @@ bool init()
 	}
 	shaders.clear();
 
-	AVDictionary *opts = NULL;
-	av_dict_set(&opts, "tune", "zerolatency", 0);
-	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "rtmp_live", "live", 0);
-	av_dict_set(&opts, "analyzeduration", "100000", 0);
-	av_register_all();
-	avformat_network_init();
-	if (avformat_open_input(
-				&avfmt,
-				stream_address.c_str(),
-				NULL,
-				&opts
-				) < 0)
-		return false;
-	if (avfmt->streams[0]->codec->codec_id == AV_CODEC_ID_NONE)
-		avfmt->streams[0]->codec->codec_id = AV_CODEC_ID_H264;
-	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
-	if (codec == NULL)
-		return false;
-
-	avctx = avcodec_alloc_context3(codec);
-	if (avcodec_open2(avctx, NULL, &opts) < 0)
-		return false;
-
-	swctx = sws_getContext(
-			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
-			width, height, AV_PIX_FMT_BGRA,
-			SWS_LANCZOS, NULL, NULL, NULL);
-
-	avframe = av_frame_alloc();
+	stream = new StreamReceiver(stream_address.c_str(), width, height);
 	data = (uint8_t *)malloc(width * height * 4);
 
 	GLuint uImage = stream_program->GetUniformLocation("uImage");
@@ -278,31 +235,7 @@ void draw()
 			IMMEDIATE_PRIORITY, RELIABLE, 0,
 			hostAddress, false);
 
-	AVPacket *pkt = av_packet_alloc();
-	av_init_packet(pkt);
-	if (av_read_frame(avfmt, pkt) < 0)
-		return;
-	int got_picture;
-	if (avcodec_decode_video2(avctx, avframe, &got_picture, pkt) < 0)
-		return;
-	av_packet_unref(pkt);
-	av_packet_free(&pkt);
-	if (got_picture == 0)
-		return;
-
-	int linesize_align[AV_NUM_DATA_POINTERS];
-	avcodec_align_dimensions2(
-			avctx, &avframe->width, &avframe->height, linesize_align);
-
-	uint8_t *const dstSlice[] = { data };
-	int dstStride[] = { width * 4 };
-	if (data != NULL)
-		sws_scale(
-				swctx,
-				avframe->data, avframe->linesize,
-				0, STREAM_HEIGHT,
-				dstSlice, dstStride);
-	av_frame_unref(avframe);
+	stream->ReceiveFrame(data);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glActiveTexture(GL_TEXTURE0 + tex - 1);
 	glBindTexture(GL_TEXTURE_2D, tex);
