@@ -121,7 +121,7 @@ bool bShowBulletDebug = true;
 bool bShowImguiDemo = false;
 bool bShowCameraSettings = true;
 
-bool bStepPhysics = true;
+bool bStepPhysics = false;
 
 LevelEditor *levelEditor;
 
@@ -267,7 +267,7 @@ bool init_physics()
 	btSoftBody *btblob = blob->softbody;
 	
 	level = new Level();
-	level = Level::Deserialize("test_level.json");	
+	level = Level::Deserialize(LevelDir "test_level.json");
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
 	dynamicsWorld->addSoftBody(blob->softbody);
@@ -829,8 +829,8 @@ void drawGizmos()
 	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 0, 1));
 	p.Render(1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f);
 
-	Line ray(levelEditor->out_origin, levelEditor->out_end);
-	ray.Render();
+	//Line ray(levelEditor->out_origin, levelEditor->out_end);
+	//ray.Render();
 
 	//blob->DrawGizmos(debugdrawShaderProgram);
 	debugdrawShaderProgram->Uninstall();
@@ -984,7 +984,15 @@ void gui()
 		ImGui::End();
 	}
 
-	levelEditor->Gui();
+
+
+	debugdrawShaderProgram->Install();
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
+
+	levelEditor->Gui(debugdrawShaderProgram);
+
+	debugdrawShaderProgram->Uninstall();
 
 	ImGui::Render();
 }

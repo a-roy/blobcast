@@ -3,7 +3,9 @@
 #include <btBulletDynamicsCommon.h>
 #include "Mesh.h" 
 #include <glm/gtc/type_ptr.hpp>
-#include "Helper.h"""
+#include "Helper.h"
+
+#include <glm/gtc/matrix_transform.hpp> 
 
 //enum RBShape { Box }; //TODO - add more shapes support (as needed)
 
@@ -17,7 +19,6 @@ private:
 public:
 
 	btRigidBody* rigidbody;
-	glm::vec3 globalScale;
 	glm::vec4 color;
 	glm::vec4 trueColor;
 	float mass;
@@ -37,5 +38,9 @@ public:
 	glm::vec3 GetTranslation() 
 	{
 		return convert(&rigidbody->getWorldTransform().getOrigin());
+	}
+	glm::vec3 GetScale()
+	{
+		return convert(&rigidbody->getCollisionShape()->getLocalScaling());
 	}
 };
