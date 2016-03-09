@@ -17,7 +17,7 @@ class Blob : public SoftBody
 {
 
 private:
-	unsigned int sampleIndices[6] = { 0 };
+	btSoftBody::Node *sampleNodes[6] = { NULL };
 	btVector3 centroid;
 	btScalar radius;
 

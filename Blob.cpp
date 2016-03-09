@@ -20,12 +20,15 @@ Blob::Blob(
 		btVector3(center[0], center[1], center[2] + scale[2]) };
 	for (unsigned int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
+		btSoftBody::Node *node = &softbody->m_nodes[i];
 		for (unsigned int j = 0; j < 6; j++)
 		{
-			if (btDistance2(softbody->m_nodes[i].m_x, points[j]) <
-				btDistance2(softbody->m_nodes[sampleIndices[j]].m_x, points[j]))
+			if (sampleNodes[j] == NULL)
+				sampleNodes[j] = node;
+			else if (btDistance2(node->m_x, points[j]) <
+					btDistance2(sampleNodes[j]->m_x, points[j]))
 			{
-				sampleIndices[j] = i;
+				sampleNodes[j] = node;
 			}
 		}
 	}
@@ -113,7 +116,7 @@ void Blob::ComputeCentroid()
 {
 	centroid = btVector3(0, 0, 0);
 	for (int i = 0; i < 6; i++)
-		centroid += softbody->m_nodes[sampleIndices[i]].m_x;
+		centroid += sampleNodes[i]->m_x;
 	centroid *= (1.f/6.f);
 }
 

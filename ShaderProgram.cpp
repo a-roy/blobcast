@@ -2,6 +2,34 @@
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 
+ShaderProgram::ShaderProgram(int num_shaders, char *paths...)
+{
+	std::vector<Shader *> shaders(num_shaders);
+	for (int i = 0; i < num_shaders; i++)
+	{
+		std::string path((&paths)[i]);
+		std::string extension = path.substr(path.length() - 4, 4);
+		GLenum shaderType;
+		if (extension == "vert")
+			shaderType = GL_VERTEX_SHADER;
+		else if (extension == "tesc")
+			shaderType = GL_TESS_CONTROL_SHADER;
+		else if (extension == "tese")
+			shaderType = GL_TESS_EVALUATION_SHADER;
+		else if (extension == "geom")
+			shaderType = GL_GEOMETRY_SHADER;
+		else if (extension == "frag")
+			shaderType = GL_FRAGMENT_SHADER;
+		shaders[i] = new Shader(path, shaderType);
+	}
+	program = glCreateProgram();
+	LinkProgram(shaders);
+	for (int i = 0; i < num_shaders; i++)
+	{
+		delete shaders[i];
+	}
+}
+
 ShaderProgram::ShaderProgram(std::vector<Shader *> shaders)
 {
 	program = glCreateProgram();
