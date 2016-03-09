@@ -8,6 +8,7 @@
 #define ShaderDir RootDir "shaders/"
 #define FontDir RootDir "fonts/"
 #define TextureDir RootDir "textures/"
+#define LevelDir RootDir "levels/"
 
 #ifdef RTMP_STREAM
 #define STREAM_PROTOCOL "rtmp://"

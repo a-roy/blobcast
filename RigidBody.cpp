@@ -6,13 +6,13 @@
 
 RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation, 
 	glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
-	float p_mass)
-	: mesh(p_mesh), globalScale(p_scale), color(p_color), trueColor(p_color), 
+	float p_mass) : mesh(p_mesh), color(p_color), trueColor(p_color), 
 	mass(p_mass)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 	btCollisionShape* shape;
-	shape = new btBoxShape(btVector3(convert(globalScale)));
+	shape = new btBoxShape(btVector3(1,1,1));
+	shape->setLocalScaling(convert(p_scale));
 
 	btDefaultMotionState* transform = 
 		new btDefaultMotionState(btTransform(
@@ -36,12 +36,9 @@ RigidBody::~RigidBody()
 
 glm::mat4 RigidBody::GetModelMatrix()
 {
-	return glm::translate(glm::mat4(1), 
-		convert(rigidbody->getWorldTransform().getOrigin()))
-		* glm::toMat4(convert(rigidbody->getWorldTransform().getRotation()))
-		* glm::scale(glm::mat4(1), globalScale)
-		* glm::scale(glm::mat4(1), 
-			convert(rigidbody->getCollisionShape()->getLocalScaling()));
+	return glm::translate(glm::mat4(1), GetTranslation())
+		* glm::toMat4(GetOrientation())
+		* glm::scale(glm::mat4(1), GetScale());
 }
 
 void RigidBody::Render()

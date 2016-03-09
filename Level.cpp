@@ -55,18 +55,19 @@ void Level::Serialize(std::string file)
 	{
 		nlohmann::json object;
 
-		btVector3 translation = r->rigidbody->getWorldTransform().getOrigin();
-		btQuaternion orientation = r->rigidbody->getOrientation();
+		glm::vec3 translation = r->GetTranslation();
+		glm::quat orientation = r->GetOrientation();
+		glm::vec3 scale = r->GetScale();
 
 		object["type"] = "box";
 		object["position"] = {
-			translation.getX(), translation.getY(), 
-			translation.getZ() };
+			translation.x, translation.y, 
+			translation.z };
 		object["orientation"] = {
-			orientation.getW(), orientation.getX(),
-			orientation.getY(), orientation.getZ() };
+			orientation.w, orientation.x,
+			orientation.y, orientation.z };
 		object["dimensions"] = {
-			r->globalScale.x, r->globalScale.y, r->globalScale.z };
+			scale.x, scale.y, scale.z };
 		object["color"] = {
 			r->color.r, r->color.g, r->color.b, r->color.a };
 		object["mass"] = r->mass;
