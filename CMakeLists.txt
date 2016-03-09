@@ -36,7 +36,7 @@ target_link_libraries(${LIB_NAME}
 	avutil
 	swscale
 	ws2_32
-	RakNetLibStatic
+	optimized RakNetLibStatic debug RakNetLibStatic_Debug
 	optimized BulletCollision debug BulletCollision_Debug
 	optimized BulletDynamics  debug BulletDynamics_Debug
 	optimized BulletSoftBody  debug BulletSoftBody_Debug
