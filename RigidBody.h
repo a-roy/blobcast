@@ -43,4 +43,16 @@ public:
 	{
 		return convert(&rigidbody->getCollisionShape()->getLocalScaling());
 	}
+
+	//void SetMass(btSoftRigidDynamicsWorld* dynamicsWorld)
+	//{
+	//	//Remove from world to change mass
+	//	dynamicsWorld->removeRigidBody(rigidbody);
+	//	btVector3 inertia;
+	//	first->rigidbody->getCollisionShape()->calculateLocalInertia(mass, inertia);
+	//	first->rigidbody->setMassProps(mass, inertia);
+	//	dynamicsWorld->addRigidBody(first->rigidbody);
+
+	//	first->mass = mass;
+	//}
 };

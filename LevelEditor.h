@@ -32,8 +32,6 @@ private:
 
 public:
 
-	//Level *level;
-
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 
@@ -59,7 +57,22 @@ public:
 			ImGui::Begin("Selection");	
 			Translation();
 			Rotation(shaderProgram);
-			Scale();		                                                                         
+			Scale();	
+	
+			RigidBody *first = *selection.begin();
+			float mass = first->mass;
+			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
+			{
+				//Remove from world to change mass
+				dynamicsWorld->removeRigidBody(first->rigidbody);
+				btVector3 inertia;
+				first->rigidbody->getCollisionShape()->calculateLocalInertia(mass, inertia);
+				first->rigidbody->setMassProps(mass, inertia);
+				dynamicsWorld->addRigidBody(first->rigidbody);
+
+				first->mass = mass;
+			}
+
 			ImGui::End();
 		}
 	}
@@ -246,6 +259,15 @@ private:
 					rb->rigidbody->getWorldTransform().getOrigin()));
 			}
 		}
+
+		if (ImGui::Button("Reset Rotation"))
+		{
+			for (auto rb : selection)
+			{
+				rb->rigidbody->setWorldTransform(btTransform(btQuaternion(),
+					rb->rigidbody->getWorldTransform().getOrigin()));
+			}
+		}
 	}
 
 	void Scale()
@@ -256,7 +278,7 @@ private:
 				getLocalScaling());
 		centroid /= selection.size();
 		glm::vec3 before = centroid;
-		if (ImGui::InputFloat3("Scale", glm::value_ptr(centroid)))
+		if (ImGui::DragFloat3("Scale", glm::value_ptr(centroid)))
 		{
 			btVector3 relScale = convert(centroid - before);
 			for (auto rb : selection)
