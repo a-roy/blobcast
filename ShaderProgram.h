@@ -14,6 +14,7 @@ class ShaderProgram
 		GLuint program;
 		std::map<std::string, GLint> uniforms;
 
+		ShaderProgram(int num_shaders, char *paths...);
 		ShaderProgram(std::vector<Shader *> shaders);
 		~ShaderProgram();
 		void LinkProgram(std::vector<Shader *> &shaders);

@@ -267,58 +267,35 @@ bool init_graphics()
 	text = new Text(vao, vera);
 	text->SetText("Hello world");
 
-	std::vector<Shader *> shaders;
-	
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	text_program = new ShaderProgram(2,
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Display.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Display.frag", GL_FRAGMENT_SHADER));
-	displayShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	displayShaderProgram = new ShaderProgram(2,
+			ShaderDir "Display.vert",
+			ShaderDir "Display.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Skybox.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Skybox.frag", GL_FRAGMENT_SHADER));
-	skyboxShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	skyboxShaderProgram = new ShaderProgram(2,
+			ShaderDir "Skybox.vert",
+			ShaderDir "Skybox.frag");
 
-	shaders.push_back(new Shader(ShaderDir "DepthShader.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "DepthShader.frag", GL_FRAGMENT_SHADER));
-	depthShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	depthShaderProgram = new ShaderProgram(2,
+			ShaderDir "DepthShader.vert",
+			ShaderDir "DepthShader.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Blob.tesc", GL_TESS_CONTROL_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.tese", GL_TESS_EVALUATION_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
-	blobShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	blobShaderProgram = new ShaderProgram(4,
+			ShaderDir "Blob.vert",
+			ShaderDir "Blob.tesc",
+			ShaderDir "Blob.tese",
+			ShaderDir "Blob.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
-	platformShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	platformShaderProgram = new ShaderProgram(2,
+			ShaderDir "Platform.vert",
+			ShaderDir "Platform.frag");
 
-	shaders.push_back(new Shader(ShaderDir "Gizmo.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Gizmo.frag", GL_FRAGMENT_SHADER));
-	debugdrawShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	debugdrawShaderProgram = new ShaderProgram(2,
+			ShaderDir "Gizmo.vert",
+			ShaderDir "Gizmo.frag");
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
