@@ -54,7 +54,6 @@ public:
 			ImGui::SetNextWindowSize(ImVec2(300, 300), 
 				ImGuiSetCond_FirstUseEver);
 
-
 			ImGui::Begin("Selection");	
 			Translation();
 			Rotation(shaderProgram);

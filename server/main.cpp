@@ -775,7 +775,7 @@ void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	ImGui::SetNextWindowPos(ImVec2(50, height - 200));
+	ImGui::SetNextWindowPos(ImVec2(width - 500, 40));
 	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
 		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
@@ -818,9 +818,7 @@ void gui()
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::BeginMenu("File"))
-		{
 			ImGui::EndMenu();
-		}
 
 		if (ImGui::BeginMenu("View"))
 		{
@@ -840,8 +838,20 @@ void gui()
 
 		if (ImGui::BeginMenu("Create"))
 		{
-			if (ImGui::MenuItem("Box"))
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1), glm::vec4(.5f, .5f, .5f, 1.f));
+			if (ImGui::MenuItem("Platform"))
+			{
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f));
+				dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size()-1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Physics Box"))
+			{
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
 
 			ImGui::EndMenu();
 		}
@@ -913,8 +923,6 @@ void gui()
 		ImGui::End();
 	}
 
-
-
 	debugdrawShaderProgram->Install();
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
@@ -936,6 +944,17 @@ void key_callback(
 	
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 		bGui ^= 1;
+
+	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
+	{
+		for (auto rb : levelEditor->selection)
+		{
+			dynamicsWorld->removeRigidBody(rb->rigidbody);
+			level->Delete(level->Find(rb->rigidbody));
+			delete rb;
+		}
+		levelEditor->selection.clear();
+	}
 
 	blob->Move(key, action);
 

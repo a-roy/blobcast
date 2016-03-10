@@ -25,7 +25,8 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
-	//rigidbody->setActivationState(DISABLE_DEACTIVATION);
+	//if(mass != 0)
+		//rigidbody->setActivationState(DISABLE_DEACTIVATION);
 	//rigidbody->setMassProps(mass, inertia);
 
 	rigidbody->setUserPointer(this);
