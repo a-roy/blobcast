@@ -248,35 +248,35 @@ bool init_graphics()
 	text = new Text(vao, vera);
 	text->SetText("Hello world");
 
-	text_program = new ShaderProgram(2,
+	text_program = new ShaderProgram({
 			ShaderDir "Text.vert",
-			ShaderDir "Text.frag");
+			ShaderDir "Text.frag" });
 
-	displayShaderProgram = new ShaderProgram(2,
+	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
-			ShaderDir "Display.frag");
+			ShaderDir "Display.frag" });
 
-	skyboxShaderProgram = new ShaderProgram(2,
+	skyboxShaderProgram = new ShaderProgram({
 			ShaderDir "Skybox.vert",
-			ShaderDir "Skybox.frag");
+			ShaderDir "Skybox.frag" });
 
-	depthShaderProgram = new ShaderProgram(2,
+	depthShaderProgram = new ShaderProgram({
 			ShaderDir "DepthShader.vert",
-			ShaderDir "DepthShader.frag");
+			ShaderDir "DepthShader.frag" });
 
-	blobShaderProgram = new ShaderProgram(4,
+	blobShaderProgram = new ShaderProgram({
 			ShaderDir "Blob.vert",
 			ShaderDir "Blob.tesc",
 			ShaderDir "Blob.tese",
-			ShaderDir "Blob.frag");
+			ShaderDir "Blob.frag" });
 
-	platformShaderProgram = new ShaderProgram(2,
+	platformShaderProgram = new ShaderProgram({
 			ShaderDir "Platform.vert",
-			ShaderDir "Platform.frag");
+			ShaderDir "Platform.frag" });
 
-	debugdrawShaderProgram = new ShaderProgram(2,
+	debugdrawShaderProgram = new ShaderProgram({
 			ShaderDir "Gizmo.vert",
-			ShaderDir "Gizmo.frag");
+			ShaderDir "Gizmo.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);

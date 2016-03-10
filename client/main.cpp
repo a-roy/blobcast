@@ -134,24 +134,13 @@ bool init()
 	input_display->YPosition = 8;
 	input_display->SetText("Inputs:");
 
-	std::vector<Shader *> shaders;
-	shaders.push_back(new Shader(ShaderDir "Stream.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Stream.frag", GL_FRAGMENT_SHADER));
-	stream_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	stream_program = new ShaderProgram({
+			ShaderDir "Stream.vert",
+			ShaderDir "Stream.frag" });
 
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	text_program = new ShaderProgram({
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag" });
 
 	stream = new StreamReceiver(stream_address.c_str(), width, height);
 	data = (uint8_t *)malloc(width * height * 4);
