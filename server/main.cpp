@@ -30,6 +30,9 @@
 #include "BulletDebugDrawer.h"
 #include "Profiler.h"
 
+#include <stdio.h>
+#include "tinyfiledialogs.h"
+
 bool init();
 bool init_physics();
 bool init_graphics();
@@ -127,6 +130,9 @@ BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 double frameCounterTime = 0.0f;
 std::map<std::string, Measurement> Profiler::measurements;
 
+#pragma warning(disable:4996) /* allows usage of strncpy, strcpy, strcat, sprintf, fopen */
+char const *jsonExtension = ".json";
+
 int main(int argc, char *argv[])
 {
 	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
@@ -217,6 +223,8 @@ int main(int argc, char *argv[])
 	glfwTerminate();
 	return 0;
 }
+
+#pragma warning(default:4996)
 
 bool init()
 {
@@ -791,17 +799,17 @@ void gui()
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 
 			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS)", 
+		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS", 
 			Profiler::measurements["Physics"].result*1000,
 			(Profiler::measurements["Physics"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
 			1.0f / Profiler::measurements["Physics"].result);
-		ImGui::Text("Streaming average %.3f ms/frame | %.1f percent | %.1f FPS)",
+		ImGui::Text("Streaming average %.3f ms/frame | %.1f percent | %.1f FPS",
 			Profiler::measurements["Streaming"].result * 1000,
 			(Profiler::measurements["Streaming"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
 			1.0f / Profiler::measurements["Streaming"].result);
-		ImGui::Text("Rendering average %.3f ms/frame | %.1f percent | %.1f FPS)",
+		ImGui::Text("Rendering average %.3f ms/frame | %.1f percent | %.1f FPS",
 			Profiler::measurements["Rendering"].result * 1000,
 			(Profiler::measurements["Rendering"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
@@ -818,7 +826,49 @@ void gui()
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Load"))
+			{
+				char const *lTheOpenFileName = NULL;
+				lTheOpenFileName = tinyfd_openFileDialog (
+					"Load level",
+					"",
+					0,
+					NULL,
+					NULL,
+					0);
+				if (lTheOpenFileName != NULL)
+				{
+					levelEditor->selection.clear();
+
+					for (RigidBody* rb : level->Objects)
+						dynamicsWorld->removeRigidBody(rb->rigidbody);
+					delete level;
+
+					level = Level::Deserialize(lTheOpenFileName);
+					for (RigidBody* rb : level->Objects)
+						dynamicsWorld->addRigidBody(rb->rigidbody);
+				}
+			}
+
+			if (ImGui::MenuItem("Save as.."))
+			{
+				char const *lTheSaveFileName = NULL;
+				
+				lTheSaveFileName = tinyfd_saveFileDialog(
+					"Save Level",
+					"level.json",
+					/*1*/0,
+					/*&jsonExtension*/NULL,
+					NULL);
+
+				if(lTheSaveFileName != NULL )
+					level->Serialize(lTheSaveFileName);
+				//TODO - don't save with selection color!
+			}
+
 			ImGui::EndMenu();
+		}
 
 		if (ImGui::BeginMenu("View"))
 		{
@@ -883,13 +933,16 @@ void gui()
 		if (n == 0)
 		{
 			activeCam = flyCam;	
-			ImGui::SliderFloat("Move Speed [1,100]", &flyCam->MoveSpeed, 0.0f, 20.0f);
+			ImGui::SliderFloat("Move Speed [1,100]", 
+				&flyCam->MoveSpeed, 0.0f, 20.0f);
 		}
 		else
 		{
 			activeCam = blobCam;
-			ImGui::SliderFloat("Distance [1,100]", &blobCam->Distance, 1.0f, 100.0f);
-			ImGui::SliderFloat("Height [1,100]", &blobCam->Height, 1.0f, 100.0f);
+			ImGui::SliderFloat("Distance [1,100]", 
+				&blobCam->Distance, 1.0f, 100.0f);
+			ImGui::SliderFloat("Height [1,100]", 
+				&blobCam->Height, 1.0f, 100.0f);
 		}
 
 		ImGui::End();
@@ -900,14 +953,22 @@ void gui()
 		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
 		
 		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
-		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", &blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
-		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", &blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
-		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", &blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
-		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", &blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
-		ImGui::InputFloat("Drag coefficient [0, +inf]", &blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
-		ImGui::SliderFloat("Damping coefficient [0,1]", &blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
-		ImGui::InputFloat("Lift coefficient [0,+inf]", &blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
-		ImGui::SliderFloat("Pose matching coefficient [0,1]", &blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
+		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", 
+			&blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
+		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", 
+			&blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
+		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", 
+			&blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
+		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", 
+			&blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
+		ImGui::InputFloat("Drag coefficient [0, +inf]", 
+			&blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
+		ImGui::SliderFloat("Damping coefficient [0,1]", 
+			&blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
+		ImGui::InputFloat("Lift coefficient [0,+inf]", 
+			&blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
+		ImGui::SliderFloat("Pose matching coefficient [0,1]", 
+			&blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
 		
 		ImGui::Separator();
 
@@ -926,9 +987,7 @@ void gui()
 	debugdrawShaderProgram->Install();
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
-
 	levelEditor->Gui(debugdrawShaderProgram);
-
 	debugdrawShaderProgram->Uninstall();
 
 	ImGui::Render();
