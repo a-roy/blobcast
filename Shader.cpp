@@ -8,6 +8,25 @@ Shader::Shader(std::string path, GLenum shaderType) : ShaderType(shaderType)
 	LoadAndCompile(path);
 }
 
+Shader::Shader(std::string path)
+{
+	std::string extension = path.substr(path.length() - 4, 4);
+	GLenum shaderType;
+	if (extension == "vert")
+		shaderType = GL_VERTEX_SHADER;
+	else if (extension == "tesc")
+		shaderType = GL_TESS_CONTROL_SHADER;
+	else if (extension == "tese")
+		shaderType = GL_TESS_EVALUATION_SHADER;
+	else if (extension == "geom")
+		shaderType = GL_GEOMETRY_SHADER;
+	else if (extension == "frag")
+		shaderType = GL_FRAGMENT_SHADER;
+
+	Name = glCreateShader(shaderType);
+	LoadAndCompile(path);
+}
+
 Shader::~Shader()
 {
 	glDeleteShader(Name);

@@ -6,6 +6,7 @@
 #include <RakNet/RakPeerInterface.h>
 #include <RakNet/RakNetTypes.h>
 
+#include <memory>
 #include <thread>
 #include <iostream>
 #include <sstream>
@@ -27,17 +28,17 @@ void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
 
 GLFWwindow *window;
-VertexArray *vao;
-FloatBuffer *vbo;
-Text *input_display;
-Font *vera;
-ShaderProgram *stream_program;
-ShaderProgram *text_program;
+std::shared_ptr<VertexArray> vao;
+std::unique_ptr<FloatBuffer> vbo;
+std::unique_ptr<Text> input_display;
+std::shared_ptr<Font> vera;
+std::unique_ptr<ShaderProgram> stream_program;
+std::unique_ptr<ShaderProgram> text_program;
 int width, height;
 std::string stream_address;
 uint8_t *data;
 GLuint tex;
-StreamReceiver *stream;
+std::unique_ptr<StreamReceiver> stream;
 
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 RakNet::SystemAddress hostAddress = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
@@ -66,12 +67,6 @@ int main(int argc, char *argv[])
 	free(data);
 	rakPeer->Shutdown(100);
 	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-	delete stream_program;
-	delete text_program;
-	delete input_display;
-	delete vera;
-	delete vbo;
-	delete vao;
 
 	glfwTerminate();
 	return 0;
@@ -122,38 +117,28 @@ bool connect()
 
 bool init()
 {
-	vao = new VertexArray();
-	vbo = new FloatBuffer(vao, 2, 4);
+	vao = std::shared_ptr<VertexArray>(new VertexArray());
+	vbo = std::unique_ptr<FloatBuffer>(new FloatBuffer(vao.get(), 2, 4));
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
 
 	glGenTextures(1, &tex);
-	vera = new Font(FontDir "Vera.ttf", 24.f);
-	input_display = new Text(vao, vera);
+	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
+	input_display = std::unique_ptr<Text>(new Text(vao.get(), vera.get()));
 	input_display->XPosition = 8;
 	input_display->YPosition = 8;
 	input_display->SetText("Inputs:");
 
-	std::vector<Shader *> shaders;
-	shaders.push_back(new Shader(ShaderDir "Stream.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Stream.frag", GL_FRAGMENT_SHADER));
-	stream_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
+			ShaderDir "Stream.vert",
+			ShaderDir "Stream.frag" }));
 
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	text_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag" }));
 
-	stream = new StreamReceiver(stream_address.c_str(), width, height);
+	stream = std::unique_ptr<StreamReceiver>(
+			new StreamReceiver(stream_address.c_str(), width, height));
 	data = (uint8_t *)malloc(width * height * 4);
 
 	GLuint uImage = stream_program->GetUniformLocation("uImage");

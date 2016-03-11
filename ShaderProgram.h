@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include "Shader.h"
 #include "Frame.h"
+#include <initializer_list>
 #include <vector>
 #include <string>
 #include <map>
@@ -14,8 +15,8 @@ class ShaderProgram
 		GLuint program;
 		std::map<std::string, GLint> uniforms;
 
-		ShaderProgram(int num_shaders, char *paths...);
-		ShaderProgram(std::vector<Shader *> shaders);
+		ShaderProgram(std::initializer_list<std::string> paths);
+		ShaderProgram(std::vector<Shader *>& shaders);
 		~ShaderProgram();
 		void LinkProgram(std::vector<Shader *> &shaders);
 		GLint GetUniformLocation(std::string name) const;
