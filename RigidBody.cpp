@@ -32,6 +32,14 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 	rigidbody->setUserPointer(this);
 }
 
+RigidBody::RigidBody(RigidBody& rb) :
+	RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
+		rb.GetTranslation(),
+		rb.GetOrientation(),
+		rb.GetScale(),
+		rb.color,
+		rb.mass){}
+
 RigidBody::~RigidBody()
 {
 	delete rigidbody;

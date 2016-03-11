@@ -29,23 +29,18 @@ class LevelEditor
 
 private:
 	btSoftRigidDynamicsWorld *dynamicsWorld;
+	Level* level;
 
 public:
 
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
-
 	std::set<RigidBody*> selection;
 
-	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld)
-	{
-		dynamicsWorld = p_dynamicsWorld;
-	}
-
-	~LevelEditor()
-	{
-
-	}
+	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld,
+		Level *p_level) :
+		level(p_level), dynamicsWorld(p_dynamicsWorld){}
+	~LevelEditor(){}
 
 	void Gui(ShaderProgram *shaderProgram)
 	{
@@ -71,6 +66,16 @@ public:
 				dynamicsWorld->addRigidBody(first->rigidbody);
 
 				first->mass = mass;
+			}
+
+			if (ImGui::Button("Clone selection"))
+			{
+				for (auto rb : selection)
+				{
+					RigidBody* newRb = new RigidBody(*rb);
+					level->Objects.push_back(newRb);
+					dynamicsWorld->addRigidBody(newRb->rigidbody);
+				}
 			}
 
 			ImGui::End();

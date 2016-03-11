@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	levelEditor = new LevelEditor(dynamicsWorld);
+	levelEditor = new LevelEditor(dynamicsWorld, level);
 
 	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
 	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
