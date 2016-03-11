@@ -250,3 +250,25 @@ Mesh *Mesh::CreateTriplePlane(VertexArray *vao)
 
 	return triple_plane;
 }
+
+Mesh *Mesh::CreateQuad(VertexArray *vao)
+{
+	Mesh *quad = new Mesh(vao, 1, 4, 2);
+
+	GLfloat vbo[] = {
+		 1, -1,  1,   // 0
+		 1,  1,  1,   // 1
+		-1,  1,  1,   // 2
+		-1, -1,  1 };   // 3
+	quad->SetVertexData(0, vbo, 3);
+
+	unsigned int ibo[] = {
+		// bottom (-Y)
+		1, 2, 0,
+		2, 3, 0 };
+	quad->SetIndexData(ibo);
+
+	return quad;
+}
+
+

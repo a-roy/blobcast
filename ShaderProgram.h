@@ -22,7 +22,9 @@ class ShaderProgram
 		void Install() const;
 		void Uninstall() const;
 
+		void SetUniform(std::string name, glm::vec2 value);
 		void SetUniform(std::string name, glm::vec3 value);
+		void SetUniform(std::string name, int size, glm::vec3 *value);
 		void SetUniform(std::string name, glm::vec4 value);
 		void SetUniform(std::string name, glm::mat3 value);
 		void SetUniform(std::string name, glm::mat4 value);

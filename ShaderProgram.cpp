@@ -90,9 +90,19 @@ void ShaderProgram::Uninstall() const
 	glUseProgram(0);
 }
 
+void ShaderProgram::SetUniform(std::string name, glm::vec2 value)
+{
+	glUniform2fv(GetUniformLocation(name), 1, glm::value_ptr(value));
+}
+
 void ShaderProgram::SetUniform(std::string name, glm::vec3 value)
 {
 	glUniform3fv(GetUniformLocation(name), 1, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(std::string name, int size, glm::vec3 *value)
+{
+	glUniform3fv(GetUniformLocation(name), size, (const GLfloat*)&value[0]);
 }
 
 void ShaderProgram::SetUniform(std::string name, glm::vec4 value)

@@ -34,4 +34,5 @@ class Mesh : public Drawable
 		static Mesh *CreateCube(VertexArray *vao);
 		static Mesh *CreateTriplePlane(VertexArray *vao);
 		static Mesh *CreateCubeWithNormals(VertexArray *vao);
+		static Mesh *CreateQuad(VertexArray *vao);
 };

@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 extern "C"
 {
 #include <libavcodec/avcodec.h>
@@ -23,6 +24,7 @@ extern "C"
 #include "RigidBody.h"
 #include "Light.hpp"
 #include "Skybox.h"
+#include "IOBuffer.h"
 
 #include "config.h"
 
@@ -41,6 +43,8 @@ void draw();
 void depthPass();
 void dynamicCubePass();
 void geometryPass();
+void SSAOPass();
+void blurPass();
 void drawCubeFace(
 		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face);
 void drawBlob();
@@ -70,11 +74,16 @@ glm::mat4 lightSpaceMatrix;
 
 GLuint cubeMapFBO;
 GLuint depthMapFBO;
-GLuint gBuffer;
 GLuint dynamicCubeMap;
 GLuint depthMap;
 
+IOBuffer gBuffer;
+IOBuffer aoBuffer;
+IOBuffer blurBuffer;
+
 Skybox skybox;
+Mesh *quad;
+glm::vec3 kernel[64];
 
 DirectionalLight dirLight;
 
@@ -100,6 +109,9 @@ ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
 ShaderProgram *skyboxShaderProgram;
 ShaderProgram *depthShaderProgram;
+ShaderProgram *geomPassShaderProgram;
+ShaderProgram *SSAOShaderProgram;
+ShaderProgram *blurShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -123,7 +135,6 @@ int main(int argc, char *argv[])
 		return 1;
 
 	// Setup ImGui binding
-
 	ImGui_ImplGlfw_Init(window, true);
 
 	glfwSetKeyCallback(window, key_callback);
@@ -236,13 +247,13 @@ bool init_physics()
 		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
 
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(0, -9, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
+		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
 		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(-10, 10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
+		glm::vec3(-10, -10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
 		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
 	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(5, -5, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
+		glm::vec3(5, -10, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
 		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
 
 	for(RigidBody* r : rigidBodies)
@@ -298,12 +309,34 @@ bool init_graphics()
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 	shaders.clear();
+	
+	shaders.push_back(new Shader(ShaderDir "GeometryPass.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "GeometryPass.frag", GL_FRAGMENT_SHADER));
+	geomPassShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "SSAO.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "SSAO.frag", GL_FRAGMENT_SHADER));
+	SSAOShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "SSAO.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "Blur.frag", GL_FRAGMENT_SHADER));
+	blurShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
 
 	debugdrawShaderProgram = blobShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
 
+	quad = Mesh::CreateQuad(new VertexArray());
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -315,16 +348,29 @@ bool init_graphics()
 	faces.push_back(TextureDir "skybox/negz.jpg");
 	skybox.loadCubeMap(faces);
 
-	//projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
+	// Kernel
+	for (int i = 0; i < 64; i++) {
+		float scale = (float)i / (float)(64);
+		glm::vec3 v;
+		v.x = 2.0f * (float)rand() / RAND_MAX - 1.0f;
+		v.y = 2.0f * (float)rand() / RAND_MAX - 1.0f;
+		v.z = 2.0f * (float)rand() / RAND_MAX - 1.0f;
+		v *= (0.1f + 0.9f * scale * scale);
+
+		kernel[i] = v;
+	}
+	SSAOShaderProgram->Install();
+	glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, "gKernel"), 64, (const GLfloat*)&kernel[0]);
+	SSAOShaderProgram->Uninstall();
 
 	modelMatrix = glm::mat4(1.f);
 
-	camera = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	camera = new FlyCam(glm::vec3(0.f, 1.0f, -20.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
 
 	return true;
 }
 
-// TO DO : move buffer creation out of main
+// TO DO : all buffer creation to IOBuffer class
 bool init_frameBuffers()
 {
 	// FBO for CUBE MAP
@@ -343,12 +389,24 @@ bool init_frameBuffers()
 			TEX_WIDTH, TEX_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	}
 
-	GLuint depthRenderBuffer;
+	GLuint depth;
+	glGenTextures(1, &depth);
+	glBindTexture(GL_TEXTURE_2D, depth);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, TEX_WIDTH, TEX_WIDTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
+
+	/*GLuint depthRenderBuffer;
 	glGenRenderbuffers(1, &depthRenderBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, TEX_WIDTH, TEX_WIDTH);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);*/
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
@@ -385,49 +443,14 @@ bool init_frameBuffers()
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-	// FBO for GEOMETRY PASS
-	glGenFramebuffers(1, &gBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-	GLuint gPositionDepth, gNormal, gAlbedo;
-	// Position + lin depth color buffer
-	glGenTextures(1, &gPositionDepth);
-	glBindTexture(GL_TEXTURE_2D, gPositionDepth);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPositionDepth, 0);
-	// Normal color buffer
-	glGenTextures(1, &gNormal);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-	// Albedo color buffer
-	glGenTextures(1, &gAlbedo);
-	glBindTexture(GL_TEXTURE_2D, gAlbedo);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedo, 0);
-
-	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-	glDrawBuffers(3, attachments);
-
-	GLuint rboDepth;
-	glGenRenderbuffers(1, &rboDepth);
-	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, RENDER_WIDTH, RENDER_HEIGHT);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "Geometry frame buffer not complete" << std::endl;
+	if (!gBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, true, GL_RGB32F))
 		return false;
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (!aoBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
+		return false;
+
+	if (!blurBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
+		return false;
 
 	return true;
 }
@@ -580,18 +603,22 @@ void draw()
 	dynamicCubePass();
 
 	glViewport(0, 0, RENDER_WIDTH, RENDER_HEIGHT);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glm::mat4 mvpMatrix;
 	viewMatrix = camera->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 1000.f);
+
+	geometryPass();
+	SSAOPass();
+	blurPass();
 
 	//text_program->Install();
 	//mvpMatrix = projMatrix * viewMatrix * modelMatrix;
 	//text_program->SetUniform("uMVPMatrix", mvpMatrix);
 	//text->Draw();
 	//text_program->Uninstall();
-	
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	drawBlob();
 	drawPlatforms();
 
@@ -602,8 +629,8 @@ void draw()
 
 void depthPass()
 {
-	//glEnable(GL_CULL_FACE);
-	//glCullFace(GL_FRONT);
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
 	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
@@ -625,7 +652,56 @@ void depthPass()
 	depthShaderProgram->Uninstall();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glDisable(GL_CULL_FACE);
+	glDisable(GL_CULL_FACE);
+}
+
+
+void geometryPass()
+{
+	gBuffer.BindForWriting();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	geomPassShaderProgram->Install();
+	geomPassShaderProgram->SetUniform("projection", projMatrix);
+	geomPassShaderProgram->SetUniform("view", viewMatrix);
+	for (int i = 0; i < rigidBodies.size(); i++) {
+		geomPassShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
+		rigidBodies[i]->Render();
+	}
+	geomPassShaderProgram->Uninstall();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void SSAOPass()
+{
+	gBuffer.BindForReading(GL_TEXTURE0);
+	aoBuffer.BindForWriting();
+	
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	SSAOShaderProgram->Install();
+	SSAOShaderProgram->SetUniform("projection", projMatrix);
+	SSAOShaderProgram->SetUniform("positionMap", 0);
+	quad->Draw();
+	SSAOShaderProgram->Uninstall();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void blurPass()
+{
+	aoBuffer.BindForReading(GL_TEXTURE0);
+	blurBuffer.BindForWriting();
+	
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	blurShaderProgram->Install();
+	blurShaderProgram->SetUniform("colorMap", 0);
+	quad->Draw();
+	blurShaderProgram->Uninstall();
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void drawBlob()
@@ -666,9 +742,12 @@ void drawPlatforms()
 	platformShaderProgram->SetUniform("projection", projMatrix);
 	platformShaderProgram->SetUniform("view", viewMatrix);
 	platformShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	platformShaderProgram->SetUniform("screenSize", glm::vec2(RENDER_WIDTH, RENDER_HEIGHT));
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, depthMap);
+
+	blurBuffer.BindForReading(GL_TEXTURE1);
 
 
 	for (RigidBody* r : rigidBodies) {

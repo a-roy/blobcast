@@ -1,10 +1,10 @@
 #version 420 core
 
-in vec3 fragPos;
+in vec3 FragPos;
 in vec3 Normal;
 in vec4 LightSpacePos;
 
-out vec4 fragColor;                                                                               
+out vec4 FragColor;                                                                               
 
 struct DirectionalLight
 {
@@ -15,9 +15,11 @@ struct DirectionalLight
 
 uniform DirectionalLight directionalLight;
 uniform vec3 viewPos;
-uniform vec3 objectColor;
+uniform vec4 objectColor;
+uniform vec2 screenSize;
 
 layout (binding = 0) uniform sampler2DShadow depthMap;
+layout (binding = 1) uniform sampler2D AOMap;
 
 const vec2 mapSize = vec2(2048, 2048);
 
@@ -47,15 +49,19 @@ float CalcShadowFactor(vec4 LightSpacePos)
 	}
 	
 	return (0.5 + (factor / 18.0));
-	//return factor;
 }
 
+vec2 CalcScreenTexCoord()
+{
+    return gl_FragCoord.xy / screenSize;
+}
 
 void main()
 {   
 	// Ambient
 	float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * directionalLight.ambientColor;
+	ambient *= texture(AOMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
 	float diffuseStrength = 1.0f;
@@ -65,15 +71,16 @@ void main()
     vec3 diffuse = diffuseStrength * diff * directionalLight.color;
 	
 	// Specular
-    float specularStrength = 0.8f;
-    vec3 viewDir = normalize(fragPos - viewPos);
+    float specularStrength = 0.5f;
+    vec3 viewDir = normalize(FragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 result = (ambient + ShadowFactor * (diffuse)) * vec3(objectColor);
+	//float ShadowFactor = CalcShadowFactor(LightSpacePos);
+    vec3 result = (ambient + 1 * (diffuse + specular)) * vec3(objectColor);
 	
-    fragColor = vec4(result, 1.0f);
+    FragColor = vec4(result, 1.0f);
+	//FragColor = vec4(texture(AOMap, CalcScreenTexCoord()).x);
 }
