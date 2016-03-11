@@ -37,7 +37,7 @@ RigidBody::RigidBody(RigidBody& rb) :
 		rb.GetTranslation(),
 		rb.GetOrientation(),
 		rb.GetScale(),
-		rb.color,
+		rb.trueColor,
 		rb.mass){}
 
 RigidBody::~RigidBody()

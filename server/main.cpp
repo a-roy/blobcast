@@ -864,7 +864,6 @@ void gui()
 
 				if(lTheSaveFileName != NULL )
 					level->Serialize(lTheSaveFileName);
-				//TODO - don't save with selection color!
 			}
 
 			ImGui::EndMenu();
@@ -1005,15 +1004,7 @@ void key_callback(
 		bGui ^= 1;
 
 	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
-	{
-		for (auto rb : levelEditor->selection)
-		{
-			dynamicsWorld->removeRigidBody(rb->rigidbody);
-			level->Delete(level->Find(rb->rigidbody));
-			delete rb;
-		}
-		levelEditor->selection.clear();
-	}
+		levelEditor->DeleteSelection();
 
 	blob->Move(key, action);
 

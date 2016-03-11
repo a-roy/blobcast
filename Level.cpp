@@ -69,7 +69,7 @@ void Level::Serialize(std::string file)
 		object["dimensions"] = {
 			scale.x, scale.y, scale.z };
 		object["color"] = {
-			r->color.r, r->color.g, r->color.b, r->color.a };
+			r->trueColor.r, r->trueColor.g, r->trueColor.b, r->trueColor.a };
 		object["mass"] = r->mass;
 		objects.push_back(object);
 	}
