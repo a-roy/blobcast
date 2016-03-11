@@ -1,40 +1,49 @@
 #include "LevelEditor.h"
 #include "config.h"
 #include "Line.h"
+#include <sstream>
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
 {
 	if (selection.size() > 0)
 	{
-		ImGui::SetNextWindowSize(ImVec2(300, 300),
+		ImGui::SetNextWindowSize(ImVec2(300, 400),
 			ImGuiSetCond_FirstUseEver);
 
-		ImGui::Begin("Selection");
+		std::stringstream ss;
+		ss << "Selection (" << selection.size() << " objects)###Selection";
+		ImGui::Begin(ss.str().c_str());
 		Translation();
-		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		Rotation(shaderProgram);
-		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		Scale();
-		ImGui::Separator();
-		RigidBody *first = *selection.begin();
-		float mass = first->mass;
-		if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
-		{
-			//Remove from world to change mass
-			dynamicsWorld->removeRigidBody(first->rigidbody);
-			btVector3 inertia;
-			first->rigidbody->getCollisionShape()->
-				calculateLocalInertia(mass, inertia);
-			first->rigidbody->setMassProps(mass, inertia);
-			dynamicsWorld->addRigidBody(first->rigidbody);
-
-			first->mass = mass;
-		}
-		ImGui::Separator();
+		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		if (ImGui::Button("Clone selection"))
 			CloneSelection();
 		if (ImGui::Button("Delete selection"))
 			DeleteSelection();
+
+		if (selection.size() == 1)
+		{
+			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+			RigidBody *first = *selection.begin();
+			float mass = first->mass;
+			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
+			{
+				//Remove from world to change mass
+				dynamicsWorld->removeRigidBody(first->rigidbody);
+				btVector3 inertia;
+				first->rigidbody->getCollisionShape()->
+					calculateLocalInertia(mass, inertia);
+				first->rigidbody->setMassProps(mass, inertia);
+				dynamicsWorld->addRigidBody(first->rigidbody);
+
+				first->mass = mass;
+			}
+			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+			ImGui::ColorEdit4("color 2", glm::value_ptr(first->trueColor));
+		}
 
 		ImGui::End();
 	}
