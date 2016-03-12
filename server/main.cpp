@@ -707,18 +707,26 @@ void drawGizmos()
 
 	(*debugdrawShaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
 	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-	x.Render();
+	debugdrawShaderProgram->Use([&](){
+		x.Render();
+	});
 	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
 	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	y.Render();
+	debugdrawShaderProgram->Use([&](){
+		y.Render();
+	});
 	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
 	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
-	z.Render();
+	debugdrawShaderProgram->Use([&](){
+		z.Render();
+	});
 
 	Point p(glm::vec3(0));
 	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
 	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
-	debugdrawShaderProgram->Use([&](){ p.Render(sz); });
+	debugdrawShaderProgram->Use([&](){
+		p.Render(sz);
+	});
 
 	//Line ray(levelEditor->out_origin, levelEditor->out_end);
 	//ray.Render();
