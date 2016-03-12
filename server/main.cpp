@@ -89,7 +89,6 @@ btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
 Blob *blob;
-std::vector<RigidBody*> rigidBodies;
 Level *level;
 
 ShaderProgram *displayShaderProgram;
@@ -563,10 +562,6 @@ void depthPass()
 		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
 		glFrontFace(GL_CW);
 		level->Render(uMMatrix, -1);
-		for (int i = 0; i < rigidBodies.size(); i++) {
-			(*depthShaderProgram)["model"] = rigidBodies[i]->GetModelMatrix();
-			rigidBodies[i]->Render();
-		}
 		glFrontFace(GL_CCW);
 	});
 
@@ -621,11 +616,6 @@ void drawPlatforms()
 	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
 	platformShaderProgram->Use([&](){
 		level->Render(uMMatrix, uColor);
-		for (RigidBody* r : rigidBodies) {
-			(*platformShaderProgram)["model"] = r->GetModelMatrix();
-			(*platformShaderProgram)["objectColor"] = r->color;
-			r->Render();
-		}
 	});
 }
 
