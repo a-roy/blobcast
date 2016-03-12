@@ -1,8 +1,8 @@
 #pragma once
 
-#include <gl\glew.h>
+#include <GL/glew.h>
 #include <vector>
-#include <glm\glm.hpp>
+#include <glm/glm.hpp>
 
 class Point
 {

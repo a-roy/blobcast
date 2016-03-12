@@ -19,7 +19,7 @@ if(BLOBCAST_RTMP)
 	add_definitions(-DRTMP_STREAM)
 endif(BLOBCAST_RTMP)
 
-file(GLOB GLB_SRC_FILES "*.cpp" "*.h")
+file(GLOB GLB_SRC_FILES "*.c" "*.cpp" "*.h")
 add_library(${LIB_NAME} STATIC ${GLB_SRC_FILES})
 if (WIN32)
 target_link_libraries(${LIB_NAME}

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <map>
-#include <GLFW\glfw3.h>
+#include <GLFW/glfw3.h>
 
 struct Measurement
 {
