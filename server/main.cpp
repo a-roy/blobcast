@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 	{
 		Profiler::Start("Frame");
 		update();
-		
+
 		Profiler::Start("Rendering");
 		draw();
 		Profiler::Finish("Rendering", false);
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 		Profiler::Start("Rendering");
 		glfwSwapBuffers(window);
 		Profiler::Finish("Rendering", true);
-		
+
 		glfwPollEvents();
 		Profiler::Finish("Frame");
 	}
@@ -242,7 +242,7 @@ bool init_physics()
 
 	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
 	btSoftBody *btblob = blob->softbody;
-	
+
 	level = Level::Deserialize(LevelDir "test_level.json");
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
@@ -339,7 +339,7 @@ bool init_frameBuffers()
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
 		return false;
-	}	
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -357,7 +357,7 @@ bool init_frameBuffers()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	
+
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
 	glDrawBuffer(GL_NONE);
@@ -482,7 +482,7 @@ void update()
 
 	currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
-	lastFrame = currentFrame;	
+	lastFrame = currentFrame;
 
 	frameCounterTime += deltaTime;
 	if (frameCounterTime >= 1.0f)
@@ -493,7 +493,7 @@ void update()
 				itr->second.SetAvg();
 		frameCounterTime = 0;
 	}
-	
+
 	Profiler::Start("Physics");
 	if(bStepPhysics)
 		dynamicsWorld->stepSimulation(deltaTime, 10);
@@ -540,7 +540,6 @@ void draw()
 	displayShaderProgram->Use([&](){
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	});
-	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glDisableVertexAttribArray(0);
 	glDisable(GL_BLEND);
 }
@@ -560,15 +559,15 @@ void depthPass()
 	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 	(*depthShaderProgram)["model"] = glm::mat4();
 	depthShaderProgram->Use([&](){
-	blob->Render();
-	GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
-	glFrontFace(GL_CW);
-	level->Render(uMMatrix, -1);
-	for (int i = 0; i < rigidBodies.size(); i++) {
-		(*depthShaderProgram)["model"] = rigidBodies[i]->GetModelMatrix();
-		rigidBodies[i]->Render();
-	}
-	glFrontFace(GL_CCW);
+		blob->Render();
+		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+		glFrontFace(GL_CW);
+		level->Render(uMMatrix, -1);
+		for (int i = 0; i < rigidBodies.size(); i++) {
+			(*depthShaderProgram)["model"] = rigidBodies[i]->GetModelMatrix();
+			rigidBodies[i]->Render();
+		}
+		glFrontFace(GL_CCW);
 	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -760,10 +759,10 @@ void gui()
 		ImGui::Text("Right click to turn the camera");
 		ImGui::Separator();
 
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
 			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS", 
+		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS",
 			Profiler::measurements["Physics"].result*1000,
 			(Profiler::measurements["Physics"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
@@ -778,10 +777,10 @@ void gui()
 			(Profiler::measurements["Rendering"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
 			1.0f / Profiler::measurements["Rendering"].result);
-		
+
 		ImGui::Separator();
 		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
-		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x, 
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x,
 			activeCam->Position.y, activeCam->Position.z);
 
 		ImGui::End();
@@ -818,7 +817,7 @@ void gui()
 			if (ImGui::MenuItem("Save as.."))
 			{
 				char const *lTheSaveFileName = NULL;
-				
+
 				lTheSaveFileName = tinyfd_saveFileDialog(
 					"Save Level",
 					"level.json",
@@ -845,7 +844,7 @@ void gui()
 				bShowImguiDemo ^= 1;
 			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
 				bShowCameraSettings ^= 1;
-		
+
 			ImGui::EndMenu();
 		}
 
@@ -892,19 +891,19 @@ void gui()
 		ImGui::Begin("Camera Settings", &bShowCameraSettings);
 		static int n;
 		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
-	
+
 		if (n == 0)
 		{
-			activeCam = flyCam;	
-			ImGui::SliderFloat("Move Speed [1,100]", 
+			activeCam = flyCam;
+			ImGui::SliderFloat("Move Speed [1,100]",
 				&flyCam->MoveSpeed, 0.0f, 20.0f);
 		}
 		else
 		{
 			activeCam = blobCam;
-			ImGui::SliderFloat("Distance [1,100]", 
+			ImGui::SliderFloat("Distance [1,100]",
 				&blobCam->Distance, 1.0f, 100.0f);
-			ImGui::SliderFloat("Height [1,100]", 
+			ImGui::SliderFloat("Height [1,100]",
 				&blobCam->Height, 1.0f, 100.0f);
 		}
 
@@ -914,36 +913,36 @@ void gui()
 	if (bShowBlobCfg)
 	{
 		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
-		
+
 		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
-		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", 
+		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]",
 			&blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
-		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", 
+		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]",
 			&blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
-		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", 
+		ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
 			&blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
-		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", 
+		ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
 			&blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
-		ImGui::InputFloat("Drag coefficient [0, +inf]", 
+		ImGui::InputFloat("Drag coefficient [0, +inf]",
 			&blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
-		ImGui::SliderFloat("Damping coefficient [0,1]", 
+		ImGui::SliderFloat("Damping coefficient [0,1]",
 			&blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
-		ImGui::InputFloat("Lift coefficient [0,+inf]", 
+		ImGui::InputFloat("Lift coefficient [0,+inf]",
 			&blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
-		ImGui::SliderFloat("Pose matching coefficient [0,1]", 
+		ImGui::SliderFloat("Pose matching coefficient [0,1]",
 			&blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
-		
+
 		ImGui::Separator();
 
 		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
-		
+
 		static float vec3[3] = { 0.f, 0.f, 0.f };
 		if(ImGui::InputFloat3("", vec3))
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Set Position"))
 			blob->softbody->translate(
 				btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
-		
+
 		ImGui::End();
 	}
 
@@ -963,7 +962,7 @@ void key_callback(
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	
+
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 		bGui ^= 1;
 
@@ -991,7 +990,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		else
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	}	
+	}
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{
