@@ -122,12 +122,17 @@ bool init()
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
 
+	glBindVertexArray(vao->Name);
+	vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
 	glGenTextures(1, &tex);
 	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
-	input_display = std::unique_ptr<Text>(new Text(vao.get(), vera.get()));
+	input_display = std::unique_ptr<Text>(new Text(vera.get()));
 	input_display->XPosition = 8;
 	input_display->YPosition = 8;
-	input_display->SetText("Inputs:");
+	input_display->SetText("Input:");
 
 	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
 			ShaderDir "Stream.vert",
@@ -223,13 +228,15 @@ void draw()
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	glEnableVertexAttribArray(0);
-	vbo->BufferData(0);
+	glBindVertexArray(vao->Name);
 	stream_program->Use([&](){
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	});
-	glDisableVertexAttribArray(0);
+	glBindVertexArray(0);
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	vera->UploadTextureAtlas();
 	text_program->Use([&](){
 		input_display->Draw();
 	});

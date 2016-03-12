@@ -33,7 +33,7 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 }
 
 RigidBody::RigidBody(RigidBody& rb) :
-	RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
+	RigidBody(Mesh::CreateCubeWithNormals(),
 		rb.GetTranslation(),
 		rb.GetOrientation(),
 		rb.GetScale(),

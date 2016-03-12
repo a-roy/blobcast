@@ -257,6 +257,10 @@ bool init_graphics()
 	display_vbo = new FloatBuffer(vao, 2, 4);
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	display_vbo->SetData(vertex_data);
+	glBindVertexArray(vao->Name);
+	display_vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 
 	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
@@ -534,12 +538,11 @@ void draw()
 	(*displayShaderProgram)["uMVPMatrix"] = displayMVP;
 	(*displayShaderProgram)["uInnerRadius"] = 0.7f;
 	(*displayShaderProgram)["uOuterRadius"] = 0.9f;
-	glEnableVertexAttribArray(0);
-	display_vbo->BufferData(0);
+	glBindVertexArray(vao->Name);
 	displayShaderProgram->Use([&](){
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	});
-	glDisableVertexAttribArray(0);
+	glBindVertexArray(0);
 	glDisable(GL_BLEND);
 }
 
@@ -610,7 +613,6 @@ void drawPlatforms()
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
-
 
 	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
 	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
