@@ -59,9 +59,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 GLFWwindow *window;
 VertexArray *vao;
-ShaderProgram *text_program;
-Font *vera;
-Text *text;
 int width, height;
 
 FloatBuffer *display_vbo;
@@ -155,15 +152,6 @@ int main(int argc, char *argv[])
 
 	levelEditor = new LevelEditor(dynamicsWorld, level);
 
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
-
-	text_program->Install();
-	glUniform4f(uTextColor, 0.5f, 1.0f, 1.0f, 1.0f);
-	vera->BindTexture(uAtlas);
-	text_program->Uninstall();
-
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
 	glEnable(GL_MULTISAMPLE);
@@ -204,9 +192,6 @@ int main(int argc, char *argv[])
 		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
 	}
 	delete stream;
-	delete text_program;
-	delete text;
-	delete vera;
 
 	delete dynamicsWorld;
 	delete solver;
@@ -273,14 +258,6 @@ bool init_graphics()
 	display_vbo = new FloatBuffer(vao, 2, 4);
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	display_vbo->SetData(vertex_data);
-
-	vera = new Font(FontDir "Vera.ttf", 48.f);
-	text = new Text(vao, vera);
-	text->SetText("Hello world");
-
-	text_program = new ShaderProgram({
-			ShaderDir "Text.vert",
-			ShaderDir "Text.frag" });
 
 	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
@@ -495,12 +472,10 @@ void update()
 	}
 	if (num_inputs > 0.f)
 	{
-		displayShaderProgram->Install();
-		displayShaderProgram->SetUniform("uForward", forward_count / num_inputs);
-		displayShaderProgram->SetUniform("uBackward", backward_count / num_inputs);
-		displayShaderProgram->SetUniform("uRight", right_count / num_inputs);
-		displayShaderProgram->SetUniform("uLeft", left_count / num_inputs);
-		displayShaderProgram->Uninstall();
+		(*displayShaderProgram)["uForward"] = forward_count / num_inputs;
+		(*displayShaderProgram)["uBackward"] = backward_count / num_inputs;
+		(*displayShaderProgram)["uRight"] = right_count / num_inputs;
+		(*displayShaderProgram)["uLeft"] = left_count / num_inputs;
 	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
@@ -544,12 +519,6 @@ void draw()
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
-	//text_program->Install();
-	//mvpMatrix = projMatrix * viewMatrix * modelMatrix;
-	//text_program->SetUniform("uMVPMatrix", mvpMatrix);
-	//text->Draw();
-	//text_program->Uninstall();
-
 	drawBlob();
 
 	drawPlatforms();
@@ -563,15 +532,16 @@ void draw()
 	glm::mat4 displayMVP = glm::ortho(
 			-1.25f, ((float)width  / 128.f) - 1.25f,
 			-1.25f, ((float)height / 128.f) - 1.25f);
-	displayShaderProgram->Install();
-	displayShaderProgram->SetUniform("uMVPMatrix", displayMVP);
-	displayShaderProgram->SetUniform("uInnerRadius", 0.7f);
-	displayShaderProgram->SetUniform("uOuterRadius", 0.9f);
+	(*displayShaderProgram)["uMVPMatrix"] = displayMVP;
+	(*displayShaderProgram)["uInnerRadius"] = 0.7f;
+	(*displayShaderProgram)["uOuterRadius"] = 0.9f;
 	glEnableVertexAttribArray(0);
 	display_vbo->BufferData(0);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	displayShaderProgram->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
+	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 	glDisableVertexAttribArray(0);
-	displayShaderProgram->Uninstall();
 	glDisable(GL_BLEND);
 }
 
@@ -587,19 +557,19 @@ void depthPass()
 	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
-	depthShaderProgram->Install();
-	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
-	depthShaderProgram->SetUniform("model", glm::mat4());
+	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*depthShaderProgram)["model"] = glm::mat4();
+	depthShaderProgram->Use([&](){
 	blob->Render();
 	GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
 	glFrontFace(GL_CW);
 	level->Render(uMMatrix, -1);
 	for (int i = 0; i < rigidBodies.size(); i++) {
-		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
+		(*depthShaderProgram)["model"] = rigidBodies[i]->GetModelMatrix();
 		rigidBodies[i]->Render();
 	}
 	glFrontFace(GL_CCW);
-	depthShaderProgram->Uninstall();
+	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
@@ -607,44 +577,42 @@ void depthPass()
 
 void drawBlob()
 {
-	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	blobShaderProgram->SetUniform("viewPos", activeCam->Position);
-	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(blob->GetCentroid()), activeCam->Position));
+	(*blobShaderProgram)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
+	(*blobShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*blobShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*blobShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*blobShaderProgram)["viewPos"] = activeCam->Position;
+	(*blobShaderProgram)["blobDistance"] =
+		glm::distance(convert(blob->GetCentroid()), activeCam->Position);
 
-	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
-	blobShaderProgram->SetUniform("projection", projMatrix);
-	blobShaderProgram->SetUniform("view", viewMatrix);
-	blobShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	(*blobShaderProgram)["projection"] = projMatrix;
+	(*blobShaderProgram)["view"] = viewMatrix;
+	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	blobShaderProgram->SetUniform("cubeMap", 0);
+	(*blobShaderProgram)["cubeMap"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
 	glActiveTexture(GL_TEXTURE1);
-	blobShaderProgram->SetUniform("depthMap", 1);
+	(*blobShaderProgram)["depthMap"] = 1;
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
-	blob->RenderPatches();
-	blobShaderProgram->Uninstall();
+	blobShaderProgram->Use([&](){
+		blob->RenderPatches();
+	});
 }
 
 
 void drawPlatforms()
 {
-	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	platformShaderProgram->SetUniform("viewPos", activeCam->Position);
+	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*platformShaderProgram)["viewPos"] = activeCam->Position;
 
-	platformShaderProgram->SetUniform("projection", projMatrix);
-	platformShaderProgram->SetUniform("view", viewMatrix);
-	platformShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	(*platformShaderProgram)["projection"] = projMatrix;
+	(*platformShaderProgram)["view"] = viewMatrix;
+	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
@@ -652,29 +620,27 @@ void drawPlatforms()
 
 	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
 	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
-	level->Render(uMMatrix, uColor);
-	for (RigidBody* r : rigidBodies) {
-		platformShaderProgram->SetUniform("model", r->GetModelMatrix());
-		platformShaderProgram->SetUniform("objectColor", r->color);
-		r->Render();
-	}
-
-	platformShaderProgram->Uninstall();
+	platformShaderProgram->Use([&](){
+		level->Render(uMMatrix, uColor);
+		for (RigidBody* r : rigidBodies) {
+			(*platformShaderProgram)["model"] = r->GetModelMatrix();
+			(*platformShaderProgram)["objectColor"] = r->color;
+			r->Render();
+		}
+	});
 }
 
 void drawSkybox()
 {
 	glDepthFunc(GL_LEQUAL);
-	skyboxShaderProgram->Install();
-	skyboxShaderProgram->SetUniform("view", viewMatrix);
-	skyboxShaderProgram->SetUniform("projection", projMatrix);
+	(*skyboxShaderProgram)["view"] = viewMatrix;
+	(*skyboxShaderProgram)["projection"] = projMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	skyboxShaderProgram->SetUniform("skybox", 0);
+	(*skyboxShaderProgram)["skybox"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
-	skybox.render();
+	skyboxShaderProgram->Use([&](){ skybox.render(); });
 
-	skyboxShaderProgram->Uninstall();
 	glDepthFunc(GL_LESS);
 }
 
@@ -747,30 +713,28 @@ void drawCubeFace(
 
 void drawGizmos()
 {
-	debugdrawShaderProgram->Install();
-
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
 	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
 	x.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
 	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 	y.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
 	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
 	z.Render();
 
 	Point p(glm::vec3(0));
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 0, 1));
-	p.Render(1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f);
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
+	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
+	debugdrawShaderProgram->Use([&](){ p.Render(sz); });
 
 	//Line ray(levelEditor->out_origin, levelEditor->out_end);
 	//ray.Render();
 
 	//blob->DrawGizmos(debugdrawShaderProgram);
-	debugdrawShaderProgram->Uninstall();
 }
 
 void drawBulletDebug()
@@ -983,11 +947,11 @@ void gui()
 		ImGui::End();
 	}
 
-	debugdrawShaderProgram->Install();
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
-	levelEditor->Gui(debugdrawShaderProgram);
-	debugdrawShaderProgram->Uninstall();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->Gui(debugdrawShaderProgram);
+	});
 
 	ImGui::Render();
 	glDisable(GL_SCISSOR_TEST);

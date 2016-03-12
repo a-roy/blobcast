@@ -140,11 +140,15 @@ void Blob::DrawGizmos(ShaderProgram* shaderProgram)
 	Line br(c, c + BR * 10.0f);
 	Line fwd(c, c + convert(forward) * 10.0f);
 
-	l.Render();
-	r.Render();
-	bl.Render();
-	br.Render();
+	shaderProgram->Use([&](){
+		l.Render();
+		r.Render();
+		bl.Render();
+		br.Render();
+	});
 
-	shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
-	fwd.Render();
+	(*shaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
+	shaderProgram->Use([&](){
+		fwd.Render();
+	});
 }

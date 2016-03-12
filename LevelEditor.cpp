@@ -116,24 +116,24 @@ void LevelEditor::Rotation(ShaderProgram *shaderProgram)
 	{
 		glm::vec3 xAxis(1.0f, 0.0f, 0.0f);
 		xAxis = glm::toMat3(rb->GetOrientation()) * xAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+		(*shaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
 		Line xAxisDraw(rb->GetTranslation() - (xAxis * ROTATION_GIZMO_SIZE),
 			rb->GetTranslation() + (xAxis * ROTATION_GIZMO_SIZE));
-		xAxisDraw.Render();
+		shaderProgram->Use([&](){ xAxisDraw.Render(); });
 
 		glm::vec3 yAxis(0.0f, 1.0f, 0.0f);
 		yAxis = glm::toMat3(rb->GetOrientation()) * yAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+		(*shaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
 		Line yAxisDraw(rb->GetTranslation() - (yAxis * ROTATION_GIZMO_SIZE),
 			rb->GetTranslation() + (yAxis * ROTATION_GIZMO_SIZE));
-		yAxisDraw.Render();
+		shaderProgram->Use([&](){ yAxisDraw.Render(); });
 
 		glm::vec3 zAxis(0.0f, 0.0f, 1.0f);
 		zAxis = glm::toMat3(rb->GetOrientation()) * zAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+		(*shaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
 		Line zAxisDraw(rb->GetTranslation() - (zAxis * ROTATION_GIZMO_SIZE),
 			rb->GetTranslation() + (zAxis * ROTATION_GIZMO_SIZE));
-		zAxisDraw.Render();
+		shaderProgram->Use([&](){ zAxisDraw.Render(); });
 	}
 
 	float x = 0;

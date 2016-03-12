@@ -141,20 +141,14 @@ bool init()
 			new StreamReceiver(stream_address.c_str(), width, height));
 	data = (uint8_t *)malloc(width * height * 4);
 
-	GLuint uImage = stream_program->GetUniformLocation("uImage");
-	stream_program->Install();
-	glUniform1i(uImage, 0);
-	stream_program->Uninstall();
+	(*stream_program)["uImage"] = 0;
 
 	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	text_program->Install();
-	vera->BindTexture(uAtlas);
-	glUniform4f(uTextColor, 0.f, 0.f, 0.f, 1.f);
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
-	text_program->Uninstall();
+	text_program->Use([&](){
+		vera->BindTexture(text_program->GetUniformLocation("uAtlas"));
+	});
+	(*text_program)["uTextColor"] = glm::vec4(0.f, 0.f, 0.f, 1.f);
+	(*text_program)["uMVPMatrix"] = projMatrix;
 
 	return true;
 }
@@ -229,16 +223,16 @@ void draw()
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	stream_program->Install();
 	glEnableVertexAttribArray(0);
 	vbo->BufferData(0);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	stream_program->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
 	glDisableVertexAttribArray(0);
-	stream_program->Uninstall();
 
-	text_program->Install();
-	input_display->Draw();
-	text_program->Uninstall();
+	text_program->Use([&](){
+		input_display->Draw();
+	});
 
 	glfwSwapBuffers(window);
 }
