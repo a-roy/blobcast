@@ -563,9 +563,7 @@ void depthPass()
 	depthShaderProgram->Use([&](){
 		blob->Render();
 		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
-		glFrontFace(GL_CW);
 		level->Render(uMMatrix, -1);
-		glFrontFace(GL_CCW);
 	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
