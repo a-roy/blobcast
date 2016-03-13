@@ -16,13 +16,36 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 		Translation();
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		Rotation(shaderProgram);
+		
+		static int e = 0;
+		ImGui::RadioButton("Global", &e, 0); ImGui::SameLine();
+		ImGui::RadioButton("Local", &e, 1); ImGui::SameLine();
+		bLocal = e;
+
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+
 		Scale();
 		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 		if (ImGui::Button("Clone selection"))
 			CloneSelection();
 		if (ImGui::Button("Delete selection"))
 			DeleteSelection();
+
+		if (selection.size() >= 2)
+		{
+			if (ImGui::Button("Create compound object")) //TODO
+			{
+				/*btCompoundShape* compoundShape = new btCompoundShape();
+				for (auto rb : selection)
+				{
+					btBoxShape* boxShape = new btBoxShape(btVector3(1, 1, 1));
+					boxShape->setLocalScaling(convert(rb->GetScale()));
+					compoundShape->addChildShape(
+						rb->rigidbody->getWorldTransform(),
+						boxShape);
+				}*/
+			}
+		}
 
 		if (selection.size() == 1)
 		{
@@ -112,70 +135,54 @@ void LevelEditor::Translation()
 
 void LevelEditor::Rotation(ShaderProgram *shaderProgram)
 {
-	for (auto rb : selection)
+	glm::vec3 centroid = glm::vec3(0);
+
+	if (bLocal)
 	{
-		glm::vec3 xAxis(1.0f, 0.0f, 0.0f);
-		xAxis = glm::toMat3(rb->GetOrientation()) * xAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
-		Line xAxisDraw(rb->GetTranslation() - (xAxis * ROTATION_GIZMO_SIZE),
-			rb->GetTranslation() + (xAxis * ROTATION_GIZMO_SIZE));
-		xAxisDraw.Render();
+		for (auto rb : selection)
+		{
+			DrawRotationGizmo(glm::vec3(1, 0, 0), rb->GetOrientation(),
+				rb->GetTranslation(), shaderProgram, glm::vec4(1, 0, 0, 1));
+			DrawRotationGizmo(glm::vec3(0, 1, 0), rb->GetOrientation(),
+				rb->GetTranslation(), shaderProgram, glm::vec4(0, 1, 0, 1));
+			DrawRotationGizmo(glm::vec3(0, 0, 1), rb->GetOrientation(),
+				rb->GetTranslation(), shaderProgram, glm::vec4(0, 0, 1, 1));
+		}
+	}
+	else
+	{
+		for (auto rb : selection)
+			centroid += rb->GetTranslation();
+		centroid /= selection.size();
+		glm::vec3 before = centroid;
 
-		glm::vec3 yAxis(0.0f, 1.0f, 0.0f);
-		yAxis = glm::toMat3(rb->GetOrientation()) * yAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
-		Line yAxisDraw(rb->GetTranslation() - (yAxis * ROTATION_GIZMO_SIZE),
-			rb->GetTranslation() + (yAxis * ROTATION_GIZMO_SIZE));
-		yAxisDraw.Render();
-
-		glm::vec3 zAxis(0.0f, 0.0f, 1.0f);
-		zAxis = glm::toMat3(rb->GetOrientation()) * zAxis;
-		shaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
-		Line zAxisDraw(rb->GetTranslation() - (zAxis * ROTATION_GIZMO_SIZE),
-			rb->GetTranslation() + (zAxis * ROTATION_GIZMO_SIZE));
-		zAxisDraw.Render();
+		DrawRotationGizmo(glm::vec3(1, 0, 0), glm::quat(),
+			centroid, shaderProgram, glm::vec4(1, 0, 0, 1));
+		DrawRotationGizmo(glm::vec3(0, 1, 0), glm::quat(),
+			centroid, shaderProgram, glm::vec4(0, 1, 0, 1));
+		DrawRotationGizmo(glm::vec3(0, 0, 1), glm::quat(),
+			centroid, shaderProgram, glm::vec4(0, 0, 1, 1));
 	}
 
 	float x = 0;
 	if (ImGui::InputFloat("RotationX", &x, 15.0f, 15.0f))
 	{
-		for (auto rb : selection)
-		{
-			glm::quat qtn = glm::angleAxis(glm::radians(x),
-				glm::toMat3(rb->GetOrientation())
-				* glm::vec3(1.0f, 0.0f, 0.0f))
-				* rb->GetOrientation();
-			rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				rb->rigidbody->getWorldTransform().getOrigin()));
-		}
+		if (bLocal) LocalRotation(x, glm::vec3(1, 0, 0));
+		else GlobalRotation(x, glm::vec3(1, 0, 0), centroid);
 	}
 
 	float y = 0;
 	if (ImGui::InputFloat("RotationY", &y, 15.0f, 15.0f))
 	{
-		for (auto rb : selection)
-		{
-			glm::quat qtn = glm::angleAxis(glm::radians(y),
-				glm::toMat3(rb->GetOrientation())
-				* glm::vec3(0.0f, 1.0f, 0.0f))
-				* rb->GetOrientation();
-			rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				rb->rigidbody->getWorldTransform().getOrigin()));
-		}
+		if (bLocal) LocalRotation(y, glm::vec3(0, 1, 0));
+		else GlobalRotation(y, glm::vec3(0, 1, 0), centroid);
 	}
 
 	float z = 0;
 	if (ImGui::InputFloat("RotationZ", &z, 15.0f, 15.0f))
 	{
-		for (auto rb : selection)
-		{
-			glm::quat qtn = glm::angleAxis(glm::radians(z),
-				glm::toMat3(rb->GetOrientation()) *
-				glm::vec3(0.0f, 0.0f, 1.0f))
-				* rb->GetOrientation();
-			rb->rigidbody->setWorldTransform(btTransform(convert(qtn),
-				rb->rigidbody->getWorldTransform().getOrigin()));
-		}
+		if (bLocal) LocalRotation(z, glm::vec3(0, 0, 1));
+		else GlobalRotation(z, glm::vec3(0, 0, 1), centroid);
 	}
 
 	if (ImGui::Button("Reset Rotation"))
@@ -186,6 +193,50 @@ void LevelEditor::Rotation(ShaderProgram *shaderProgram)
 				rb->rigidbody->getWorldTransform().getOrigin()));
 		}
 	}
+}
+
+void LevelEditor::LocalRotation(float angle, glm::vec3 axis)
+{
+	for (auto rb : selection)
+	{
+		glm::quat orientation = glm::angleAxis(glm::radians(angle),
+			glm::toMat3(rb->GetOrientation()) *axis) 
+			* rb->GetOrientation();
+		rb->rigidbody->setWorldTransform(
+			btTransform(convert(orientation),
+				rb->rigidbody->getWorldTransform().getOrigin()));
+	}
+}
+
+void LevelEditor::GlobalRotation(float angle, glm::vec3 axis, 
+	glm::vec3 axisPosition)
+{
+	for (auto rb : selection)
+	{
+		glm::quat orientation = glm::angleAxis(glm::radians(angle), axis)
+			* rb->GetOrientation();
+
+		glm::vec3 pos = convert(rb->rigidbody->
+			getWorldTransform().getOrigin());
+		pos -= axisPosition;
+		pos = glm::vec3(glm::vec4(pos, 1.0f) *
+			glm::toMat4(glm::angleAxis(glm::radians(-angle), axis)));
+		pos += axisPosition;
+
+		rb->rigidbody->setWorldTransform(btTransform(convert(orientation),
+				convert(pos)));
+	}
+}
+
+//TODO - Scale it
+void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
+	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
+{
+	axis = glm::toMat3(orientation) * axis;
+	shaderProgram->SetUniform("uColor", color);
+	Line xAxisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
+		translation + (axis * ROTATION_GIZMO_SIZE));
+	xAxisDraw.Render();
 }
 
 void LevelEditor::Scale()
