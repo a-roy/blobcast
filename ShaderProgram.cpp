@@ -2,26 +2,46 @@
 #include <iostream>
 #include <glm/gtc/type_ptr.hpp>
 
-ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths)
+ShaderProgram::ShaderProgram()
+{
+	program = glCreateProgram();
+}
+
+ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths) :
+	ShaderProgram()
 {
 	std::vector<Shader *> shaders;
 	for (std::string path : paths)
 		shaders.push_back(new Shader(path));
-	program = glCreateProgram();
 	LinkProgram(shaders);
 	for (int i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 }
 
-ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders)
+ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders) :
+	ShaderProgram()
 {
-	program = glCreateProgram();
 	LinkProgram(shaders);
 }
 
 ShaderProgram::~ShaderProgram()
 {
 	glDeleteProgram(program);
+}
+
+ShaderProgram::ShaderProgram(ShaderProgram&& other)
+{
+	*this = std::move(other);
+}
+
+ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
+{
+	glDeleteProgram(program);
+	program = other.program;
+	uniforms = other.uniforms;
+	other.program = 0;
+	other.uniforms.clear();
+	return *this;
 }
 
 void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)

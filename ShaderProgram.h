@@ -30,9 +30,14 @@ class ShaderProgram
 		GLuint program;
 		std::map<std::string, GLint> uniforms;
 
+		ShaderProgram();
 		ShaderProgram(std::initializer_list<std::string> paths);
 		ShaderProgram(std::vector<Shader *>& shaders);
 		~ShaderProgram();
+		ShaderProgram(const ShaderProgram&) = delete;
+		ShaderProgram& operator=(const ShaderProgram&) = delete;
+		ShaderProgram(ShaderProgram&& other);
+		ShaderProgram& operator=(ShaderProgram&& other);
 		void LinkProgram(std::vector<Shader *> &shaders);
 		GLint GetUniformLocation(std::string name) const;
 		void DrawFrame(Frame *frame, glm::mat4 mvMatrix) const;
