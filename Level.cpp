@@ -15,7 +15,7 @@ std::size_t Level::AddBox(
 		glm::vec4 color,
 		float mass)
 {
-	Mesh *box(Mesh::CreateCubeWithNormals(new VertexArray()));
+	Mesh *box(Mesh::CreateCubeWithNormals());
 	RigidBody *r =
 		new RigidBody(box, position, orientation, dimensions, color, mass);
 	Objects.push_back(r);

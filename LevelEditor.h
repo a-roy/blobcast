@@ -6,7 +6,7 @@
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 
-#include "glm\glm.hpp"
+#include "glm/glm.hpp"
 
 #include <sstream>
 #include <iostream>

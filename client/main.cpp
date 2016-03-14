@@ -122,12 +122,17 @@ bool init()
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
 
+	glBindVertexArray(vao->Name);
+	vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
 	glGenTextures(1, &tex);
 	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
-	input_display = std::unique_ptr<Text>(new Text(vao.get(), vera.get()));
+	input_display = std::unique_ptr<Text>(new Text(vera.get()));
 	input_display->XPosition = 8;
 	input_display->YPosition = 8;
-	input_display->SetText("Inputs:");
+	input_display->SetText("Input:");
 
 	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
 			ShaderDir "Stream.vert",
@@ -141,20 +146,14 @@ bool init()
 			new StreamReceiver(stream_address.c_str(), width, height));
 	data = (uint8_t *)malloc(width * height * 4);
 
-	GLuint uImage = stream_program->GetUniformLocation("uImage");
-	stream_program->Install();
-	glUniform1i(uImage, 0);
-	stream_program->Uninstall();
+	(*stream_program)["uImage"] = 0;
 
 	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	text_program->Install();
-	vera->BindTexture(uAtlas);
-	glUniform4f(uTextColor, 0.f, 0.f, 0.f, 1.f);
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
-	text_program->Uninstall();
+	text_program->Use([&](){
+		vera->BindTexture(text_program->GetUniformLocation("uAtlas"));
+	});
+	(*text_program)["uTextColor"] = glm::vec4(0.f, 0.f, 0.f, 1.f);
+	(*text_program)["uMVPMatrix"] = projMatrix;
 
 	return true;
 }
@@ -229,16 +228,18 @@ void draw()
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	stream_program->Install();
-	glEnableVertexAttribArray(0);
-	vbo->BufferData(0);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glDisableVertexAttribArray(0);
-	stream_program->Uninstall();
+	glBindVertexArray(vao->Name);
+	stream_program->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
+	glBindVertexArray(0);
 
-	text_program->Install();
-	input_display->Draw();
-	text_program->Uninstall();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	vera->UploadTextureAtlas();
+	text_program->Use([&](){
+		input_display->Draw();
+	});
 
 	glfwSwapBuffers(window);
 }

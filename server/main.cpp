@@ -59,9 +59,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 GLFWwindow *window;
 VertexArray *vao;
-ShaderProgram *text_program;
-Font *vera;
-Text *text;
 int width, height;
 
 FloatBuffer *display_vbo;
@@ -92,7 +89,6 @@ btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
 Blob *blob;
-std::vector<RigidBody*> rigidBodies;
 Level *level;
 
 ShaderProgram *displayShaderProgram;
@@ -155,15 +151,6 @@ int main(int argc, char *argv[])
 
 	levelEditor = new LevelEditor(dynamicsWorld, level);
 
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
-
-	text_program->Install();
-	glUniform4f(uTextColor, 0.5f, 1.0f, 1.0f, 1.0f);
-	vera->BindTexture(uAtlas);
-	text_program->Uninstall();
-
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
 	glEnable(GL_MULTISAMPLE);
@@ -174,7 +161,7 @@ int main(int argc, char *argv[])
 	{
 		Profiler::Start("Frame");
 		update();
-		
+
 		Profiler::Start("Rendering");
 		draw();
 		Profiler::Finish("Rendering", false);
@@ -194,7 +181,7 @@ int main(int argc, char *argv[])
 		Profiler::Start("Rendering");
 		glfwSwapBuffers(window);
 		Profiler::Finish("Rendering", true);
-		
+
 		glfwPollEvents();
 		Profiler::Finish("Frame");
 	}
@@ -204,9 +191,6 @@ int main(int argc, char *argv[])
 		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
 	}
 	delete stream;
-	delete text_program;
-	delete text;
-	delete vera;
 
 	delete dynamicsWorld;
 	delete solver;
@@ -257,7 +241,7 @@ bool init_physics()
 
 	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
 	btSoftBody *btblob = blob->softbody;
-	
+
 	level = Level::Deserialize(LevelDir "test_level.json");
 	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
@@ -273,14 +257,10 @@ bool init_graphics()
 	display_vbo = new FloatBuffer(vao, 2, 4);
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	display_vbo->SetData(vertex_data);
-
-	vera = new Font(FontDir "Vera.ttf", 48.f);
-	text = new Text(vao, vera);
-	text->SetText("Hello world");
-
-	text_program = new ShaderProgram({
-			ShaderDir "Text.vert",
-			ShaderDir "Text.frag" });
+	glBindVertexArray(vao->Name);
+	display_vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 
 	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
@@ -362,7 +342,7 @@ bool init_frameBuffers()
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
 		return false;
-	}	
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -380,7 +360,7 @@ bool init_frameBuffers()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	
+
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
 	glDrawBuffer(GL_NONE);
@@ -495,19 +475,17 @@ void update()
 	}
 	if (num_inputs > 0.f)
 	{
-		displayShaderProgram->Install();
-		displayShaderProgram->SetUniform("uForward", forward_count / num_inputs);
-		displayShaderProgram->SetUniform("uBackward", backward_count / num_inputs);
-		displayShaderProgram->SetUniform("uRight", right_count / num_inputs);
-		displayShaderProgram->SetUniform("uLeft", left_count / num_inputs);
-		displayShaderProgram->Uninstall();
+		(*displayShaderProgram)["uForward"] = forward_count / num_inputs;
+		(*displayShaderProgram)["uBackward"] = backward_count / num_inputs;
+		(*displayShaderProgram)["uRight"] = right_count / num_inputs;
+		(*displayShaderProgram)["uLeft"] = left_count / num_inputs;
 	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
 	currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
-	lastFrame = currentFrame;	
+	lastFrame = currentFrame;
 
 	frameCounterTime += deltaTime;
 	if (frameCounterTime >= 1.0f)
@@ -518,7 +496,7 @@ void update()
 				itr->second.SetAvg();
 		frameCounterTime = 0;
 	}
-	
+
 	Profiler::Start("Physics");
 	if(bStepPhysics)
 		dynamicsWorld->stepSimulation(deltaTime, 10);
@@ -544,12 +522,6 @@ void draw()
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
-	//text_program->Install();
-	//mvpMatrix = projMatrix * viewMatrix * modelMatrix;
-	//text_program->SetUniform("uMVPMatrix", mvpMatrix);
-	//text->Draw();
-	//text_program->Uninstall();
-
 	drawBlob();
 
 	drawPlatforms();
@@ -563,15 +535,14 @@ void draw()
 	glm::mat4 displayMVP = glm::ortho(
 			-1.25f, ((float)width  / 128.f) - 1.25f,
 			-1.25f, ((float)height / 128.f) - 1.25f);
-	displayShaderProgram->Install();
-	displayShaderProgram->SetUniform("uMVPMatrix", displayMVP);
-	displayShaderProgram->SetUniform("uInnerRadius", 0.7f);
-	displayShaderProgram->SetUniform("uOuterRadius", 0.9f);
-	glEnableVertexAttribArray(0);
-	display_vbo->BufferData(0);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glDisableVertexAttribArray(0);
-	displayShaderProgram->Uninstall();
+	(*displayShaderProgram)["uMVPMatrix"] = displayMVP;
+	(*displayShaderProgram)["uInnerRadius"] = 0.7f;
+	(*displayShaderProgram)["uOuterRadius"] = 0.9f;
+	glBindVertexArray(vao->Name);
+	displayShaderProgram->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
+	glBindVertexArray(0);
 	glDisable(GL_BLEND);
 }
 
@@ -587,19 +558,13 @@ void depthPass()
 	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
-	depthShaderProgram->Install();
-	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
-	depthShaderProgram->SetUniform("model", glm::mat4());
-	blob->Render();
-	GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
-	glFrontFace(GL_CW);
-	level->Render(uMMatrix, -1);
-	for (int i = 0; i < rigidBodies.size(); i++) {
-		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
-		rigidBodies[i]->Render();
-	}
-	glFrontFace(GL_CCW);
-	depthShaderProgram->Uninstall();
+	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*depthShaderProgram)["model"] = glm::mat4();
+	depthShaderProgram->Use([&](){
+		blob->Render();
+		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+		level->Render(uMMatrix, -1);
+	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
@@ -607,74 +572,64 @@ void depthPass()
 
 void drawBlob()
 {
-	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	blobShaderProgram->SetUniform("viewPos", activeCam->Position);
-	blobShaderProgram->SetUniform("blobDistance",
-			glm::distance(convert(blob->GetCentroid()), activeCam->Position));
+	(*blobShaderProgram)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
+	(*blobShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*blobShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*blobShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*blobShaderProgram)["viewPos"] = activeCam->Position;
+	(*blobShaderProgram)["blobDistance"] =
+		glm::distance(convert(blob->GetCentroid()), activeCam->Position);
 
-	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
-	blobShaderProgram->SetUniform("projection", projMatrix);
-	blobShaderProgram->SetUniform("view", viewMatrix);
-	blobShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	(*blobShaderProgram)["projection"] = projMatrix;
+	(*blobShaderProgram)["view"] = viewMatrix;
+	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	blobShaderProgram->SetUniform("cubeMap", 0);
+	(*blobShaderProgram)["cubeMap"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
 	glActiveTexture(GL_TEXTURE1);
-	blobShaderProgram->SetUniform("depthMap", 1);
+	(*blobShaderProgram)["depthMap"] = 1;
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
-	blob->RenderPatches();
-	blobShaderProgram->Uninstall();
+	blobShaderProgram->Use([&](){
+		blob->RenderPatches();
+	});
 }
 
 
 void drawPlatforms()
 {
-	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	platformShaderProgram->SetUniform("viewPos", activeCam->Position);
+	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*platformShaderProgram)["viewPos"] = activeCam->Position;
 
-	platformShaderProgram->SetUniform("projection", projMatrix);
-	platformShaderProgram->SetUniform("view", viewMatrix);
-	platformShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	(*platformShaderProgram)["projection"] = projMatrix;
+	(*platformShaderProgram)["view"] = viewMatrix;
+	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, depthMap);
 
-
 	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
 	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
-	level->Render(uMMatrix, uColor);
-	for (RigidBody* r : rigidBodies) {
-		platformShaderProgram->SetUniform("model", r->GetModelMatrix());
-		platformShaderProgram->SetUniform("objectColor", r->color);
-		r->Render();
-	}
-
-	platformShaderProgram->Uninstall();
+	platformShaderProgram->Use([&](){
+		level->Render(uMMatrix, uColor);
+	});
 }
 
 void drawSkybox()
 {
 	glDepthFunc(GL_LEQUAL);
-	skyboxShaderProgram->Install();
-	skyboxShaderProgram->SetUniform("view", viewMatrix);
-	skyboxShaderProgram->SetUniform("projection", projMatrix);
+	(*skyboxShaderProgram)["view"] = viewMatrix;
+	(*skyboxShaderProgram)["projection"] = projMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	skyboxShaderProgram->SetUniform("skybox", 0);
+	(*skyboxShaderProgram)["skybox"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
-	skybox.render();
+	skyboxShaderProgram->Use([&](){ skybox.render(); });
 
-	skyboxShaderProgram->Uninstall();
 	glDepthFunc(GL_LESS);
 }
 
@@ -747,30 +702,36 @@ void drawCubeFace(
 
 void drawGizmos()
 {
-	debugdrawShaderProgram->Install();
-
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
 	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-	x.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+	debugdrawShaderProgram->Use([&](){
+		x.Render();
+	});
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
 	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	y.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+	debugdrawShaderProgram->Use([&](){
+		y.Render();
+	});
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
 	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
-	z.Render();
+	debugdrawShaderProgram->Use([&](){
+		z.Render();
+	});
 
 	Point p(glm::vec3(0));
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 0, 1));
-	p.Render(1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f);
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
+	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
+	debugdrawShaderProgram->Use([&](){
+		p.Render(sz);
+	});
 
 	//Line ray(levelEditor->out_origin, levelEditor->out_end);
 	//ray.Render();
 
 	//blob->DrawGizmos(debugdrawShaderProgram);
-	debugdrawShaderProgram->Uninstall();
 }
 
 void drawBulletDebug()
@@ -796,10 +757,10 @@ void gui()
 		ImGui::Text("Right click to turn the camera");
 		ImGui::Separator();
 
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
 			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS", 
+		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS",
 			Profiler::measurements["Physics"].result*1000,
 			(Profiler::measurements["Physics"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
@@ -814,10 +775,10 @@ void gui()
 			(Profiler::measurements["Rendering"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
 			1.0f / Profiler::measurements["Rendering"].result);
-		
+
 		ImGui::Separator();
 		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
-		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x, 
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x,
 			activeCam->Position.y, activeCam->Position.z);
 
 		ImGui::End();
@@ -854,7 +815,7 @@ void gui()
 			if (ImGui::MenuItem("Save as.."))
 			{
 				char const *lTheSaveFileName = NULL;
-				
+
 				lTheSaveFileName = tinyfd_saveFileDialog(
 					"Save Level",
 					"level.json",
@@ -881,7 +842,7 @@ void gui()
 				bShowImguiDemo ^= 1;
 			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
 				bShowCameraSettings ^= 1;
-		
+
 			ImGui::EndMenu();
 		}
 
@@ -928,19 +889,19 @@ void gui()
 		ImGui::Begin("Camera Settings", &bShowCameraSettings);
 		static int n;
 		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
-	
+
 		if (n == 0)
 		{
-			activeCam = flyCam;	
-			ImGui::SliderFloat("Move Speed [1,100]", 
+			activeCam = flyCam;
+			ImGui::SliderFloat("Move Speed [1,100]",
 				&flyCam->MoveSpeed, 0.0f, 20.0f);
 		}
 		else
 		{
 			activeCam = blobCam;
-			ImGui::SliderFloat("Distance [1,100]", 
+			ImGui::SliderFloat("Distance [1,100]",
 				&blobCam->Distance, 1.0f, 100.0f);
-			ImGui::SliderFloat("Height [1,100]", 
+			ImGui::SliderFloat("Height [1,100]",
 				&blobCam->Height, 1.0f, 100.0f);
 		}
 
@@ -950,44 +911,44 @@ void gui()
 	if (bShowBlobCfg)
 	{
 		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
-		
+
 		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
-		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", 
+		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]",
 			&blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
-		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", 
+		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]",
 			&blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
-		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", 
+		ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
 			&blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
-		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", 
+		ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
 			&blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
-		ImGui::InputFloat("Drag coefficient [0, +inf]", 
+		ImGui::InputFloat("Drag coefficient [0, +inf]",
 			&blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
-		ImGui::SliderFloat("Damping coefficient [0,1]", 
+		ImGui::SliderFloat("Damping coefficient [0,1]",
 			&blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
-		ImGui::InputFloat("Lift coefficient [0,+inf]", 
+		ImGui::InputFloat("Lift coefficient [0,+inf]",
 			&blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
-		ImGui::SliderFloat("Pose matching coefficient [0,1]", 
+		ImGui::SliderFloat("Pose matching coefficient [0,1]",
 			&blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
-		
+
 		ImGui::Separator();
 
 		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
-		
+
 		static float vec3[3] = { 0.f, 0.f, 0.f };
 		if(ImGui::InputFloat3("", vec3))
 		ImGui::SameLine();
 		if (ImGui::SmallButton("Set Position"))
 			blob->softbody->translate(
 				btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
-		
+
 		ImGui::End();
 	}
 
-	debugdrawShaderProgram->Install();
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
-	levelEditor->Gui(debugdrawShaderProgram);
-	debugdrawShaderProgram->Uninstall();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->Gui(debugdrawShaderProgram);
+	});
 
 	ImGui::Render();
 	glDisable(GL_SCISSOR_TEST);
@@ -999,7 +960,7 @@ void key_callback(
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	
+
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 		bGui ^= 1;
 
@@ -1027,7 +988,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		else
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	}	
+	}
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 	{

@@ -233,10 +233,10 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {
 	axis = glm::toMat3(orientation) * axis;
-	shaderProgram->SetUniform("uColor", color);
-	Line xAxisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
+	(*shaderProgram)["uColor"] = color;
+	Line axisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
 		translation + (axis * ROTATION_GIZMO_SIZE));
-	xAxisDraw.Render();
+	shaderProgram->Use([&]() { axisDraw.Render(); });
 }
 
 void LevelEditor::Scale()
