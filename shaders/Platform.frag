@@ -4,7 +4,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec4 LightSpacePos;
 
-out vec4 FragColor;                                                                               
+out vec4 FragColor;                                                                            
 
 struct DirectionalLight
 {
@@ -16,10 +16,8 @@ struct DirectionalLight
 uniform DirectionalLight directionalLight;
 uniform vec3 viewPos;
 uniform vec4 objectColor;
-uniform vec2 screenSize;
 
 layout (binding = 0) uniform sampler2DShadow depthMap;
-layout (binding = 1) uniform sampler2D AOMap;
 
 const vec2 mapSize = vec2(2048, 2048);
 
@@ -51,24 +49,17 @@ float CalcShadowFactor(vec4 LightSpacePos)
 	return (0.5 + (factor / 18.0));
 }
 
-vec2 CalcScreenTexCoord()
-{
-    return gl_FragCoord.xy / screenSize;
-}
-
 void main()
 {   
 	// Ambient
 	float ambientStrength = 0.5f;
-    vec3 ambient = ambientStrength * directionalLight.ambientColor;
-	ambient *= texture(AOMap, CalcScreenTexCoord()).r;
+    vec3 ambient = ambientStrength * directionalLight.color;
 	
 	// Diffuse
-	float diffuseStrength = 1.0f;
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(directionalLight.direction);
+    vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diffuseStrength * diff * directionalLight.color;
+    vec3 diffuse = diff * directionalLight.color;
 	
 	// Specular
     float specularStrength = 0.5f;
@@ -82,5 +73,4 @@ void main()
     vec3 result = (ambient + 1 * (diffuse + specular)) * vec3(objectColor);
 	
     FragColor = vec4(result, 1.0f);
-	//FragColor = vec4(texture(AOMap, CalcScreenTexCoord()).x);
 }

@@ -57,7 +57,7 @@ class QuaternionCamera : public Camera
 class FlyCam : public EulerCamera
 {
 	public:
-		glm::vec3 Forward = glm::vec3(0,0,1);
+		glm::vec3 Forward = glm::vec3(0,0,-1);
 		glm::vec3 Up = glm::vec3(0,1,0);
 
 		FlyCam(glm::vec3 position, float moveSpeed, float turnSpeed) :

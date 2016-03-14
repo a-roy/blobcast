@@ -14,6 +14,8 @@ extern "C"
 #include <RakNet/RakPeerInterface.h>
 
 #include <iostream>
+#include <random>
+
 #include "GLFWProject.h"
 #include "ShaderProgram.h"
 #include "Text.h"
@@ -77,13 +79,19 @@ GLuint depthMapFBO;
 GLuint dynamicCubeMap;
 GLuint depthMap;
 
-IOBuffer gBuffer;
-IOBuffer aoBuffer;
-IOBuffer blurBuffer;
+//IOBuffer gBuffer;
+//IOBuffer aoBuffer;
+//IOBuffer blurBuffer;
+
+GLuint gBuffer;
+GLuint gPosition, gNormal, gAlbedoSpec;
+GLuint ssaoFBO, ssaoBlurFBO;
+GLuint ssaoColorBuffer, ssaoColorBufferBlur;
+GLuint noiseTexture;
 
 Skybox skybox;
 Mesh *quad;
-glm::vec3 kernel[64];
+std::vector<glm::vec3> ssaoKernel;
 
 DirectionalLight dirLight;
 
@@ -112,6 +120,8 @@ ShaderProgram *depthShaderProgram;
 ShaderProgram *geomPassShaderProgram;
 ShaderProgram *SSAOShaderProgram;
 ShaderProgram *blurShaderProgram;
+ShaderProgram *quadShaderProgram;
+ShaderProgram *lightingShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -158,7 +168,7 @@ int main(int argc, char *argv[])
 
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -309,10 +319,24 @@ bool init_graphics()
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "toQuad.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "toQuad.frag", GL_FRAGMENT_SHADER));
+	quadShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
 	
 	shaders.push_back(new Shader(ShaderDir "GeometryPass.vert", GL_VERTEX_SHADER));
 	shaders.push_back(new Shader(ShaderDir "GeometryPass.frag", GL_FRAGMENT_SHADER));
 	geomPassShaderProgram = new ShaderProgram(shaders);
+	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
+		delete shaders[i];
+	shaders.clear();
+
+	shaders.push_back(new Shader(ShaderDir "LightingPass.vert", GL_VERTEX_SHADER));
+	shaders.push_back(new Shader(ShaderDir "LightingPass.frag", GL_FRAGMENT_SHADER));
+	lightingShaderProgram = new ShaderProgram(shaders);
 	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 	shaders.clear();
@@ -334,7 +358,7 @@ bool init_graphics()
 	debugdrawShaderProgram = blobShaderProgram;
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
+	dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
 
 	quad = Mesh::CreateQuad(new VertexArray());
 
@@ -348,24 +372,40 @@ bool init_graphics()
 	faces.push_back(TextureDir "skybox/negz.jpg");
 	skybox.loadCubeMap(faces);
 
-	// Kernel
-	for (int i = 0; i < 64; i++) {
-		float scale = (float)i / (float)(64);
-		glm::vec3 v;
-		v.x = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-		v.y = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-		v.z = 2.0f * (float)rand() / RAND_MAX - 1.0f;
-		v *= (0.1f + 0.9f * scale * scale);
+	// Sample kernel
+	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
+	std::default_random_engine generator;
+	for (GLuint i = 0; i < 64; ++i)
+	{
+		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
+		sample = glm::normalize(sample);
+		sample *= randomFloats(generator);
+		GLfloat scale = GLfloat(i) / 64.0;
 
-		kernel[i] = v;
+		// Scale samples s.t. they're more aligned to center of kernel
+		scale = lerp(0.1f, 1.0f, scale * scale);
+		sample *= scale;
+		ssaoKernel.push_back(sample);
 	}
-	SSAOShaderProgram->Install();
-	glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, "gKernel"), 64, (const GLfloat*)&kernel[0]);
-	SSAOShaderProgram->Uninstall();
+
+	// Noise texture
+	std::vector<glm::vec3> ssaoNoise;
+	for (GLuint i = 0; i < 16; i++)
+	{
+		glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+		ssaoNoise.push_back(noise);
+	}
+	glGenTextures(1, &noiseTexture);
+	glBindTexture(GL_TEXTURE_2D, noiseTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	modelMatrix = glm::mat4(1.f);
 
-	camera = new FlyCam(glm::vec3(0.f, 1.0f, -20.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	camera = new FlyCam(glm::vec3(0.f, 1.0f, 20.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
 
 	return true;
 }
@@ -373,6 +413,75 @@ bool init_graphics()
 // TO DO : all buffer creation to IOBuffer class
 bool init_frameBuffers()
 {
+	// G BUFFER
+	glGenFramebuffers(1, &gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+
+	// - Position + linear depth color buffer
+	glGenTextures(1, &gPosition);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+
+	// - Normal color buffer
+	glGenTextures(1, &gNormal);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+
+	// - Color + Specular color buffer
+	glGenTextures(1, &gAlbedoSpec);
+	glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+
+	// - Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+	glDrawBuffers(3, attachments);
+
+	GLuint rboDepth;
+	glGenRenderbuffers(1, &rboDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, RENDER_WIDTH, RENDER_HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+	// - Finally check if framebuffer is complete
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "Framebuffer not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// SSAO framebuffers
+	glGenFramebuffers(1, &ssaoFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
+	// SSAO color buffer
+	glGenTextures(1, &ssaoColorBuffer);
+	glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "SSAO Framebuffer not complete!" << std::endl;
+	// Blur stage buffer
+	glGenFramebuffers(1, &ssaoBlurFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
+	glGenTextures(1, &ssaoColorBufferBlur);
+	glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBufferBlur, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "SSAO Blur Framebuffer not complete!" << std::endl;
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// FBO for CUBE MAP
 	glGenFramebuffers(1, &cubeMapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
@@ -389,24 +498,13 @@ bool init_frameBuffers()
 			TEX_WIDTH, TEX_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
 	}
 
-	GLuint depth;
-	glGenTextures(1, &depth);
-	glBindTexture(GL_TEXTURE_2D, depth);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, TEX_WIDTH, TEX_WIDTH, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth, 0);
-
-	/*GLuint depthRenderBuffer;
+	GLuint depthRenderBuffer;
 	glGenRenderbuffers(1, &depthRenderBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, TEX_WIDTH, TEX_WIDTH);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);*/
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
@@ -443,14 +541,14 @@ bool init_frameBuffers()
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	if (!gBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, true, GL_RGB32F))
-		return false;
+	//if (!gBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, true, GL_RGB32F))
+	//	return false;
 
-	if (!aoBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
-		return false;
+	//if (!aoBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
+	//	return false;
 
-	if (!blurBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
-		return false;
+	//if (!blurBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
+	//	return false;
 
 	return true;
 }
@@ -599,7 +697,7 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	depthPass();
+	//depthPass();
 	dynamicCubePass();
 
 	glViewport(0, 0, RENDER_WIDTH, RENDER_HEIGHT);
@@ -608,19 +706,43 @@ void draw()
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 1000.f);
 
 	geometryPass();
+
 	SSAOPass();
+
 	blurPass();
 
-	//text_program->Install();
-	//mvpMatrix = projMatrix * viewMatrix * modelMatrix;
-	//text_program->SetUniform("uMVPMatrix", mvpMatrix);
-	//text->Draw();
-	//text_program->Uninstall();
+	// For debugging
+	//quadShaderProgram->Install();
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, gNormal);
+	//quad->Draw();
+	//quadShaderProgram->Uninstall();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	lightingShaderProgram->Install();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
+
+	lightingShaderProgram->SetUniform("directionalLight.color", dirLight.color);
+	lightingShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
+	lightingShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
+	lightingShaderProgram->SetUniform("viewPos", camera->Position);
+
+	quad->Draw();
+	lightingShaderProgram->Uninstall();
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, RENDER_WIDTH, RENDER_HEIGHT, 0, 0, RENDER_WIDTH, RENDER_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	drawBlob();
-	drawPlatforms();
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
@@ -658,7 +780,7 @@ void depthPass()
 
 void geometryPass()
 {
-	gBuffer.BindForWriting();
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	geomPassShaderProgram->Install();
@@ -666,6 +788,7 @@ void geometryPass()
 	geomPassShaderProgram->SetUniform("view", viewMatrix);
 	for (int i = 0; i < rigidBodies.size(); i++) {
 		geomPassShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
+		geomPassShaderProgram->SetUniform("objectColor", rigidBodies[i]->color);
 		rigidBodies[i]->Render();
 	}
 	geomPassShaderProgram->Uninstall();
@@ -675,14 +798,20 @@ void geometryPass()
 
 void SSAOPass()
 {
-	gBuffer.BindForReading(GL_TEXTURE0);
-	aoBuffer.BindForWriting();
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
 	
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	SSAOShaderProgram->Install();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, noiseTexture);
+	for (GLuint i = 0; i < 64; ++i)
+		glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
 	SSAOShaderProgram->SetUniform("projection", projMatrix);
-	SSAOShaderProgram->SetUniform("positionMap", 0);
 	quad->Draw();
 	SSAOShaderProgram->Uninstall();
 
@@ -691,13 +820,11 @@ void SSAOPass()
 
 void blurPass()
 {
-	aoBuffer.BindForReading(GL_TEXTURE0);
-	blurBuffer.BindForWriting();
-	
+	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
 	glClear(GL_COLOR_BUFFER_BIT);
-
 	blurShaderProgram->Install();
-	blurShaderProgram->SetUniform("colorMap", 0);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
 	quad->Draw();
 	blurShaderProgram->Uninstall();
 	
@@ -713,7 +840,6 @@ void drawBlob()
 	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
 	blobShaderProgram->SetUniform("viewPos", camera->Position);
 
-	//mvpMatrix = projMatrix * viewMatrix; //blob verts are already in world space
 	blobShaderProgram->SetUniform("projection", projMatrix);
 	blobShaderProgram->SetUniform("view", viewMatrix);
 	blobShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
@@ -722,9 +848,9 @@ void drawBlob()
 	blobShaderProgram->SetUniform("cubeMap", 0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
-	glActiveTexture(GL_TEXTURE1);
-	blobShaderProgram->SetUniform("depthMap", 1);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
+	//glActiveTexture(GL_TEXTURE1);
+	//blobShaderProgram->SetUniform("depthMap", 1);
+	//glBindTexture(GL_TEXTURE_2D, depthMap);
 
 	blob->Render();
 	blobShaderProgram->Uninstall();
@@ -746,9 +872,6 @@ void drawPlatforms()
 
 	//glActiveTexture(GL_TEXTURE0);
 	//glBindTexture(GL_TEXTURE_2D, depthMap);
-
-	blurBuffer.BindForReading(GL_TEXTURE1);
-
 
 	for (RigidBody* r : rigidBodies) {
 		platformShaderProgram->SetUniform("model", r->GetModelMatrix());

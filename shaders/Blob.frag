@@ -62,7 +62,7 @@ void main()
 	// Diffuse
 	float diffuseStrength = 0.6f;
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(directionalLight.direction);
+    vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diffuseStrength * diff * directionalLight.color;
 	
@@ -86,7 +86,6 @@ void main()
 	vec3 refractColor = vec3(texture(cubeMap, Refract));
 	vec3 reflectColor = vec3(texture(cubeMap, Reflect));
 	
-	//vec3 finalColor;
 	vec3 reflectionColor = mix(diffuseColor, reflectColor, 0.2);
 	vec3 finalColor = mix(reflectionColor, refractColor, 0.2);
 	

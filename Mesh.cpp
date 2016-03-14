@@ -253,19 +253,25 @@ Mesh *Mesh::CreateTriplePlane(VertexArray *vao)
 
 Mesh *Mesh::CreateQuad(VertexArray *vao)
 {
-	Mesh *quad = new Mesh(vao, 1, 4, 2);
+	Mesh *quad = new Mesh(vao, 2, 4, 2);
 
 	GLfloat vbo[] = {
-		 1, -1,  1,   // 0
-		 1,  1,  1,   // 1
-		-1,  1,  1,   // 2
-		-1, -1,  1 };   // 3
+		-1.0f,  1.0f, 0.0f,   // 0
+		-1.0f, -1.0f, 0.0f,   // 1
+		 1.0f,  1.0f, 0.0f,   // 2
+		 1.0f, -1.0f, 0.0f }; // 3
 	quad->SetVertexData(0, vbo, 3);
 
+	GLfloat texCoords[] = {
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 1.0f,
+		1.0f, 0.0f };
+	quad->SetVertexData(1, texCoords, 2);
+
 	unsigned int ibo[] = {
-		// bottom (-Y)
-		1, 2, 0,
-		2, 3, 0 };
+		2, 0, 1,
+		1, 3, 2 };
 	quad->SetIndexData(ibo);
 
 	return quad;

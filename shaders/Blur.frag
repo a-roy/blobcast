@@ -1,26 +1,24 @@
 #version 330
-in vec2 TexCoord;
+in vec2 TexCoords;
 
-out vec4 FragColor;
+out float fragColor;
 
-uniform sampler2D colorMap;
-
-float offsets[4] = float[](-1.5, -0.5, 0.5, 1.5);
+uniform sampler2D ssaoInput;
+const int blurSize = 4;
 
 void main()
 {
-	vec3 color = vec3(0.0, 0.0, 0.0);
+	vec2 texelSize = 1.0 / vec2(textureSize(ssaoInput, 0));
+	float result = 0.0;
 	
-	for(int i=0; i<4; i++){
-		for(int j=0; j<4; j++){
-			vec2 tex = TexCoord;
-			tex.x = TexCoord.x + offsets[j] / textureSize(colorMap, 0).x;
-			tex.y = TexCoord.y + offsets[i] / textureSize(colorMap, 0).y;
-			color += vec3(texture(colorMap, tex));
+	for(int x = 0; x < blurSize; ++x)
+	{
+		for(int y = 0; y < blurSize; ++y)
+		{
+			vec2 offset = (vec2(-2.0) + vec2(float(x), float(y))) * texelSize;
+			result += texture(ssaoInput, TexCoords + offset).r;
 		}
 	}
 	
-	color /= 16.0;
-	
-	FragColor = vec4(color, 1.0);
+	fragColor = result / float(blurSize * blurSize);
 }
