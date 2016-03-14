@@ -1,5 +1,6 @@
 #include "ShaderProgram.h"
 #include <iostream>
+#include <exception>
 #include <glm/gtc/type_ptr.hpp>
 
 ShaderProgram::ShaderProgram()
@@ -64,8 +65,7 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 		glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 		std::cerr << &infoLog[0] << std::endl;
 
-		// TODO don't just terminate the application?
-		exit(1);
+		throw std::exception();
 	}
 
 	for (std::size_t i = 0; i < shaders.size(); i++)
