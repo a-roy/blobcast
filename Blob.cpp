@@ -112,6 +112,8 @@ void Blob::AddForces(const AggregateInput& inputs)
 			force.normalize();
 		AddForce(force, i);
 	}
+
+	AddForce(btVector3(0, 1, 0) * inputs.JCount / total);
 }
 
 void Blob::ComputeCentroid()

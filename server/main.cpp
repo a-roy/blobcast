@@ -437,11 +437,7 @@ void update()
 		}
 	}
 
-	float total = (float)current_inputs.TotalCount;
-	if (total == 0.0f)
-		total = 1.0f;
 	blob->AddForces(current_inputs);
-	blob->AddForce(btVector3(0, 1, 0) * current_inputs.JCount / total);
 
 	currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
