@@ -36,6 +36,7 @@ public:
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 	std::set<RigidBody*> selection;
+	bool bLocal = true;
 
 	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld,
 		Level *p_level) :
@@ -60,5 +61,10 @@ public:
 private:
 	void Translation();
 	void Rotation(ShaderProgram *shaderProgram);
+	void LocalRotation(float angle, glm::vec3 axis);
+	void GlobalRotation(float angle, glm::vec3 axis, glm::vec3 axisPosition);
 	void Scale();
+
+	void DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
+		glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color);
 };

@@ -88,9 +88,9 @@ class BlobCam : public Camera
 
 		virtual void Update()
 		{
-			Position = glm::vec3(Target.x, Target.y + Height, Target.z - Distance);
+			Position = glm::vec3(Target.x, Target.y + Height, Target.z + Distance);
 			Forward = Target - Position;
-			Up = glm::cross(glm::vec3(-1.0f,0.0f,0.0f), Forward);
+			Up = glm::cross(glm::vec3(1.0f,0.0f,0.0f), Forward);
 		}
 
 		virtual void Move() {}
