@@ -9,7 +9,7 @@
 #include "GLFWProject.h"
 #include "ShaderProgram.h"
 #include "Text.h"
-#include "BlobInput.h"
+#include "AggregateInput.h"
 #include "StreamWriter.h"
 
 #include "SoftBody.h"

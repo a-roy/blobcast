@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "BlobInput.h"
+#include "AggregateInput.h"
 #include "Line.h"
 #include "Helper.h"
 #include "ShaderProgram.h"
