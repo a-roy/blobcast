@@ -437,24 +437,11 @@ void update()
 		}
 	}
 
-	if (blob->movementMode == MovementMode::averaging)
-	{
-		blob->AddForce(btVector3(
-					current_inputs.LCount - current_inputs.RCount,
-					current_inputs.JCount,
-					current_inputs.FCount - current_inputs.BCount) /
-				current_inputs.TotalCount);
-	}
-	else if (blob->movementMode == MovementMode::stretch)
-	{
-		float total = (float)current_inputs.TotalCount;
-		if (total == 0.0f)
-			total = 1.0f;
-		blob->AddForces(current_inputs);
-		blob->AddForce(btVector3(0, 1, 0) * current_inputs.JCount / total);
-	}
-
-	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
+	float total = (float)current_inputs.TotalCount;
+	if (total == 0.0f)
+		total = 1.0f;
+	blob->AddForces(current_inputs);
+	blob->AddForce(btVector3(0, 1, 0) * current_inputs.JCount / total);
 
 	currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;

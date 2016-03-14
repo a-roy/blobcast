@@ -12,8 +12,6 @@
 #include "Helper.h"
 #include "ShaderProgram.h"
 
-enum MovementMode { averaging, stretch };
-
 class Blob : public SoftBody
 {
 
@@ -25,7 +23,6 @@ private:
 public:
 	btVector3 forward;
 	float speed;
-	MovementMode movementMode = MovementMode::stretch;
 
 	Blob(
 			btSoftBodyWorldInfo& softBodyWorldInfo,
@@ -36,9 +33,8 @@ public:
 	void Move(int key, int action);
 
 	void AddForce(const btVector3 &force);
-	void AddForces(AggregateInput inputs);
+	void AddForces(const AggregateInput &inputs);
 	void AddForce(const btVector3 &force, int i);
-	void AddForces(float magFwd, float magBack, float magLeft, float magRight);
 
 	void ComputeCentroid();
 	btVector3 GetCentroid();
