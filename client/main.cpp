@@ -2,17 +2,11 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libswscale/swscale.h>
-}
 #include <RakNet/MessageIdentifiers.h>
 #include <RakNet/RakPeerInterface.h>
 #include <RakNet/RakNetTypes.h>
 
+#include <memory>
 #include <thread>
 #include <iostream>
 #include <sstream>
@@ -22,6 +16,7 @@ extern "C"
 #include "Text.h"
 #include "BlobInput.h"
 #include "HostData.h"
+#include "StreamReceiver.h"
 
 #include "config.h"
 
@@ -33,21 +28,17 @@ void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
 
 GLFWwindow *window;
-VertexArray *vao;
-FloatBuffer *vbo;
-Text *input_display;
-Font *vera;
-ShaderProgram *stream_program;
-ShaderProgram *text_program;
+std::shared_ptr<VertexArray> vao;
+std::unique_ptr<FloatBuffer> vbo;
+std::unique_ptr<Text> input_display;
+std::shared_ptr<Font> vera;
+std::unique_ptr<ShaderProgram> stream_program;
+std::unique_ptr<ShaderProgram> text_program;
 int width, height;
 std::string stream_address;
 uint8_t *data;
 GLuint tex;
-
-AVFormatContext *avfmt = NULL;
-AVCodecContext *avctx = NULL;
-AVFrame *avframe = NULL;
-SwsContext *swctx = NULL;
+std::unique_ptr<StreamReceiver> stream;
 
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 RakNet::SystemAddress hostAddress = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
@@ -57,7 +48,7 @@ int main(int argc, char *argv[])
 {
 	if (!connect())
 		return 1;
-	window = GLFWProject::Init("Client Test", CLIENT_WIDTH, CLIENT_HEIGHT);
+	window = GLFWProject::Init("Blobclient", CLIENT_WIDTH, CLIENT_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -76,16 +67,6 @@ int main(int argc, char *argv[])
 	free(data);
 	rakPeer->Shutdown(100);
 	RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-	avcodec_close(avctx);
-	avcodec_free_context(&avctx);
-	avformat_network_deinit();
-	av_frame_free(&avframe);
-	delete stream_program;
-	delete text_program;
-	delete input_display;
-	delete vera;
-	delete vbo;
-	delete vao;
 
 	glfwTerminate();
 	return 0;
@@ -93,8 +74,8 @@ int main(int argc, char *argv[])
 
 bool connect()
 {
-	RakNet::StartupResult rakStart =
-		rakPeer->Startup(1, &RakNet::SocketDescriptor(), 1);
+	RakNet::SocketDescriptor sd;
+	RakNet::StartupResult rakStart = rakPeer->Startup(1, &sd, 1);
 	if (rakStart != RakNet::RAKNET_STARTED)
 		return false;
 
@@ -136,81 +117,45 @@ bool connect()
 
 bool init()
 {
-	vao = new VertexArray();
-	vbo = new FloatBuffer(vao, 2, 4);
+	vao = std::shared_ptr<VertexArray>(new VertexArray());
+	vbo = std::unique_ptr<FloatBuffer>(new FloatBuffer(vao.get(), 2, 4));
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
 
+	glBindVertexArray(vao->Name);
+	vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+
 	glGenTextures(1, &tex);
-	vera = new Font(FontDir "Vera.ttf", 24.f);
-	input_display = new Text(vao, vera);
+	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
+	input_display = std::unique_ptr<Text>(new Text(vera.get()));
 	input_display->XPosition = 8;
 	input_display->YPosition = 8;
-	input_display->SetText("Inputs:");
+	input_display->SetText("Input:");
 
-	std::vector<Shader *> shaders;
-	shaders.push_back(new Shader(ShaderDir "Stream.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Stream.frag", GL_FRAGMENT_SHADER));
-	stream_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
+			ShaderDir "Stream.vert",
+			ShaderDir "Stream.frag" }));
 
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-	{
-		delete shaders[i];
-	}
-	shaders.clear();
+	text_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag" }));
 
-	AVDictionary *opts = NULL;
-	av_dict_set(&opts, "tune", "zerolatency", 0);
-	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "rtmp_live", "live", 0);
-	av_dict_set(&opts, "analyzeduration", "100000", 0);
-	av_register_all();
-	avformat_network_init();
-	if (avformat_open_input(
-				&avfmt,
-				stream_address.c_str(),
-				NULL,
-				&opts
-				) < 0)
-		return false;
-	if (avfmt->streams[0]->codec->codec_id == AV_CODEC_ID_NONE)
-		avfmt->streams[0]->codec->codec_id = AV_CODEC_ID_H264;
-	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
-	if (codec == NULL)
-		return false;
-
-	avctx = avcodec_alloc_context3(codec);
-	if (avcodec_open2(avctx, NULL, &opts) < 0)
-		return false;
-
-	swctx = sws_getContext(
-			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
-			width, height, AV_PIX_FMT_BGRA,
-			SWS_LANCZOS, NULL, NULL, NULL);
-
-	avframe = av_frame_alloc();
+	stream = std::unique_ptr<StreamReceiver>(
+			new StreamReceiver(stream_address.c_str(), width, height));
 	data = (uint8_t *)malloc(width * height * 4);
 
-	GLuint uImage = stream_program->GetUniformLocation("uImage");
-	stream_program->Install();
-	glUniform1i(uImage, 0);
-	stream_program->Uninstall();
+	(*stream_program)["uImage"] = 0;
 
 	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	text_program->Install();
-	vera->BindTexture(uAtlas);
-	glUniformMatrix4fv(uMVPMatrix, 1, GL_FALSE, &projMatrix[0][0]);
-	text_program->Uninstall();
+	text_program->Use([&](){
+		vera->BindTexture(text_program->GetUniformLocation("uAtlas"));
+	});
+	(*text_program)["uTextColor"] = glm::vec4(0.f, 0.f, 0.f, 1.f);
+	(*text_program)["uMVPMatrix"] = projMatrix;
+
+	return true;
 }
 
 void update()
@@ -274,31 +219,7 @@ void draw()
 			IMMEDIATE_PRIORITY, RELIABLE, 0,
 			hostAddress, false);
 
-	AVPacket *pkt = av_packet_alloc();
-	av_init_packet(pkt);
-	if (av_read_frame(avfmt, pkt) < 0)
-		return;
-	int got_picture;
-	if (avcodec_decode_video2(avctx, avframe, &got_picture, pkt) < 0)
-		return;
-	av_packet_unref(pkt);
-	av_packet_free(&pkt);
-	if (got_picture == 0)
-		return;
-
-	int linesize_align[AV_NUM_DATA_POINTERS];
-	avcodec_align_dimensions2(
-			avctx, &avframe->width, &avframe->height, linesize_align);
-
-	uint8_t *const dstSlice[] = { data };
-	int dstStride[] = { width * 4 };
-	if (data != NULL)
-		sws_scale(
-				swctx,
-				avframe->data, avframe->linesize,
-				0, STREAM_HEIGHT,
-				dstSlice, dstStride);
-	av_frame_unref(avframe);
+	stream->ReceiveFrame(data);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glActiveTexture(GL_TEXTURE0 + tex - 1);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -307,16 +228,18 @@ void draw()
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	stream_program->Install();
-	glEnableVertexAttribArray(0);
-	vbo->BufferData(0);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	glDisableVertexAttribArray(0);
-	stream_program->Uninstall();
+	glBindVertexArray(vao->Name);
+	stream_program->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
+	glBindVertexArray(0);
 
-	text_program->Install();
-	input_display->Draw();
-	text_program->Uninstall();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	vera->UploadTextureAtlas();
+	text_program->Use([&](){
+		input_display->Draw();
+	});
 
 	glfwSwapBuffers(window);
 }

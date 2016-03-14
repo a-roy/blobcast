@@ -7,6 +7,9 @@ GLFWwindow *GLFWProject::Init(const char *title, int width, int height)
 		return NULL;
 
 	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 	GLFWwindow *window;
 	if (width * height == 0)
 	{
@@ -26,6 +29,7 @@ GLFWwindow *GLFWProject::Init(const char *title, int width, int height)
 
 	glfwMakeContextCurrent(window);
 
+	glewExperimental = GL_TRUE;
 	if (glewInit() != GLEW_OK)
 	{
 		glfwTerminate();
@@ -72,12 +76,9 @@ bool GLFWProject::MouseTurn(
 		GLFWwindow *window, double xpos, double ypos)
 {
 	if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
-	{
 		camera->Turn((float)(xpos - *xcursor), (float)(ypos - *ycursor));
-		*xcursor = xpos;
-		*ycursor = ypos;
-	}
-	else return false;
+	else
+		return false;
 	return true;
 }
 

@@ -84,3 +84,4 @@ glm::mat4 FlyCam::GetMatrix() const
 {
 	return glm::lookAt(Position, Position + Forward, Up);
 }
+

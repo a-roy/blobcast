@@ -1,25 +1,26 @@
 #include "Text.h"
 
-Text::Text(VertexArray *vao, Font *font) :
-	VAO(vao), FontStyle(font), Vertices(NULL), TexCoords(NULL) { }
+Text::Text(Font *font) :
+	FontStyle(font), VAO(new VertexArray()), Vertices(NULL), TexCoords(NULL)
+{
+	glBindVertexArray(VAO->Name);
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
+	glBindVertexArray(0);
+}
 
 Text::~Text()
 {
+	delete VAO;
 	delete Vertices;
 	delete TexCoords;
 }
 
 void Text::Draw() const
 {
-	glEnableVertexAttribArray(0);
-	Vertices->BufferData(0);
-	glEnableVertexAttribArray(1);
-	TexCoords->BufferData(1);
-
+	glBindVertexArray(VAO->Name);
 	glDrawArrays(GL_TRIANGLES, 0, NumVerts);
-
-	glDisableVertexAttribArray(0);
-	glDisableVertexAttribArray(1);
+	glBindVertexArray(0);
 }
 
 void Text::SetText(std::string text)
@@ -77,4 +78,8 @@ void Text::SetText(std::string text)
 	Vertices->SetData(&vertices[0]);
 	TexCoords = new FloatBuffer(VAO, 2, NumVerts);
 	TexCoords->SetData(&texcoords[0]);
+	glBindVertexArray(VAO->Name);
+	Vertices->BufferData(0);
+	TexCoords->BufferData(1);
+	glBindVertexArray(0);
 }

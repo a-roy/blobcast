@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp> 
 
 class Camera
 {
@@ -34,11 +35,11 @@ class EulerCamera : public Camera
 		float Pitch = 0.f;
 
 		EulerCamera(glm::vec3 position, float moveSpeed, float turnSpeed) :
-			Camera(position, moveSpeed, turnSpeed) { }
+			Camera(position, moveSpeed, turnSpeed) {}
 		
 		virtual void Move();
 		virtual void Turn(float x, float y);
-		virtual glm::mat4 EulerCamera::GetMatrix() const;
+		virtual glm::mat4 GetMatrix() const;
 };
 
 class QuaternionCamera : public Camera
@@ -61,23 +62,42 @@ class FlyCam : public EulerCamera
 		glm::vec3 Up = glm::vec3(0,1,0);
 
 		FlyCam(glm::vec3 position, float moveSpeed, float turnSpeed) :
-			EulerCamera(position, moveSpeed, turnSpeed) { }
+			EulerCamera(position, moveSpeed, turnSpeed) {
+			Turn(0, 0);
+		}
 
 		virtual void Move();
 		virtual void Turn(float x, float y);
 		virtual glm::mat4 GetMatrix() const;
 };
 
-//TODO
-class ThirdPersonCam : public Camera
+class BlobCam : public Camera
 {
 	public:
+	
+		glm::vec3 Forward = glm::vec3(0, 0, 1);
+		glm::vec3 Up = glm::vec3(0, 1, 0);
 
-};
+		float Distance = 10.0f;
+		float Height = 5.0f;
 
-//TODO
-class DynamicCam : public ThirdPersonCam
-{
-	public:
+		glm::vec3 Target = glm::vec3(0);
 
+		BlobCam() :
+			Camera(glm::vec3(0), 0, 0) { }
+
+		virtual void Update()
+		{
+			Position = glm::vec3(Target.x, Target.y + Height, Target.z - Distance);
+			Forward = Target - Position;
+			Up = glm::cross(glm::vec3(-1.0f,0.0f,0.0f), Forward);
+		}
+
+		virtual void Move() {}
+		virtual void Turn(float x, float y) {}
+
+		virtual glm::mat4 GetMatrix() const
+		{
+			return glm::lookAt(Position, Position + Forward, Up);
+		}
 };

@@ -14,5 +14,6 @@ class Font
 		~Font();
 		texture_glyph_t *GetGlyph(const char *c) const;
 		float GetKerning(texture_glyph_t *glyph, const char *c) const;
+		void UploadTextureAtlas();
 		void BindTexture(GLuint location);
 };

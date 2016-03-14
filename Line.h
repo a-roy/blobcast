@@ -2,7 +2,7 @@
 
 #include <GL/glew.h>
 #include <vector>
-#include <glm\glm.hpp>
+#include <glm/glm.hpp>
 
 class Line
 {
@@ -25,7 +25,7 @@ public:
 		glBindVertexArray(vao);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STREAM_DRAW);
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -39,6 +39,17 @@ public:
 		glDeleteVertexArrays(1, &vao);
 		glDeleteBuffers(1, VBOs);
 	}
+
+	/*void Update(glm::vec3 from, glm::vec3 to)
+	{
+		vertices.clear();
+		vertices.push_back(from);
+		vertices.push_back(to);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STREAM_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}*/
 
 	void Render()
 	{

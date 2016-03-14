@@ -5,8 +5,7 @@
 #include <SOIL/SOIL.h>
 #include <sstream>
 #include <iostream>
-#include <Windows.h>
-#include <GL\glew.h>
+#include <GL/glew.h>
 
 
 class Skybox {

@@ -8,6 +8,7 @@
 #define ShaderDir RootDir "shaders/"
 #define FontDir RootDir "fonts/"
 #define TextureDir RootDir "textures/"
+#define LevelDir RootDir "levels/"
 
 #ifdef RTMP_STREAM
 #define STREAM_PROTOCOL "rtmp://"
@@ -34,3 +35,4 @@
 #define REMOTE_GAME_PORT 61000
 
 #define MAX_PROXIES 32766
+#define ROTATION_GIZMO_SIZE 15.0f

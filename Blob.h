@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SoftBody.h"
-#include <GLFW\glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <algorithm>
@@ -17,24 +17,28 @@ class Blob : public SoftBody
 {
 
 private:
-	unsigned int sampleIndices[6] = { 0 };
+	btSoftBody::Node *sampleNodes[6] = { NULL };
+	btVector3 centroid;
+	btScalar radius;
 
 public:
 	btVector3 forward;
-	float speed = 2.2f;
+	float speed;
 	MovementMode movementMode = MovementMode::stretch;
 
 	Blob(
 			btSoftBodyWorldInfo& softBodyWorldInfo,
-			const btVector3& center, const btVector3& scale, int vertices);
+			const btVector3& center, btScalar scale, int vertices);
 	~Blob();
 
+	void Update();
 	void Move(int key, int action);
 
 	void AddForce(const btVector3 &force);
 	void AddForce(const btVector3 &force, int i);
 	void AddForces(float magFwd, float magBack, float magLeft, float magRight);
 
+	void ComputeCentroid();
 	btVector3 GetCentroid();
 
 	void DrawGizmos(ShaderProgram* shaderProgram);

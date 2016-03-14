@@ -1,23 +1,44 @@
 #include "RigidBody.h"
-#include "Helper.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, float p_mass)
-	: mesh(p_mesh), translation(p_translation), orientation(p_orientation), scale(p_scale), color(p_color), mass(p_mass)
+RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation, 
+	glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
+	float p_mass) : mesh(p_mesh), color(p_color), trueColor(p_color), 
+	mass(p_mass)
 {
-	scale *= 0.5f;
-
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 	btCollisionShape* shape;
-	shape = new btBoxShape(btVector3(convert(scale)));
+	shape = new btBoxShape(btVector3(1,1,1));
+	shape->setLocalScaling(convert(p_scale));
 
-	btDefaultMotionState* transform = new btDefaultMotionState(btTransform(btQuaternion(convert(p_orientation)), btVector3(convert(p_translation))));
-	btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(mass, transform, shape);
+	btDefaultMotionState* transform = 
+		new btDefaultMotionState(btTransform(
+							 btQuaternion(convert(p_orientation)), 
+							 btVector3(convert(p_translation))));
+
+	btVector3 inertia; 
+	shape->calculateLocalInertia(mass, inertia);
+	btRigidBody::btRigidBodyConstructionInfo 
+		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
+
+	//if(mass != 0)
+		//rigidbody->setActivationState(DISABLE_DEACTIVATION);
+	//rigidbody->setMassProps(mass, inertia);
+
+	rigidbody->setUserPointer(this);
 }
+
+RigidBody::RigidBody(RigidBody& rb) :
+	RigidBody(Mesh::CreateCubeWithNormals(),
+		rb.GetTranslation(),
+		rb.GetOrientation(),
+		rb.GetScale(),
+		rb.trueColor,
+		rb.mass){}
 
 RigidBody::~RigidBody()
 {
@@ -27,21 +48,9 @@ RigidBody::~RigidBody()
 
 glm::mat4 RigidBody::GetModelMatrix()
 {
-	return glm::translate(glm::mat4(1), translation)
-		* glm::toMat4(orientation)
-		* glm::scale(glm::mat4(1), scale);
-}
-
-void RigidBody::Update()
-{
-	if (mass > 0)
-	{
-		btTransform trans;
-		rigidbody->getMotionState()->getWorldTransform(trans);
-		//trans.getOpenGLMatrix(glm::value_ptr(modelMatrix));
-		translation = convert(&trans.getOrigin());
-		orientation = convert(&trans.getRotation());
-	}
+	return glm::translate(glm::mat4(1), GetTranslation())
+		* glm::toMat4(GetOrientation())
+		* glm::scale(glm::mat4(1), GetScale());
 }
 
 void RigidBody::Render()

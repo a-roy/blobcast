@@ -32,4 +32,5 @@ class SoftBody
 
 		void Update();
 		void Render();
+		void RenderPatches();
 };

@@ -2,14 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-extern "C"
-{
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-#include <libswscale/swscale.h>
-}
 #include <RakNet/MessageIdentifiers.h>
 #include <RakNet/RakPeerInterface.h>
 
@@ -20,6 +12,7 @@ extern "C"
 #include "ShaderProgram.h"
 #include "Text.h"
 #include "BlobInput.h"
+#include "StreamWriter.h"
 
 #include "SoftBody.h"
 #include "Blob.h"
@@ -27,13 +20,21 @@ extern "C"
 #include "Light.hpp"
 #include "Skybox.h"
 #include "IOBuffer.h"
+#include "Level.h"
 
 #include "config.h"
 
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 
+#include "Point.h"
 #include "Line.h"
+#include "LevelEditor.h"
+#include "BulletDebugDrawer.h"
+#include "Profiler.h"
+
+#include <stdio.h>
+#include "tinyfiledialogs.h"
 
 bool init();
 bool init_physics();
@@ -53,8 +54,8 @@ void drawBlob();
 void drawPlatforms();
 void drawSkybox();
 void drawGizmos();
+void drawBulletDebug();
 void gui();
-void stream();
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
 void cursor_pos_callback(
@@ -63,11 +64,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 GLFWwindow *window;
 VertexArray *vao;
-ShaderProgram *text_program;
-Font *vera;
-Text *text;
 int width, height;
-bool streaming = false;
+
+FloatBuffer *display_vbo;
 
 glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
@@ -95,11 +94,7 @@ std::vector<glm::vec3> ssaoKernel;
 
 DirectionalLight dirLight;
 
-AVFrame *avframe;
-AVCodecContext *avctx;
-AVFormatContext *avfmt;
-SwsContext *swctx;
-GLuint pbo;
+StreamWriter *stream;
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 btCollisionDispatcher *dispatcher;
@@ -110,8 +105,9 @@ btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
 Blob *blob;
-std::vector<RigidBody*> rigidBodies;
+Level *level;
 
+ShaderProgram *displayShaderProgram;
 ShaderProgram *blobShaderProgram;
 ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
@@ -125,22 +121,38 @@ ShaderProgram *lightingShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
-btVector3 current_input;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
 
-Camera *camera;
+bool bShowBlobCfg = false;
+bool bShowGizmos = true;
+bool bShowBulletDebug = true;
+bool bShowImguiDemo = false;
+bool bShowCameraSettings = true;
+
+bool bStepPhysics = false;
+
+LevelEditor *levelEditor;
 
 double xcursor, ycursor;
 bool bGui = true;
-bool bShowBlobCfg = true;
 
-bool bGizmos = true;
+Camera *activeCam;
+FlyCam* flyCam;
+BlobCam* blobCam;
+
+BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
+
+double frameCounterTime = 0.0f;
+std::map<std::string, Measurement> Profiler::measurements;
+
+#pragma warning(disable:4996) /* allows usage of strncpy, strcpy, strcat, sprintf, fopen */
+char const *jsonExtension = ".json";
 
 int main(int argc, char *argv[])
 {
-	window = GLFWProject::Init("Stream Test", RENDER_WIDTH, RENDER_HEIGHT);
+	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
 
@@ -157,14 +169,9 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	GLuint uMVPMatrix = text_program->GetUniformLocation("uMVPMatrix");
-	GLuint uAtlas = text_program->GetUniformLocation("uAtlas");
-	GLuint uTextColor = text_program->GetUniformLocation("uTextColor");
+	levelEditor = new LevelEditor(dynamicsWorld, level);
 
-	text_program->Install();
-	glUniform4f(uTextColor, 0.5f, 1.0f, 1.0f, 1.0f);
-	vera->BindTexture(uAtlas);
-	text_program->Uninstall();
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
@@ -172,34 +179,38 @@ int main(int argc, char *argv[])
 
 	while (!glfwWindowShouldClose(window))
 	{
+		Profiler::Start("Frame");
 		update();
+
+		Profiler::Start("Rendering");
 		draw();
-		if (streaming)
-			stream();
-		if(bGizmos)
+		Profiler::Finish("Rendering", false);
+
+		Profiler::Start("Streaming");
+		if (stream->IsOpen())
+			stream->WriteFrame();
+		Profiler::Finish("Streaming");
+
+		if(bShowGizmos)
 			drawGizmos();
+		if (bShowBulletDebug)
+			drawBulletDebug();
 		if(bGui)
 			gui();
 
+		Profiler::Start("Rendering");
 		glfwSwapBuffers(window);
-		glfwPollEvents();
-	}
-	if (streaming)
-	{
-		av_write_trailer(avfmt);
-		avcodec_close(avctx);
+		Profiler::Finish("Rendering", true);
 
+		glfwPollEvents();
+		Profiler::Finish("Frame");
+	}
+	if (stream->IsOpen())
+	{
 		rakPeer->Shutdown(0);
 		RakNet::RakPeerInterface::DestroyInstance(rakPeer);
-		av_free(avfmt->pb);
 	}
-	avformat_free_context(avfmt);
-	avformat_network_deinit();
-	//avcodec_free_context(&avctx);
-	av_frame_free(&avframe);
-	delete text_program;
-	delete text;
-	delete vera;
+	delete stream;
 
 	delete dynamicsWorld;
 	delete solver;
@@ -207,10 +218,17 @@ int main(int argc, char *argv[])
 	delete dispatcher;
 	delete broadphase;
 
+	delete blob;
+	delete levelEditor;
+	delete flyCam;
+	delete blobCam;
+
 	ImGui_ImplGlfw_Shutdown();
 	glfwTerminate();
 	return 0;
 }
+
+#pragma warning(default:4996)
 
 bool init()
 {
@@ -232,7 +250,6 @@ bool init_physics()
 
 	dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
-	//Experiment with environment variables
 	softBodyWorldInfo.m_broadphase = broadphase;
 	softBodyWorldInfo.m_dispatcher = dispatcher;
 	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
@@ -242,35 +259,14 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), btVector3(1, 1, 1) * 3, 512);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
 	btSoftBody *btblob = blob->softbody;
 
-	//Experiment with blob variables
-	btblob->m_materials[0]->m_kLST = 0.1;
-	btblob->m_cfg.kDF = 1;
-	btblob->m_cfg.kDP = 0.001;
-	btblob->m_cfg.kPR = 2500;
-	btblob->setTotalMass(30, true);
-	
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()), 
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(50.0f, 5.0f, 50.0f), 
-		glm::vec4(0.85f, 0.85f, 0.85f, 1.0f)));
-
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(0, -10, 0), glm::quat(), glm::vec3(1.0f, 1.0f, 1.0f), 
-		glm::vec4(1.0f, 0.1f, 0.1f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(-10, -10, 0), glm::quat(), glm::vec3(5.0f, 5.0f, 5.0f), 
-		glm::vec4(0.1f, 0.1f, 1.0f, 1.0f), 3));
-	rigidBodies.push_back(new RigidBody(Mesh::CreateCubeWithNormals(new VertexArray()),
-		glm::vec3(5, -10, 0), glm::quat(), glm::vec3(2.0f, 2.0f, 2.0f), 
-		glm::vec4(1.0f, 0.8f, 0.1f, 1.0f), 3));
-
-	for(RigidBody* r : rigidBodies)
+	level = Level::Deserialize(LevelDir "test_level.json");
+	for(RigidBody* r : level->Objects)
 		dynamicsWorld->addRigidBody(r->rigidbody);
-
-	//blob->AddAnchor(anchor);
 	dynamicsWorld->addSoftBody(blob->softbody);
+	dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	return true;
 }
@@ -278,89 +274,65 @@ bool init_physics()
 bool init_graphics()
 {
 	vao = new VertexArray();
+	display_vbo = new FloatBuffer(vao, 2, 4);
+	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
+	display_vbo->SetData(vertex_data);
+	glBindVertexArray(vao->Name);
+	display_vbo->BufferData(0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
 
-	vera = new Font(FontDir "Vera.ttf", 48.f);
-	text = new Text(vao, vera);
-	text->SetText("Hello world");
+	displayShaderProgram = new ShaderProgram({
+			ShaderDir "Display.vert",
+			ShaderDir "Display.frag" });
 
-	std::vector<Shader *> shaders;
-	
-	shaders.push_back(new Shader(ShaderDir "Text.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Text.frag", GL_FRAGMENT_SHADER));
-	text_program = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	skyboxShaderProgram = new ShaderProgram({
+			ShaderDir "Skybox.vert",
+			ShaderDir "Skybox.frag" });
 
-	shaders.push_back(new Shader(ShaderDir "Skybox.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Skybox.frag", GL_FRAGMENT_SHADER));
-	skyboxShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
+	depthShaderProgram = new ShaderProgram({
+			ShaderDir "DepthShader.vert",
+			ShaderDir "DepthShader.frag" });
 
-	shaders.push_back(new Shader(ShaderDir "DepthShader.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "DepthShader.frag", GL_FRAGMENT_SHADER));
-	depthShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "Blob.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blob.frag", GL_FRAGMENT_SHADER));
-	blobShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "Platform.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Platform.frag", GL_FRAGMENT_SHADER));
-	platformShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "toQuad.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "toQuad.frag", GL_FRAGMENT_SHADER));
-	quadShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-	
-	shaders.push_back(new Shader(ShaderDir "GeometryPass.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "GeometryPass.frag", GL_FRAGMENT_SHADER));
-	geomPassShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "LightingPass.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "LightingPass.frag", GL_FRAGMENT_SHADER));
-	lightingShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "SSAO.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "SSAO.frag", GL_FRAGMENT_SHADER));
-	SSAOShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
-	shaders.push_back(new Shader(ShaderDir "SSAO.vert", GL_VERTEX_SHADER));
-	shaders.push_back(new Shader(ShaderDir "Blur.frag", GL_FRAGMENT_SHADER));
-	blurShaderProgram = new ShaderProgram(shaders);
-	for (std::size_t i = 0, n = shaders.size(); i < n; i++)
-		delete shaders[i];
-	shaders.clear();
-
+	blobShaderProgram = new ShaderProgram({
+			ShaderDir "Blob.vert",
+			ShaderDir "Blob.tesc",
+			ShaderDir "Blob.tese",
+			ShaderDir "Blob.frag" });
 	debugdrawShaderProgram = blobShaderProgram;
+
+	platformShaderProgram = new ShaderProgram({
+			ShaderDir "Platform.vert",
+			ShaderDir "Platform.frag" });
+
+	debugdrawShaderProgram = new ShaderProgram({
+			ShaderDir "Gizmo.vert",
+			ShaderDir "Gizmo.frag" });
+
+	quadShaderProgram = new ShaderProgram({
+			ShaderDir "toQuad.vert",
+			ShaderDir "toQuad.frag" });
+
+	geomPassShaderProgram = new ShaderProgram({
+			ShaderDir "GeometryPass.vert",
+			ShaderDir "GeometryPass.frag" });
+
+	lightingShaderProgram = new ShaderProgram({
+			ShaderDir "LightingPass.vert",
+			ShaderDir "LightingPass.frag" });
+
+	SSAOShaderProgram = new ShaderProgram({
+			ShaderDir "SSAO.vert",
+			ShaderDir "SSAO.frag" });
+
+	blurShaderProgram = new ShaderProgram({
+			ShaderDir "SSAO.vert",
+			ShaderDir "Blur.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
 
-	quad = Mesh::CreateQuad(new VertexArray());
+	quad = Mesh::CreateQuad();
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
@@ -405,7 +377,10 @@ bool init_graphics()
 
 	modelMatrix = glm::mat4(1.f);
 
-	camera = new FlyCam(glm::vec3(0.f, 1.0f, 20.f), 10.0f / 60.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	flyCam = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 2.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	blobCam = new BlobCam();
+
+	activeCam = flyCam;
 
 	return true;
 }
@@ -509,7 +484,7 @@ bool init_frameBuffers()
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		std::cout << "Cube map FBO error" << std::endl;
 		return false;
-	}	
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -528,7 +503,7 @@ bool init_frameBuffers()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	
+
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
 
 	// Disable writing to color buffer
@@ -555,76 +530,10 @@ bool init_frameBuffers()
 
 bool init_stream()
 {
-	glGenBuffers(1, &pbo);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	avcodec_register_all();
-	AVDictionary *opts = NULL;
-	av_dict_set(&opts, "tune", "zerolatency", 0);
-	av_dict_set(&opts, "preset", "ultrafast", 0);
-	av_dict_set(&opts, "crf", xstr(CODEC_CRF), 0);
-#ifdef RTMP_STREAM
-	av_dict_set(&opts, "rtmp_live", "live", 0);
-#endif // RTMP_STREAM
-	AVIOContext *ioctx;
-	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
-	if (!codec)
-		return false;
-	avctx = avcodec_alloc_context3(codec);
-	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
-	avctx->width = STREAM_WIDTH;
-	avctx->height = STREAM_HEIGHT;
-	avctx->time_base = { 1, 60 };
-#ifdef UDP_STREAM
-	avctx->gop_size = 0;
-#endif // UDP_STREAM
-	if (avcodec_open2(avctx, codec, &opts) < 0)
-		return false;
+	stream = new StreamWriter(width, height);
 
-	avframe = av_frame_alloc();
-	avframe->format = AV_PIX_FMT_YUV420P;
-	avframe->width = STREAM_WIDTH;
-	avframe->height = STREAM_HEIGHT;
-	avframe->linesize[0] = STREAM_WIDTH;
-	avframe->linesize[1] = STREAM_WIDTH / 2;
-	avframe->linesize[2] = STREAM_WIDTH / 2;
-	if (av_frame_get_buffer(avframe, 0) != 0)
-		return false;
-
-	int linesize_align[AV_NUM_DATA_POINTERS];
-	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
-	glBufferData(
-			GL_PIXEL_PACK_BUFFER, width * height * 3, NULL, GL_STREAM_READ);
-
-	av_register_all();
-	avformat_network_init();
-	avfmt = avformat_alloc_context();
-	std::string filename = STREAM_PATH;
-	avfmt->oformat = av_guess_format("flv", 0, 0);
-	av_dict_set(&opts, "live", "1", 0);
-	filename.copy(avfmt->filename, filename.size(), 0);
-	avfmt->start_time_realtime = AV_NOPTS_VALUE;
-	AVStream *s = avformat_new_stream(avfmt, codec);
-	s->time_base = { 1, 60 };
-	if (s == NULL)
-		return false;
-	s->codec = avctx;
-	int io_result =
-		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts);
-	streaming = (io_result >= 0);
-	if (!streaming)
-		return true;
-	avfmt->pb = ioctx;
-	if (avformat_write_header(avfmt, &opts) != 0)
-		return false;
-
-	swctx = sws_getContext(
-			width, height, AV_PIX_FMT_RGB24,
-			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
-			SWS_BICUBIC, NULL, NULL, NULL);
-	if (swctx == NULL)
-		return false;
-
-	rakPeer->Startup(100, &RakNet::SocketDescriptor(REMOTE_GAME_PORT, 0), 1);
+	RakNet::SocketDescriptor sd(REMOTE_GAME_PORT, 0);
+	rakPeer->Startup(100, &sd, 1);
 	rakPeer->SetMaximumIncomingConnections(100);
 
 	return true;
@@ -639,7 +548,7 @@ void update()
 	int right_count = 0;
 	int left_count = 0;
 	int jump_count = 0;
-	while (streaming && rakPeer->GetReceiveBufferSize() > 0)
+	while (stream->IsOpen() && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
 		unsigned char packet_type = p->data[0];
@@ -673,25 +582,40 @@ void update()
 			left_count / num_inputs, right_count / num_inputs);
 		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
 	}
-
-	currentFrame = glfwGetTime();
-
-	deltaTime = currentFrame - lastFrame;
-	lastFrame = currentFrame;
+	if (num_inputs > 0.f)
+	{
+		(*displayShaderProgram)["uForward"] = forward_count / num_inputs;
+		(*displayShaderProgram)["uBackward"] = backward_count / num_inputs;
+		(*displayShaderProgram)["uRight"] = right_count / num_inputs;
+		(*displayShaderProgram)["uLeft"] = left_count / num_inputs;
+	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
 
-	dynamicsWorld->stepSimulation(deltaTime, 10);
+	currentFrame = glfwGetTime();
+	deltaTime = currentFrame - lastFrame;
+	lastFrame = currentFrame;
 
-	camera->Update();
+	frameCounterTime += deltaTime;
+	if (frameCounterTime >= 1.0f)
+	{
+		for (auto itr = Profiler::measurements.begin();
+		itr != Profiler::measurements.end(); itr++)
+			if(itr->second.avg)
+				itr->second.SetAvg();
+		frameCounterTime = 0;
+	}
+
+	Profiler::Start("Physics");
+	if(bStepPhysics)
+		dynamicsWorld->stepSimulation(deltaTime, 10);
+	Profiler::Finish("Physics");
+
+	blobCam->Target = convert(blob->GetCentroid());
+	activeCam->Update();
 
 	blob->Update();
-
-	for (RigidBody* r : rigidBodies)
-		r->Update();
 }
-
-bool show_test_window = true;
 
 void draw()
 {
@@ -702,7 +626,7 @@ void draw()
 
 	glViewport(0, 0, RENDER_WIDTH, RENDER_HEIGHT);
 
-	viewMatrix = camera->GetMatrix();
+	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 1000.f);
 
 	geometryPass();
@@ -719,7 +643,6 @@ void draw()
 	//quadShaderProgram->Uninstall();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	lightingShaderProgram->Install();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glActiveTexture(GL_TEXTURE1);
@@ -729,13 +652,14 @@ void draw()
 	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
 
-	lightingShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	lightingShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	lightingShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	lightingShaderProgram->SetUniform("viewPos", camera->Position);
+	(*lightingShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*lightingShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*lightingShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*lightingShaderProgram)["viewPos"] = activeCam->Position;
 
-	quad->Draw();
-	lightingShaderProgram->Uninstall();
+	lightingShaderProgram->Use([&](){
+		quad->Draw();
+	});
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -746,7 +670,22 @@ void draw()
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	drawSkybox();
-	viewMatrix = camera->GetMatrix();
+	viewMatrix = activeCam->GetMatrix();
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glm::mat4 displayMVP = glm::ortho(
+			-1.25f, ((float)width  / 128.f) - 1.25f,
+			-1.25f, ((float)height / 128.f) - 1.25f);
+	(*displayShaderProgram)["uMVPMatrix"] = displayMVP;
+	(*displayShaderProgram)["uInnerRadius"] = 0.7f;
+	(*displayShaderProgram)["uOuterRadius"] = 0.9f;
+	glBindVertexArray(vao->Name);
+	displayShaderProgram->Use([&](){
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	});
+	glBindVertexArray(0);
+	glDisable(GL_BLEND);
 }
 
 void depthPass()
@@ -761,17 +700,13 @@ void depthPass()
 	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
-	depthShaderProgram->Install();
-	depthShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
-	depthShaderProgram->SetUniform("model", glm::mat4());
-	blob->Render();
-	glFrontFace(GL_CW);
-	for (int i = 1; i < rigidBodies.size(); i++) {
-		depthShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
-		rigidBodies[i]->Render();
-	}
-	glFrontFace(GL_CCW);
-	depthShaderProgram->Uninstall();
+	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*depthShaderProgram)["model"] = glm::mat4();
+	depthShaderProgram->Use([&](){
+		blob->Render();
+		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+		level->Render(uMMatrix, -1);
+	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
@@ -783,15 +718,13 @@ void geometryPass()
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	geomPassShaderProgram->Install();
-	geomPassShaderProgram->SetUniform("projection", projMatrix);
-	geomPassShaderProgram->SetUniform("view", viewMatrix);
-	for (int i = 0; i < rigidBodies.size(); i++) {
-		geomPassShaderProgram->SetUniform("model", rigidBodies[i]->GetModelMatrix());
-		geomPassShaderProgram->SetUniform("objectColor", rigidBodies[i]->color);
-		rigidBodies[i]->Render();
-	}
-	geomPassShaderProgram->Uninstall();
+	(*geomPassShaderProgram)["projection"] = projMatrix;
+	(*geomPassShaderProgram)["view"] = viewMatrix;
+	GLuint uMMatrix = geomPassShaderProgram->GetUniformLocation("model");
+	GLuint uColor = geomPassShaderProgram->GetUniformLocation("objectColor");
+	geomPassShaderProgram->Use([&](){
+		level->Render(uMMatrix, uColor);
+	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -802,18 +735,20 @@ void SSAOPass()
 	
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	SSAOShaderProgram->Install();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gPosition);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, gNormal);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture);
-	for (GLuint i = 0; i < 64; ++i)
-		glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
-	SSAOShaderProgram->SetUniform("projection", projMatrix);
-	quad->Draw();
-	SSAOShaderProgram->Uninstall();
+	SSAOShaderProgram->Use([&](){
+		for (GLuint i = 0; i < 64; ++i)
+			glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
+		});
+	(*SSAOShaderProgram)["projection"] = projMatrix;
+	SSAOShaderProgram->Use([&](){
+		quad->Draw();
+	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -822,80 +757,77 @@ void blurPass()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
 	glClear(GL_COLOR_BUFFER_BIT);
-	blurShaderProgram->Install();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-	quad->Draw();
-	blurShaderProgram->Uninstall();
+	blurShaderProgram->Use([&](){
+		quad->Draw();
+	});
 	
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void drawBlob()
 {
-	blobShaderProgram->Install();
-	blobShaderProgram->SetUniform("objectColor", glm::vec3(0.0f, 1.0f, 0.0f));
-	blobShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	blobShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	blobShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	blobShaderProgram->SetUniform("viewPos", camera->Position);
+	(*blobShaderProgram)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
+	(*blobShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*blobShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*blobShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*blobShaderProgram)["viewPos"] = activeCam->Position;
+	(*blobShaderProgram)["blobDistance"] =
+		glm::distance(convert(blob->GetCentroid()), activeCam->Position);
 
-	blobShaderProgram->SetUniform("projection", projMatrix);
-	blobShaderProgram->SetUniform("view", viewMatrix);
-	blobShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
+	(*blobShaderProgram)["projection"] = projMatrix;
+	(*blobShaderProgram)["view"] = viewMatrix;
+	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	blobShaderProgram->SetUniform("cubeMap", 0);
+	(*blobShaderProgram)["cubeMap"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
 
 	//glActiveTexture(GL_TEXTURE1);
 	//blobShaderProgram->SetUniform("depthMap", 1);
 	//glBindTexture(GL_TEXTURE_2D, depthMap);
 
-	blob->Render();
-	blobShaderProgram->Uninstall();
+	blobShaderProgram->Use([&](){
+		blob->RenderPatches();
+	});
 }
 
 
 void drawPlatforms()
 {
-	platformShaderProgram->Install();
-	platformShaderProgram->SetUniform("directionalLight.color", dirLight.color);
-	platformShaderProgram->SetUniform("directionalLight.ambientColor", dirLight.ambientColor);
-	platformShaderProgram->SetUniform("directionalLight.direction", dirLight.direction);
-	platformShaderProgram->SetUniform("viewPos", camera->Position);
+	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*platformShaderProgram)["viewPos"] = activeCam->Position;
 
-	platformShaderProgram->SetUniform("projection", projMatrix);
-	platformShaderProgram->SetUniform("view", viewMatrix);
-	platformShaderProgram->SetUniform("lightSpaceMat", lightSpaceMatrix);
-	platformShaderProgram->SetUniform("screenSize", glm::vec2(RENDER_WIDTH, RENDER_HEIGHT));
+	(*platformShaderProgram)["projection"] = projMatrix;
+	(*platformShaderProgram)["view"] = viewMatrix;
+	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*platformShaderProgram)["screenSize"] = glm::vec2(RENDER_WIDTH, RENDER_HEIGHT);
 
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, depthMap);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
 
-	for (RigidBody* r : rigidBodies) {
-		platformShaderProgram->SetUniform("model", r->GetModelMatrix());
-		platformShaderProgram->SetUniform("objectColor", r->color);
-		r->Render();
-	}
-
-	platformShaderProgram->Uninstall();
+	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
+	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
+	platformShaderProgram->Use([&](){
+		level->Render(uMMatrix, uColor);
+	});
 }
 
 void drawSkybox()
 {
 	glDepthFunc(GL_LEQUAL);
-	skyboxShaderProgram->Install();
-	skyboxShaderProgram->SetUniform("view", viewMatrix);
-	skyboxShaderProgram->SetUniform("projection", projMatrix);
+	(*skyboxShaderProgram)["view"] = viewMatrix;
+	(*skyboxShaderProgram)["projection"] = projMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	skyboxShaderProgram->SetUniform("skybox", 0);
+	(*skyboxShaderProgram)["skybox"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
-	skybox.render();
+	skyboxShaderProgram->Use([&](){ skybox.render(); });
 
-	skyboxShaderProgram->Uninstall();
-	glDepthMask(GL_LESS);
+	glDepthFunc(GL_LESS);
 }
 
 void dynamicCubePass()
@@ -905,7 +837,7 @@ void dynamicCubePass()
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
 
-	glm::vec3 position = convert(&blob->GetCentroid());
+	glm::vec3 position = convert(blob->GetCentroid());
 	drawCubeFace(
 			position,
 			glm::vec3(1.0f, 0.0f, 0.0f),
@@ -966,134 +898,298 @@ void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum 
 
 void drawGizmos()
 {
-	debugdrawShaderProgram->Install();
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 
-	glm::mat4 mvpMatrix = projMatrix * camera->GetMatrix();
-	debugdrawShaderProgram->SetUniform("uMVPMatrix", mvpMatrix);
-
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(1, 0, 0, 1));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
 	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-	x.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 1, 0, 1));
+	debugdrawShaderProgram->Use([&](){
+		x.Render();
+	});
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
 	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	y.Render();
-	debugdrawShaderProgram->SetUniform("uColor", glm::vec4(0, 0, 1, 1));
+	debugdrawShaderProgram->Use([&](){
+		y.Render();
+	});
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
 	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
-	z.Render();
+	debugdrawShaderProgram->Use([&](){
+		z.Render();
+	});
 
-	blob->DrawGizmos(debugdrawShaderProgram);
+	Point p(glm::vec3(0));
+	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
+	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
+	debugdrawShaderProgram->Use([&](){
+		p.Render(sz);
+	});
 
-	debugdrawShaderProgram->Uninstall();
+	//Line ray(levelEditor->out_origin, levelEditor->out_end);
+	//ray.Render();
+
+	//blob->DrawGizmos(debugdrawShaderProgram);
+}
+
+void drawBulletDebug()
+{
+	bulletDebugDrawer.SetMatrices(viewMatrix, projMatrix);
+	dynamicsWorld->debugDrawWorld();
 }
 
 void gui()
 {
 	ImGui_ImplGlfw_NewFrame();
 
-	if (streaming)
-		ImGui::Begin("We are blobcasting live! (Right-click to hide GUI)");
-	else
-		ImGui::Begin("Blobcast server unavailable (Right-click to hide GUI)");
-	if (ImGui::Button("Show/Hide Blob Edtior")) bShowBlobCfg ^= 1;
-	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-	ImGui::Checkbox("Show Gizmos", &bGizmos);
-	ImGui::End();
-
-	if (bShowBlobCfg)
+	ImGui::SetNextWindowPos(ImVec2(width - 500, 40));
+	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
+		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings))
 	{
-#pragma region Bullet Softbody cfg variables not yet exposed
-		//eAeroModel::_			aeromodel;		// Aerodynamic model (default: V_Point)
-		//btScalar				kVCF;			// Velocities correction factor (Baumgarte)	
-		//btScalar				kCHR;			// Rigid contacts hardness [0,1]
-		//btScalar				kKHR;			// Kinetic contacts hardness [0,1]
-		//btScalar				kSHR;			// Soft contacts hardness [0,1]
-		//btScalar				kAHR;			// Anchors hardness [0,1]
+		if (stream->IsOpen())
+			ImGui::Text("We are blobcasting live!");
+		else
+			ImGui::Text("Blobcast server unavailable");
+		ImGui::Separator();
+		ImGui::Text("Right click to turn the camera");
+		ImGui::Separator();
 
-		//btScalar				kSRHR_CL;		// Soft vs rigid hardness [0,1] (cluster only)
-		//btScalar				kSKHR_CL;		// Soft vs kinetic hardness [0,1] (cluster only)
-		//btScalar				kSSHR_CL;		// Soft vs soft hardness [0,1] (cluster only)
-		//btScalar				kSR_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
-		//btScalar				kSK_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
-		//btScalar				kSS_SPLT_CL;	// Soft vs rigid impulse split [0,1] (cluster only)
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-		//btScalar				maxvolume;		// Maximum volume ratio for pose
-		//btScalar				timescale;		// Time scale
-		//int						viterations;	// Velocities solver iterations
-		//int						piterations;	// Positions solver iterations
-		//int						diterations;	// Drift solver iterations
-		//int						citerations;	// Cluster solver iterations
-		//int						collisions;		// Collisions flags
-		//tVSolverArray			m_vsequence;	// Velocity solvers sequence
-		//tPSolverArray			m_psequence;	// Position solvers sequence
-		//tPSolverArray			m_dsequence;	// Drift solvers sequence
-#pragma endregion
+		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS",
+			Profiler::measurements["Physics"].result*1000,
+			(Profiler::measurements["Physics"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Physics"].result);
+		ImGui::Text("Streaming average %.3f ms/frame | %.1f percent | %.1f FPS",
+			Profiler::measurements["Streaming"].result * 1000,
+			(Profiler::measurements["Streaming"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Streaming"].result);
+		ImGui::Text("Rendering average %.3f ms/frame | %.1f percent | %.1f FPS",
+			Profiler::measurements["Rendering"].result * 1000,
+			(Profiler::measurements["Rendering"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Rendering"].result);
 
-		ImGui::SetNextWindowSize(ImVec2(400, 200), ImGuiSetCond_FirstUseEver);
-		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
-		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]", &blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
-		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]", &blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
-		ImGui::InputFloat("Pressure coefficient [-inf,+inf]", &blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
-		ImGui::InputFloat("Volume conversation coefficient [0, +inf]", &blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
-		ImGui::InputFloat("Drag coefficient [0, +inf]", &blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
-		ImGui::SliderFloat("Damping coefficient [0,1]", &blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
-		ImGui::InputFloat("Lift coefficient [0,+inf]", &blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
-		ImGui::SliderFloat("Pose matching coefficient [0,1]", &blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
-		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
-		
+		ImGui::Separator();
+		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
+		ImGui::Text("Camera Position: (%.1f,%.1f,%.1f)", activeCam->Position.x,
+			activeCam->Position.y, activeCam->Position.z);
+
 		ImGui::End();
 	}
 
-	ImGui::Render();
-}
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Load"))
+			{
+				char const *lTheOpenFileName = NULL;
+				lTheOpenFileName = tinyfd_openFileDialog (
+					"Load level",
+					"",
+					0,
+					NULL,
+					NULL,
+					0);
+				if (lTheOpenFileName != NULL)
+				{
+					levelEditor->selection.clear();
 
-void stream()
-{
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	uint8_t *data =
-		(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-	uint8_t *const srcSlice[] = { data };
-	int srcStride[] = { width * 3 };
-	if (data != NULL)
-		sws_scale(
-				swctx,
-				srcSlice, srcStride,
-				0, height,
-				avframe->data, avframe->linesize);
-	avframe->pts += 1500;
-	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	AVPacket *avpkt = av_packet_alloc();
-	int got_packet;
-	if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
-		exit(1);
-	if (got_packet == 1)
-		av_interleaved_write_frame(avfmt, avpkt);
-	av_packet_free(&avpkt);
+					for (RigidBody* rb : level->Objects)
+						dynamicsWorld->removeRigidBody(rb->rigidbody);
+					delete level;
+
+					level = Level::Deserialize(lTheOpenFileName);
+					for (RigidBody* rb : level->Objects)
+						dynamicsWorld->addRigidBody(rb->rigidbody);
+				}
+			}
+
+			if (ImGui::MenuItem("Save as.."))
+			{
+				char const *lTheSaveFileName = NULL;
+
+				lTheSaveFileName = tinyfd_saveFileDialog(
+					"Save Level",
+					"level.json",
+					/*1*/0,
+					/*&jsonExtension*/NULL,
+					NULL);
+
+				if(lTheSaveFileName != NULL )
+					level->Serialize(lTheSaveFileName);
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View"))
+		{
+			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
+				bShowBlobCfg ^= 1;
+			if (ImGui::MenuItem("Gizmos", NULL, bShowGizmos))
+				bShowGizmos ^= 1;
+			if (ImGui::MenuItem("Bullet Debug", NULL, bShowBulletDebug))
+				bShowBulletDebug ^= 1;
+			if (ImGui::MenuItem("ImGui Demo", NULL, bShowImguiDemo))
+				bShowImguiDemo ^= 1;
+			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
+				bShowCameraSettings ^= 1;
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Create"))
+		{
+			if (ImGui::MenuItem("Platform"))
+			{
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f));
+				dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size()-1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Physics Box"))
+			{
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Settings"))
+		{
+			if(ImGui::MenuItem("Step Physics", NULL, bStepPhysics))
+				bStepPhysics ^= 1;
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+
+	if (bShowImguiDemo)
+	{
+		ImGui::ShowTestWindow();
+	}
+
+	if (bShowCameraSettings)
+	{
+		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
+
+		ImGui::Begin("Camera Settings", &bShowCameraSettings);
+		static int n;
+		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
+
+		if (n == 0)
+		{
+			activeCam = flyCam;
+			ImGui::SliderFloat("Move Speed [1,100]",
+				&flyCam->MoveSpeed, 0.0f, 20.0f);
+		}
+		else
+		{
+			activeCam = blobCam;
+			ImGui::SliderFloat("Distance [1,100]",
+				&blobCam->Distance, 1.0f, 100.0f);
+			ImGui::SliderFloat("Height [1,100]",
+				&blobCam->Height, 1.0f, 100.0f);
+		}
+
+		ImGui::End();
+	}
+
+	if (bShowBlobCfg)
+	{
+		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
+
+		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
+		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]",
+			&blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
+		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]",
+			&blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
+		ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
+			&blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
+		ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
+			&blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
+		ImGui::InputFloat("Drag coefficient [0, +inf]",
+			&blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
+		ImGui::SliderFloat("Damping coefficient [0,1]",
+			&blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
+		ImGui::InputFloat("Lift coefficient [0,+inf]",
+			&blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
+		ImGui::SliderFloat("Pose matching coefficient [0,1]",
+			&blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
+
+		ImGui::Separator();
+
+		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
+
+		static float vec3[3] = { 0.f, 0.f, 0.f };
+		if(ImGui::InputFloat3("", vec3))
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Set Position"))
+			blob->softbody->translate(
+				btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
+
+		ImGui::End();
+	}
+
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->Gui(debugdrawShaderProgram);
+	});
+
+	ImGui::Render();
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
 }
 
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods)
 {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-	{
 		glfwSetWindowShouldClose(window, GL_TRUE);
-	}
+
+	if (key == GLFW_KEY_G && action == GLFW_PRESS)
+		bGui ^= 1;
+
+	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
+		levelEditor->DeleteSelection();
 
 	blob->Move(key, action);
 
-	GLFWProject::WASDStrafe(camera, window, key, scancode, action, mods);
+	GLFWProject::WASDStrafe(activeCam, window, key, scancode, action, mods);
 }
 
-void cursor_pos_callback(
-	GLFWwindow *window, double xpos, double ypos)
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos)
 {
-	GLFWProject::MouseTurn(camera, &xcursor, &ycursor, window, xpos, ypos);
+	GLFWProject::MouseTurn(activeCam, &xcursor, &ycursor, window, xpos, ypos);
+
+	xcursor = xpos;
+	ycursor = ypos;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-		bGui = !bGui;
-	GLFWProject::ClickDisablesCursor(&xcursor, &ycursor, window, button, action, mods);
+	{
+		if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		else
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+	}
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	{
+		if(!ImGui::GetIO().WantCaptureMouse)
+			if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
+				levelEditor->Mouse(xcursor, height - ycursor, width, height, viewMatrix, projMatrix);
+	}
 }

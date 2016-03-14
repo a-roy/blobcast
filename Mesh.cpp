@@ -1,13 +1,21 @@
 #include "Mesh.h"
 
-Mesh::Mesh(VertexArray *vao, int vertexBuffers, int numVerts, int numFaces) :
-	VAO(vao), VBOs(vertexBuffers), NumVerts(numVerts), NumTris(numFaces) { }
+Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
+	VAO(new VertexArray()),
+	VBOs(vertexBuffers),
+	NumVerts(numVerts),
+	NumTris(numFaces)
+{
+	glBindVertexArray(VAO->Name);
+	for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
+		glEnableVertexAttribArray(i);
+	glBindVertexArray(0);
+}
 
 Mesh::Mesh(
-		VertexArray *vao,
 		std::vector<GLfloat> vbo,
 		std::vector<GLfloat> nbo,
-		std::vector<GLuint> ibo) : Mesh(vao, 2, vbo.size() / 3, ibo.size() / 3)
+		std::vector<GLuint> ibo) : Mesh(2, vbo.size() / 3, ibo.size() / 3)
 {
 	SetVertexData(0, &vbo[0], 3);
 	SetVertexData(1, &nbo[0], 3);
@@ -16,22 +24,15 @@ Mesh::Mesh(
 
 Mesh::~Mesh()
 {
+	delete VAO;
 	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
-	{
 		delete VBOs[i];
-	}
 	delete IBO;
 }
 
 void Mesh::Draw() const
 {
-	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
-	{
-		glEnableVertexAttribArray(i);
-		VBOs[i]->BufferData(i);
-	}
-
-	IBO->BufferData(-1);
+	glBindVertexArray(VAO->Name);
 
 	glDrawElements(
 			GL_TRIANGLES,
@@ -40,12 +41,7 @@ void Mesh::Draw() const
 			(void *)0
 			);
 
-	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
-	{
-		glDisableVertexAttribArray(i);
-	}
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void Mesh::SetVertexData(
@@ -53,12 +49,18 @@ void Mesh::SetVertexData(
 {
 	VBOs[attribute] = new FloatBuffer(VAO, itemSize, NumVerts);
 	VBOs[attribute]->SetData(data);
+	glBindVertexArray(VAO->Name);
+	VBOs[attribute]->BufferData(attribute);
+	glBindVertexArray(0);
 }
 
 void Mesh::SetIndexData(unsigned int *iboData)
 {
 	IBO = new ElementBuffer(VAO, NumTris);
 	IBO->SetData(iboData);
+	glBindVertexArray(VAO->Name);
+	IBO->BufferData(-1);
+	glBindVertexArray(0);
 }
 
 void Mesh::ComputeAABB(
@@ -100,9 +102,9 @@ float Mesh::ComputeRadius(glm::vec3 center) const
 	return glm::sqrt(max_square_distance);
 }
 
-Mesh *Mesh::CreateCube(VertexArray *vao)
+Mesh *Mesh::CreateCube()
 {
-	Mesh *cube = new Mesh(vao, 1, 8, 12);
+	Mesh *cube = new Mesh(1, 8, 12);
 	GLfloat vbo[] = {
 		-1, -1, -1,   // 0
 		-1, -1,  1,   // 1
@@ -137,9 +139,9 @@ Mesh *Mesh::CreateCube(VertexArray *vao)
 	return cube;
 }
 
-Mesh *Mesh::CreateCubeWithNormals(VertexArray *vao)
+Mesh *Mesh::CreateCubeWithNormals()
 {
-	Mesh *cube = new Mesh(vao, 2, 24, 12);
+	Mesh *cube = new Mesh(2, 24, 12);
 	GLfloat vbo[] = {
 		-1, -1, -1,   // 0
 		-1, -1,  1,   // 1
@@ -200,31 +202,31 @@ Mesh *Mesh::CreateCubeWithNormals(VertexArray *vao)
 
 	unsigned int ibo[] = {
 		// front (-Z)
-		0, 6, 2,
-		6, 0, 4,
+		6, 0, 2,
+		0, 6, 4,
 		// back (+Z)
-		5, 3, 7,
-		3, 5, 1,
+		3, 5, 7,
+		5, 3, 1,
 		// left (-X)
-		9, 10, 11,
-		10, 9, 8,
+		10, 9, 11,
+		9, 10, 8,
 		// right (+X)
-		12, 15, 14,
-		15, 12, 13,
+		15, 12, 14,
+		12, 15, 13,
 		// top (+Y)
-		18, 23, 19,
-		23, 18, 22,
+		23, 18, 19,
+		18, 23, 22,
 		// bottom (-Y)
-		17, 20, 16,
-		20, 17, 21 };
+		20, 17, 16,
+		17, 20, 21 };
 	cube->SetIndexData(ibo);
 
 	return cube;
 }
 
-Mesh *Mesh::CreateTriplePlane(VertexArray *vao)
+Mesh *Mesh::CreateTriplePlane()
 {
-	Mesh *triple_plane = new Mesh(vao, 1, 12, 6);
+	Mesh *triple_plane = new Mesh(1, 12, 6);
 	GLfloat vbo[] = {
 		-1, -1,  0,
 		 1, -1,  0,
@@ -251,9 +253,9 @@ Mesh *Mesh::CreateTriplePlane(VertexArray *vao)
 	return triple_plane;
 }
 
-Mesh *Mesh::CreateQuad(VertexArray *vao)
+Mesh *Mesh::CreateQuad()
 {
-	Mesh *quad = new Mesh(vao, 2, 4, 2);
+	Mesh *quad = new Mesh(2, 4, 2);
 
 	GLfloat vbo[] = {
 		-1.0f,  1.0f, 0.0f,   // 0

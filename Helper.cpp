@@ -1,8 +1,8 @@
 #include "Helper.h"
 
-glm::vec3 convert(btVector3* v)
+glm::vec3 convert(const btVector3& v)
 {
-	return glm::vec3(v->getX(), v->getY(), v->getZ());
+	return glm::vec3(v.getX(), v.getY(), v.getZ());
 }
 
 btVector3 convert(glm::vec3 v)
@@ -15,9 +15,9 @@ btQuaternion convert(glm::quat q)
 	return btQuaternion(q.x, q.y, q.z, q.w);
 }
 
-glm::quat convert(btQuaternion* q)
+glm::quat convert(const btQuaternion& q)
 {
-	return glm::quat(q->getW(), q->getX(), q->getY(), q->getZ());
+	return glm::quat(q.getW(), q.getX(), q.getY(), q.getZ());
 }
 
 GLfloat lerp(GLfloat a, GLfloat b, GLfloat f)
