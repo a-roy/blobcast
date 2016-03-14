@@ -77,6 +77,43 @@ void Blob::AddForce(const btVector3 &force, int i)
 		softbody->addForce(force * speed, i);
 }
 
+void Blob::AddForces(AggregateInput inputs)
+{
+	float total = (float)inputs.TotalCount;
+	if (total == 0.0f)
+		total = 1.0f;
+	float magFwd = (float)inputs.FCount / total,
+		  magBack = (float)inputs.BCount / total,
+		  magRight = (float)inputs.RCount / total,
+		  magLeft = (float)inputs.LCount / total,
+		  magFR = (float)inputs.FRCount / total,
+		  magFL = (float)inputs.FLCount / total,
+		  magBR = (float)inputs.BRCount / total,
+		  magBL = (float)inputs.BLCount / total;
+	btVector3 right = forward.cross(btVector3(0, 1, 0));
+	btVector3 fwdright = (forward + right).normalize();
+	btVector3 fwdleft = (forward - right).normalize();
+	for (int i = 0; i < softbody->m_nodes.size(); i++)
+	{
+		btVector3 blobSpaceNode =
+			(softbody->m_nodes[i].m_x - centroid) *
+			btVector3(1, 0, 1) / radius;
+		btVector3 force = blobSpaceNode * (
+			btPow(btMax(btDot(blobSpaceNode, forward), 0.f), 2) * magFwd +
+			btPow(btMax(btDot(blobSpaceNode, -forward), 0.f), 2) * magBack +
+			btPow(btMax(btDot(blobSpaceNode, right), 0.f), 2) * magRight +
+			btPow(btMax(btDot(blobSpaceNode, -right), 0.f), 2) * magLeft +
+			btPow(btMax(btDot(blobSpaceNode, fwdright), 0.f), 2) * magFR +
+			btPow(btMax(btDot(blobSpaceNode, fwdleft), 0.f), 2) * magFL +
+			btPow(btMax(btDot(blobSpaceNode, -fwdleft), 0.f), 2) * magBR +
+			btPow(btMax(btDot(blobSpaceNode, -fwdright), 0.f), 2) * magBL) /
+			btDistance2(btVector3(0, 0, 0), blobSpaceNode);
+		if (btDot(force, force) > 1.0f)
+			force.normalize();
+		AddForce(force, i);
+	}
+}
+
 void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
 {
 	btVector3 right = forward.cross(btVector3(0, 1, 0));

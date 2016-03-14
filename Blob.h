@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "BlobInput.h"
 #include "Line.h"
 #include "Helper.h"
 #include "ShaderProgram.h"
@@ -35,6 +36,7 @@ public:
 	void Move(int key, int action);
 
 	void AddForce(const btVector3 &force);
+	void AddForces(AggregateInput inputs);
 	void AddForce(const btVector3 &force, int i);
 	void AddForces(float magFwd, float magBack, float magLeft, float magRight);
 

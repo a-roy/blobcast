@@ -18,6 +18,7 @@
 #include "Light.hpp"
 #include "Skybox.h"
 #include "Level.h"
+#include "BlobDisplay.h"
 
 #include "config.h"
 
@@ -58,10 +59,7 @@ void cursor_pos_callback(
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 
 GLFWwindow *window;
-VertexArray *vao;
 int width, height;
-
-FloatBuffer *display_vbo;
 
 glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
@@ -88,6 +86,7 @@ btSoftBodyRigidBodyCollisionConfiguration *collisionConfiguration;
 btSoftBodySolver *softBodySolver;
 btSoftRigidDynamicsWorld *dynamicsWorld;
 
+BlobDisplay *blobDisplay;
 Blob *blob;
 Level *level;
 
@@ -103,6 +102,7 @@ btSoftBodyWorldInfo softBodyWorldInfo;
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
 double deltaTime;
+AggregateInput current_inputs;
 
 bool bShowBlobCfg = false;
 bool bShowGizmos = true;
@@ -253,14 +253,7 @@ bool init_physics()
 
 bool init_graphics()
 {
-	vao = new VertexArray();
-	display_vbo = new FloatBuffer(vao, 2, 4);
-	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
-	display_vbo->SetData(vertex_data);
-	glBindVertexArray(vao->Name);
-	display_vbo->BufferData(0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
+	blobDisplay = new BlobDisplay(width, height, 128);
 
 	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
@@ -432,13 +425,7 @@ bool init_stream()
 
 void update()
 {
-	btVector3 cum_input(0, 0, 0);
-	float num_inputs = 0.f;
-	int forward_count = 0;
-	int backward_count = 0;
-	int right_count = 0;
-	int left_count = 0;
-	int jump_count = 0;
+	current_inputs = AggregateInput();
 	while (stream->IsOpen() && rakPeer->GetReceiveBufferSize() > 0)
 	{
 		RakNet::Packet *p = rakPeer->Receive();
@@ -446,39 +433,25 @@ void update()
 		if (packet_type == ID_USER_PACKET_ENUM)
 		{
 			BlobInput i = (BlobInput)p->data[1];
-			if (i & Forward)
-				forward_count++;
-			if (i & Backward)
-				backward_count++;
-			if (i & Right)
-				right_count++;
-			if (i & Left)
-				left_count++;
-			if (i & Jump)
-				jump_count++;
-			num_inputs += 1.f;
+			current_inputs += i;
 		}
 	}
-	if (num_inputs > 0.f)
-		cum_input /= num_inputs;
 
 	if (blob->movementMode == MovementMode::averaging)
 	{
-		blob->AddForce(btVector3(left_count - right_count, jump_count,
-			forward_count - backward_count) / cum_input);
+		blob->AddForce(btVector3(
+					current_inputs.LCount - current_inputs.RCount,
+					current_inputs.JCount,
+					current_inputs.FCount - current_inputs.BCount) /
+				current_inputs.TotalCount);
 	}
 	else if (blob->movementMode == MovementMode::stretch)
 	{
-		blob->AddForces(forward_count / num_inputs, backward_count / num_inputs,
-			left_count / num_inputs, right_count / num_inputs);
-		blob->AddForce(btVector3(0, 1, 0) * jump_count / num_inputs);
-	}
-	if (num_inputs > 0.f)
-	{
-		(*displayShaderProgram)["uForward"] = forward_count / num_inputs;
-		(*displayShaderProgram)["uBackward"] = backward_count / num_inputs;
-		(*displayShaderProgram)["uRight"] = right_count / num_inputs;
-		(*displayShaderProgram)["uLeft"] = left_count / num_inputs;
+		float total = (float)current_inputs.TotalCount;
+		if (total == 0.0f)
+			total = 1.0f;
+		blob->AddForces(current_inputs);
+		blob->AddForce(btVector3(0, 1, 0) * current_inputs.JCount / total);
 	}
 
 	modelMatrix = glm::rotate(0.004f, glm::vec3(0, 0, 1)) * modelMatrix;
@@ -532,17 +505,7 @@ void draw()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glm::mat4 displayMVP = glm::ortho(
-			-1.25f, ((float)width  / 128.f) - 1.25f,
-			-1.25f, ((float)height / 128.f) - 1.25f);
-	(*displayShaderProgram)["uMVPMatrix"] = displayMVP;
-	(*displayShaderProgram)["uInnerRadius"] = 0.7f;
-	(*displayShaderProgram)["uOuterRadius"] = 0.9f;
-	glBindVertexArray(vao->Name);
-	displayShaderProgram->Use([&](){
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	});
-	glBindVertexArray(0);
+	blobDisplay->Render(*displayShaderProgram, current_inputs);
 	glDisable(GL_BLEND);
 }
 
