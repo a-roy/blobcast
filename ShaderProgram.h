@@ -20,6 +20,10 @@ class ShaderProgram
 			Uniform& operator=(glm::vec4 value);
 			Uniform& operator=(glm::mat3 value);
 			Uniform& operator=(glm::mat4 value);
+			Uniform& operator=(std::vector<glm::vec3> values);
+			Uniform& operator=(std::vector<glm::vec4> values);
+			Uniform& operator=(std::vector<glm::mat3> values);
+			Uniform& operator=(std::vector<glm::mat4> values);
 			Uniform& operator=(GLfloat value);
 			Uniform& operator=(GLint value);
 		};

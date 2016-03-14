@@ -131,6 +131,44 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat4 value)
 	return *this;
 }
 
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		std::vector<glm::vec3> values)
+{
+	program->Use([&](){
+		glUniform3fv(Location, values.size(), glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		std::vector<glm::vec4> values)
+{
+	program->Use([&](){
+		glUniform4fv(Location, values.size(), glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		std::vector<glm::mat3> values)
+{
+	program->Use([&](){
+		glUniformMatrix3fv(
+				Location, values.size(), GL_FALSE, glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		std::vector<glm::mat4> values)
+{
+	program->Use([&](){
+		glUniformMatrix4fv(
+				Location, values.size(), GL_FALSE, glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(GLfloat value)
 {
 	program->Use([&](){ glUniform1f(Location, value); });
