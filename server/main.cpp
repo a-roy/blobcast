@@ -809,6 +809,8 @@ void gui()
 					level = Level::Deserialize(lTheOpenFileName);
 					for (RigidBody* rb : level->Objects)
 						dynamicsWorld->addRigidBody(rb->rigidbody);
+
+					levelEditor->level = level;
 				}
 			}
 

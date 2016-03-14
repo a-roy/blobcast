@@ -29,9 +29,10 @@ class LevelEditor
 
 private:
 	btSoftRigidDynamicsWorld *dynamicsWorld;
-	Level* level;
-
+	
 public:
+
+	Level* level;
 
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
