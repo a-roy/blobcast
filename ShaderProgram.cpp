@@ -1,27 +1,48 @@
 #include "ShaderProgram.h"
 #include <iostream>
+#include <exception>
 #include <glm/gtc/type_ptr.hpp>
 
-ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths)
+ShaderProgram::ShaderProgram()
+{
+	program = glCreateProgram();
+}
+
+ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths) :
+	ShaderProgram()
 {
 	std::vector<Shader *> shaders;
 	for (std::string path : paths)
 		shaders.push_back(new Shader(path));
-	program = glCreateProgram();
 	LinkProgram(shaders);
 	for (int i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 }
 
-ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders)
+ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders) :
+	ShaderProgram()
 {
-	program = glCreateProgram();
 	LinkProgram(shaders);
 }
 
 ShaderProgram::~ShaderProgram()
 {
 	glDeleteProgram(program);
+}
+
+ShaderProgram::ShaderProgram(ShaderProgram&& other)
+{
+	*this = std::move(other);
+}
+
+ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
+{
+	glDeleteProgram(program);
+	program = other.program;
+	uniforms = other.uniforms;
+	other.program = 0;
+	other.uniforms.clear();
+	return *this;
 }
 
 void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
@@ -44,8 +65,7 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 		glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 		std::cerr << &infoLog[0] << std::endl;
 
-		// TODO don't just terminate the application?
-		exit(1);
+		throw std::exception();
 	}
 
 	for (std::size_t i = 0; i < shaders.size(); i++)
