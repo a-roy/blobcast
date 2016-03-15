@@ -57,8 +57,8 @@ float CalcShadowFactor(vec4 LightSpacePos)
 void main()
 {   
 	// Ambient
-    vec3 ambient = directionalLight.color;
-	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
+    vec3 ambient = directionalLight.ambientColor;
+	//ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);
