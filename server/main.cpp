@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -32,6 +34,8 @@
 
 #include <stdio.h>
 #include "tinyfiledialogs.h"
+
+#include "ParticleSystem.h"
 
 bool init();
 bool init_physics();
@@ -97,6 +101,7 @@ ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
 ShaderProgram *skyboxShaderProgram;
 ShaderProgram *depthShaderProgram;
+ShaderProgram *particleShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -129,6 +134,10 @@ std::map<std::string, Measurement> Profiler::measurements;
 #pragma warning(disable:4996) /* allows usage of strncpy, strcpy, strcat, sprintf, fopen */
 char const *jsonExtension = ".json";
 
+ParticleSystem* particleSystem;
+
+#include <glm/gtc/random.hpp>
+
 int main(int argc, char *argv[])
 {
 	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
@@ -150,6 +159,9 @@ int main(int argc, char *argv[])
 		return 1;
 
 	levelEditor = new LevelEditor(dynamicsWorld, level);
+
+	particleSystem = new ParticleSystem(1000);
+	particleSystem->Generate();
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
@@ -287,6 +299,10 @@ bool init_graphics()
 	debugdrawShaderProgram = new ShaderProgram({
 			ShaderDir "Gizmo.vert",
 			ShaderDir "Gizmo.frag" });
+
+	particleShaderProgram = new ShaderProgram({
+			ShaderDir "Particle.vert",
+			ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-5.0f, 5.0f, -5.0f);
@@ -502,6 +518,10 @@ void update()
 		dynamicsWorld->stepSimulation(deltaTime, 10);
 	Profiler::Finish("Physics");
 
+	Profiler::Start("Particles");
+	particleSystem->Update(deltaTime);
+	Profiler::Finish("Particles", false);
+
 	blobCam->Target = convert(blob->GetCentroid());
 	activeCam->Update();
 
@@ -521,6 +541,15 @@ void draw()
 	glm::mat4 mvpMatrix;
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
+
+	Profiler::Start("Particles");
+	(*particleShaderProgram)["uProj"] = projMatrix;
+	(*particleShaderProgram)["uView"] = viewMatrix;
+	(*particleShaderProgram)["uSize"] = 10.0f;
+	particleShaderProgram->Use([&]() {
+		particleSystem->Render();
+	});
+	Profiler::Finish("Particles", true);
 
 	drawBlob();
 
@@ -775,6 +804,11 @@ void gui()
 			(Profiler::measurements["Rendering"].result
 				/ Profiler::measurements["Frame"].result) * 100.0f,
 			1.0f / Profiler::measurements["Rendering"].result);
+		ImGui::Text("Particles average %.3f ms/frame | %.1f percent | %.1f FPS",
+			Profiler::measurements["Particles"].result * 1000,
+			(Profiler::measurements["Particles"].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements["Particles"].result);
 
 		ImGui::Separator();
 		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
@@ -945,6 +979,11 @@ void gui()
 
 		ImGui::End();
 	}
+
+	ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("Particle System");
+	ImGui::Text("Particles: %i", particleSystem->liveParticles);
+	ImGui::End();
 
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
