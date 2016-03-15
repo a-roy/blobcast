@@ -99,9 +99,9 @@ StreamWriter::~StreamWriter()
 
 void StreamWriter::WriteFrame()
 {
-	int buf_index = (frame - 1) % numPBOs;
+	int buf_index = frame % numPBOs;
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[buf_index]);
-	if (frame > 0)
+	if (frame >= numPBOs)
 	{
 		uint8_t *data =
 			(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
@@ -116,9 +116,9 @@ void StreamWriter::WriteFrame()
 		avframe->pts += 1500;
 		glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
 	}
-	glReadPixels(0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+	glReadPixels(0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	if (frame > 0)
+	if (frame >= numPBOs)
 	{
 		AVPacket *avpkt = av_packet_alloc();
 		int got_packet;
