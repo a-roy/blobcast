@@ -252,7 +252,7 @@ bool init_physics()
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
 
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 160);
+	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
 	level = Level::Deserialize(LevelDir "test_level.json");
@@ -323,7 +323,7 @@ bool init_graphics()
 			ShaderDir "Blur.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(0.2f, -0.5f, 0.2f);
+	dirLight.direction = glm::vec3(-0.2f, -0.5f, -0.2f);
 
 	quad = Mesh::CreateQuad();
 
@@ -336,6 +336,7 @@ bool init_graphics()
 	faces.push_back(TextureDir "sunny_skybox/posz.png");
 	faces.push_back(TextureDir "sunny_skybox/negz.png");
 	skybox.loadCubeMap(faces);
+	skybox.modelMat = glm::rotate(skybox.modelMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
 	std::default_random_engine generator;
@@ -505,7 +506,7 @@ void draw()
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 500.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.f);
 
 	geometryPass();
 	SSAOPass();
@@ -572,7 +573,7 @@ void depthPass()
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
-	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
+	glm::mat4 lightProjection = glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f, -500.0f, 500.0f);
 	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
@@ -696,11 +697,12 @@ void drawPlatforms()
 void drawSkybox()
 {
 	glDepthFunc(GL_LEQUAL);
+	(*skyboxShaderProgram)["model"] = skybox.modelMat;
 	(*skyboxShaderProgram)["view"] = viewMatrix;
 	(*skyboxShaderProgram)["projection"] = projMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	(*skyboxShaderProgram)["skybox"] = 0;
+	//(*skyboxShaderProgram)["skybox"] = 0;
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
 	skyboxShaderProgram->Use([&](){ skybox.render(); });
 
