@@ -123,6 +123,12 @@ ShaderProgram::Uniform ShaderProgram::operator[](GLint location) const
 	return u;
 }
 
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec2 value)
+{
+	program->Use([&](){ glUniform2fv(Location, 1, glm::value_ptr(value)); });
+	return *this;
+}
+
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec3 value)
 {
 	program->Use([&](){ glUniform3fv(Location, 1, glm::value_ptr(value)); });

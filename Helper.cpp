@@ -19,3 +19,8 @@ glm::quat convert(const btQuaternion& q)
 {
 	return glm::quat(q.getW(), q.getX(), q.getY(), q.getZ());
 }
+
+GLfloat lerp(GLfloat a, GLfloat b, GLfloat f)
+{
+	return a + f * (b - a);
+}
