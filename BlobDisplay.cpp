@@ -1,25 +1,19 @@
 #include "BlobDisplay.h"
 #include <glm/gtc/matrix_transform.hpp>
 
-BlobDisplay::BlobDisplay(int viewportWidth, int viewportHeight, int displaySize)
+BlobDisplay::BlobDisplay(
+		int viewportWidth, int viewportHeight, int displaySize) :
+	VBO(&VAO, 2, 4)
 {
-	VAO = new VertexArray();
-	VBO = new FloatBuffer(VAO, 2, 4);
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
-	VBO->SetData(vertex_data);
-	glBindVertexArray(VAO->Name);
-	VBO->BufferData(0);
+	VBO.SetData(vertex_data);
+	glBindVertexArray(VAO.Name);
+	VBO.BufferData(0);
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(0);
 	MVPMatrix = glm::ortho(
 			-1.25f, ((float)viewportWidth / (float)displaySize) - 1.25f,
 			-1.25f, ((float)viewportHeight / (float)displaySize) - 1.25f);
-}
-
-BlobDisplay::~BlobDisplay()
-{
-	delete VAO;
-	delete VBO;
 }
 
 void BlobDisplay::Render(const ShaderProgram& program, AggregateInput& inputs)
@@ -39,7 +33,7 @@ void BlobDisplay::Render(const ShaderProgram& program, AggregateInput& inputs)
 	program["uInnerRadius"] = InnerRadius;
 	program["uOuterRadius"] = OuterRadius;
 	program.Use([&](){
-		glBindVertexArray(VAO->Name);
+		glBindVertexArray(VAO.Name);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		glBindVertexArray(0);
 	});
