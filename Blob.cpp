@@ -54,13 +54,13 @@ void Blob::Update()
 void Blob::Move(int key, int action)
 {
 	if (key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT))
-		AddForce(btVector3(0, 0, 1));
-	if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT))
 		AddForce(btVector3(0, 0, -1));
+	if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT))
+		AddForce(btVector3(0, 0, 1));
 	if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT))
-		AddForce(btVector3(1, 0, 0));
-	if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
 		AddForce(btVector3(-1, 0, 0));
+	if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT))
+		AddForce(btVector3(1, 0, 0));
 	if (key == GLFW_KEY_SPACE && (action == GLFW_PRESS || action == GLFW_REPEAT))
 		AddForce(btVector3(0, 1, 0));
 }
