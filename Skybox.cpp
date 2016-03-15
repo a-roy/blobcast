@@ -19,7 +19,7 @@ void Skybox::render()
 	glBindVertexArray(0);
 }
 
-void Skybox::loadCubeMap(std::vector<const GLchar*> faces)
+bool Skybox::loadCubeMap(std::vector<const GLchar*> faces)
 {
 	glGenTextures(1, &textureID);
 
@@ -32,6 +32,7 @@ void Skybox::loadCubeMap(std::vector<const GLchar*> faces)
 		image = SOIL_load_image(faces[i], &width, &height, 0, SOIL_LOAD_RGB);
 		if (image == NULL) {
 			std::cout << "Unable to open skybox texture" << std::endl;
+			return false;
 		}
 		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 		SOIL_free_image_data(image);
@@ -42,6 +43,8 @@ void Skybox::loadCubeMap(std::vector<const GLchar*> faces)
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+	return true;
 }
 
 void Skybox::buildCubeMesh()

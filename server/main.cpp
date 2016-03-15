@@ -18,10 +18,10 @@
 #include "Blob.h"
 #include "RigidBody.h"
 #include "Light.hpp"
-#include "Skybox.h"
 #include "IOBuffer.h"
 #include "Level.h"
 #include "BlobDisplay.h"
+#include "RenderingManager.h"
 
 #include "config.h"
 
@@ -34,26 +34,17 @@
 #include "BulletDebugDrawer.h"
 #include "Profiler.h"
 
+
 #include <stdio.h>
 #include "tinyfiledialogs.h"
 
 bool init();
 bool init_physics();
 bool init_graphics();
-bool init_frameBuffers();
 bool init_stream();
 void update();
 void draw();
-void depthPass();
-void dynamicCubePass();
-void geometryPass();
-void SSAOPass();
-void blurPass();
-void drawCubeFace(
-		glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face);
-void drawBlob();
-void drawPlatforms();
-void drawSkybox();
+
 void drawGizmos();
 void drawBulletDebug();
 void gui();
@@ -66,24 +57,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 GLFWwindow *window;
 int width, height;
 
-glm::mat4 modelMatrix;
 glm::mat4 viewMatrix;
 glm::mat4 projMatrix;
-glm::mat4 lightSpaceMatrix;
 
-IOBuffer cubeMapBuffer;
-IOBuffer gBuffer;
-IOBuffer aoBuffer;
-IOBuffer blurBuffer;
-IOBuffer depthBuffer;
-
-GLuint noiseTexture;
-
-Skybox skybox;
-Mesh *quad;
-std::vector<glm::vec3> ssaoKernel;
-
-DirectionalLight dirLight;
+RenderingManager renderManager;
 
 StreamWriter *stream;
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
@@ -100,16 +77,7 @@ Blob *blob;
 Level *level;
 
 ShaderProgram *displayShaderProgram;
-ShaderProgram *blobShaderProgram;
-ShaderProgram *platformShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
-ShaderProgram *skyboxShaderProgram;
-ShaderProgram *depthShaderProgram;
-ShaderProgram *geomPassShaderProgram;
-ShaderProgram *SSAOShaderProgram;
-ShaderProgram *blurShaderProgram;
-ShaderProgram *quadShaderProgram;
-ShaderProgram *lightingShaderProgram;
 
 btSoftBodyWorldInfo softBodyWorldInfo;
 
@@ -225,7 +193,7 @@ int main(int argc, char *argv[])
 
 bool init()
 {
-	return init_physics() && init_graphics() && init_frameBuffers() && init_stream();
+	return init_physics() && init_graphics() && init_stream();
 }
 
 bool init_physics()
@@ -266,136 +234,23 @@ bool init_physics()
 
 bool init_graphics()
 {
+	if (!renderManager.init())
+		return false;
+
 	blobDisplay = new BlobDisplay(width, height, 128);
 
 	displayShaderProgram = new ShaderProgram({
 			ShaderDir "Display.vert",
 			ShaderDir "Display.frag" });
 
-	skyboxShaderProgram = new ShaderProgram({
-			ShaderDir "Skybox.vert",
-			ShaderDir "Skybox.frag" });
-
-	depthShaderProgram = new ShaderProgram({
-			ShaderDir "DepthShader.vert",
-			ShaderDir "DepthShader.frag" });
-
-	blobShaderProgram = new ShaderProgram({
-			ShaderDir "Blob.vert",
-			ShaderDir "Blob.tesc",
-			ShaderDir "Blob.tese",
-			ShaderDir "Blob.frag" });
-	debugdrawShaderProgram = blobShaderProgram;
-
-	platformShaderProgram = new ShaderProgram({
-			ShaderDir "Platform.vert",
-			ShaderDir "Platform.frag" });
-
 	debugdrawShaderProgram = new ShaderProgram({
 			ShaderDir "Gizmo.vert",
 			ShaderDir "Gizmo.frag" });
-
-	quadShaderProgram = new ShaderProgram({
-			ShaderDir "toQuad.vert",
-			ShaderDir "toQuad.frag" });
-
-	geomPassShaderProgram = new ShaderProgram({
-			ShaderDir "GeometryPass.vert",
-			ShaderDir "GeometryPass.frag" });
-
-	lightingShaderProgram = new ShaderProgram({
-			ShaderDir "LightingPass.vert",
-			ShaderDir "LightingPass.frag" });
-
-	SSAOShaderProgram = new ShaderProgram({
-			ShaderDir "SSAO.vert",
-			ShaderDir "SSAO.frag" });
-
-	blurShaderProgram = new ShaderProgram({
-			ShaderDir "SSAO.vert",
-			ShaderDir "Blur.frag" });
-
-	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.2f, -0.5f, -0.2f);
-
-	quad = Mesh::CreateQuad();
-
-	skybox.buildCubeMesh();
-	std::vector<const GLchar*> faces;
-	faces.push_back(TextureDir "sunny_skybox/negx.png");
-	faces.push_back(TextureDir "sunny_skybox/posx.png");
-	faces.push_back(TextureDir "sunny_skybox/posy.png");
-	faces.push_back(TextureDir "sunny_skybox/negy.png");
-	faces.push_back(TextureDir "sunny_skybox/posz.png");
-	faces.push_back(TextureDir "sunny_skybox/negz.png");
-	skybox.loadCubeMap(faces);
-	skybox.modelMat = glm::rotate(skybox.modelMat, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
-	std::default_random_engine generator;
-	for (GLuint i = 0; i < 64; ++i)
-	{
-		glm::vec3 sample(
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator) * 2.0 - 1.0, 
-			randomFloats(generator) 
-		);
-
-		sample = glm::normalize(sample);
-		sample *= randomFloats(generator);
-		GLfloat scale = GLfloat(i) / 64.0;
-
-		// Scale samples s.t. they're more aligned to center of kernel
-		scale = lerp(0.1f, 1.0f, scale * scale);
-		sample *= scale;
-		ssaoKernel.push_back(sample);
-	}
-
-	// Noise texture
-	std::vector<glm::vec3> ssaoNoise;
-	for (GLuint i = 0; i < 16; i++)
-	{
-		// rotate around z-axis (in tangent space)
-		glm::vec3 noise(
-			randomFloats(generator) * 2.0 - 1.0, 
-			randomFloats(generator) * 2.0 - 1.0, 
-			0.0f ); 
-		ssaoNoise.push_back(noise);
-	}
-	glGenTextures(1, &noiseTexture);
-	glBindTexture(GL_TEXTURE_2D, noiseTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, 4, 4, 0, GL_RGB, GL_FLOAT, &ssaoNoise[0]);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-	modelMatrix = glm::mat4(1.f);
 
 	flyCam = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 2.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
 	blobCam = new BlobCam();
 
 	activeCam = flyCam;
-
-	return true;
-}
-
-bool init_frameBuffers()
-{
-	if (!gBuffer.Init(width, height, true, GL_RGB32F))
-		return false;
-
-	if (!aoBuffer.Init(width, height, false, GL_RED))
-		return false;
-
-	if (!blurBuffer.Init(width, height, false, GL_RED))
-		return false;
-
-	if (!cubeMapBuffer.Init(TEX_WIDTH, TEX_HEIGHT, true, GL_RGB))
-		return false;
-
-	if (!depthBuffer.Init(SHADOW_WIDTH, SHADOW_HEIGHT, false, GL_DEPTH_COMPONENT))
-		return false;
 
 	return true;
 }
@@ -456,268 +311,34 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	depthPass();
-	dynamicCubePass();
+	renderManager.depthPass(blob, level);
+	renderManager.dynamicCubeMapPass(blob, level);
 
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.f);
 
-	geometryPass();
-	SSAOPass();
-	blurPass();
-
-	// For debugging
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
-	//quadShaderProgram->Use([&]() {
-	//	quad->Draw();
-	//});
+	renderManager.geometryPass(level, viewMatrix, projMatrix);
+	renderManager.SSAOPass(projMatrix);
+	renderManager.blurPass();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*platformShaderProgram)["viewPos"] = activeCam->Position;
-	(*platformShaderProgram)["screenSize"] = glm::vec2(RENDER_WIDTH, RENDER_HEIGHT);
+	//renderManager.debugQuadDraw();
 
-	(*platformShaderProgram)["projection"] = projMatrix;
-	(*platformShaderProgram)["view"] = viewMatrix;
-	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, blurBuffer.texture0);
-
-	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
-	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
-	platformShaderProgram->Use([&]() {
-		level->Render(uMMatrix, uColor);
-	});
-
-	drawBlob();
+	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
+	renderManager.drawSkybox(viewMatrix, projMatrix);
 	viewMatrix = activeCam->GetMatrix();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	blobDisplay->Render(*displayShaderProgram, current_inputs);
 	glDisable(GL_BLEND);
-}
-
-void depthPass()
-{
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.FBO);
-	glClear(GL_DEPTH_BUFFER_BIT);
-	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-
-	glm::mat4 lightProjection = glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f, -500.0f, 500.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
-	lightSpaceMatrix = lightProjection * lightView;
-
-	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
-	(*depthShaderProgram)["model"] = glm::mat4();
-	depthShaderProgram->Use([&](){
-		blob->Render();
-		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
-		level->Render(uMMatrix, -1);
-	});
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glDisable(GL_CULL_FACE);
-}
-
-
-void geometryPass()
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.FBO);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	(*geomPassShaderProgram)["projection"] = projMatrix;
-	(*geomPassShaderProgram)["view"] = viewMatrix;
-	GLuint uMMatrix = geomPassShaderProgram->GetUniformLocation("model");
-	GLuint uColor = geomPassShaderProgram->GetUniformLocation("objectColor");
-	geomPassShaderProgram->Use([&](){
-		level->Render(uMMatrix, uColor);
-	});
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void SSAOPass()
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, aoBuffer.FBO);	
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.texture0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.texture1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, noiseTexture);
-	
-	(*SSAOShaderProgram)["screenSize"] = glm::vec2(width, height);
-	(*SSAOShaderProgram)["projection"] = projMatrix;
-	SSAOShaderProgram->Use([&](){
-		for (GLuint i = 0; i < 64; ++i)
-			glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
-	});
-	
-	SSAOShaderProgram->Use([&](){
-		quad->Draw();
-	});
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void blurPass()
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, blurBuffer.FBO);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, aoBuffer.texture0);
-
-	blurShaderProgram->Use([&](){
-		quad->Draw();
-	});
-	
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void drawBlob()
-{
-	(*blobShaderProgram)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
-	(*blobShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*blobShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*blobShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*blobShaderProgram)["viewPos"] = activeCam->Position;
-	(*blobShaderProgram)["blobDistance"] =
-		glm::distance(convert(blob->GetCentroid()), activeCam->Position);
-
-	(*blobShaderProgram)["projection"] = projMatrix;
-	(*blobShaderProgram)["view"] = viewMatrix;
-	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
-
-	blobShaderProgram->Use([&](){
-		blob->RenderPatches();
-	});
-}
-
-
-void drawPlatforms()
-{
-	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*platformShaderProgram)["viewPos"] = activeCam->Position;
-
-	(*platformShaderProgram)["projection"] = projMatrix;
-	(*platformShaderProgram)["view"] = viewMatrix;
-	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
-
-	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
-	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
-	platformShaderProgram->Use([&](){
-		level->Render(uMMatrix, uColor);
-	});
-}
-
-void drawSkybox()
-{
-	glDepthFunc(GL_LEQUAL);
-	(*skyboxShaderProgram)["model"] = skybox.modelMat;
-	(*skyboxShaderProgram)["view"] = viewMatrix;
-	(*skyboxShaderProgram)["projection"] = projMatrix;
-
-	glActiveTexture(GL_TEXTURE0);
-	//(*skyboxShaderProgram)["skybox"] = 0;
-	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
-	skyboxShaderProgram->Use([&](){ skybox.render(); });
-
-	glDepthFunc(GL_LESS);
-}
-
-void dynamicCubePass()
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapBuffer.FBO);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
-	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
-
-	glm::vec3 position = convert(blob->GetCentroid());
-	drawCubeFace(
-			position,
-			glm::vec3(1.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),
-			GL_TEXTURE_CUBE_MAP_POSITIVE_X);
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	drawCubeFace(position,
-			glm::vec3(-1.0f, 0.0f, 0.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),
-			GL_TEXTURE_CUBE_MAP_NEGATIVE_X);
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	drawCubeFace(position,
-			glm::vec3(0.0f, 0.0f, 1.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),
-			GL_TEXTURE_CUBE_MAP_POSITIVE_Z);
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	drawCubeFace(position,
-			glm::vec3(0.0f, 0.0f, -1.0f),
-			glm::vec3(0.0f, -1.0f, 0.0f),
-			GL_TEXTURE_CUBE_MAP_NEGATIVE_Z);
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	drawCubeFace(position,
-			glm::vec3(0.0f, 1.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, 1.0f),
-			GL_TEXTURE_CUBE_MAP_POSITIVE_Y);
-
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	drawCubeFace(position,
-			glm::vec3(0.0f, -1.0f, 0.0f),
-			glm::vec3(0.0f, 0.0f, -1.0f),
-			GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
-
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
-	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face)
-{
-	viewMatrix = glm::lookAt(position, position + direction, up);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face, cubeMapBuffer.texture0, 0);
-
-	drawPlatforms();
-	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
-	drawSkybox();
 }
 
 
