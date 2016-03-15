@@ -162,6 +162,15 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat4 value)
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		const std::vector<glm::vec2>& values)
+{
+	program->Use([&](){
+		glUniform2fv(Location, values.size(), glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 		const std::vector<glm::vec3>& values)
 {
 	program->Use([&](){

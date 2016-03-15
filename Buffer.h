@@ -34,15 +34,24 @@ class Buffer
 
 		~Buffer()
 		{
-			delete[] Data;
+			glDeleteBuffers(1, &Name);
+			if (managed_data)
+				delete[] Data;
 		}
 
-		virtual void SetData(T *data)
+		virtual void SetData(T *data, bool copy = true)
 		{
-			if (data != NULL)
+			if (managed_data)
+			{
+				managed_data = false;
+				delete[] Data;
+				Data = nullptr;
+			}
+			if (copy && data != nullptr)
 			{
 				Data = new T[NumItems * ItemSize];
 				memcpy(Data, data, sizeof(T) * ItemSize * NumItems);
+				managed_data = true;
 			}
 			VAO->SetBufferData(
 					Name,
@@ -56,6 +65,9 @@ class Buffer
 		{
 			glBindBuffer(Target, Name);
 		}
+
+	private:
+		bool managed_data = false;
 };
 
 class FloatBuffer : public Buffer<GLfloat>

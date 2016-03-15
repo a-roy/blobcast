@@ -21,6 +21,7 @@ class ShaderProgram
 			Uniform& operator=(glm::vec4 value);
 			Uniform& operator=(glm::mat3 value);
 			Uniform& operator=(glm::mat4 value);
+			Uniform& operator=(const std::vector<glm::vec2>& values);
 			Uniform& operator=(const std::vector<glm::vec3>& values);
 			Uniform& operator=(const std::vector<glm::vec4>& values);
 			Uniform& operator=(const std::vector<glm::mat3>& values);

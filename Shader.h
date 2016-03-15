@@ -16,6 +16,8 @@ class Shader
 		~Shader();
 		Shader(const Shader& other);
 		Shader& operator=(const Shader& other);
+		Shader(Shader&& other);
+		Shader& operator=(Shader&& other);
 		void Load(std::string path);
 		void Compile();
 		static void ReadSource(const char *fname, std::vector<char> &buffer);

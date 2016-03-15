@@ -4,8 +4,35 @@
 
 Level::~Level()
 {
+	Clear();
+}
+
+Level::Level(const Level& other)
+{
+	*this = other;
+}
+
+Level& Level::operator=(const Level& other)
+{
+	Clear();
 	for (RigidBody *r : Objects)
-		delete r;
+		Objects.push_back(new RigidBody(*r));
+	return *this;
+}
+
+Level::Level(Level&& other)
+{
+	*this = std::move(other);
+}
+
+Level& Level::operator=(Level&& other)
+{
+	if (this != &other)
+	{
+		Clear();
+		Objects = std::move(other.Objects);
+	}
+	return *this;
 }
 
 std::size_t Level::AddBox(
@@ -25,6 +52,12 @@ std::size_t Level::AddBox(
 void Level::Delete(std::size_t index)
 {
 	Objects.erase(Objects.begin() + index);
+}
+
+void Level::Clear()
+{
+	for (RigidBody *r : Objects)
+		delete r;
 }
 
 int Level::Find(btRigidBody *r)
