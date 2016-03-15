@@ -93,7 +93,9 @@ void Blob::AddForces(const AggregateInput& inputs)
 	btVector3 right = forward.cross(btVector3(0, 1, 0));
 	btVector3 fwdright = (forward + right) * SIMDSQRT12;
 	btVector3 fwdleft = (forward - right) * SIMDSQRT12;
-	for (int i = 0; i < softbody->m_nodes.size(); i++)
+#pragma loop(hint_parallel(0))
+#pragma loop(ivdep)
+	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
 		btVector3 blobSpaceDir =
 			((softbody->m_nodes[i].m_x - centroid) *
