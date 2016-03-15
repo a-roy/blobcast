@@ -30,18 +30,22 @@ ShaderProgram::~ShaderProgram()
 	glDeleteProgram(program);
 }
 
-ShaderProgram::ShaderProgram(ShaderProgram&& other)
+ShaderProgram::ShaderProgram(ShaderProgram&& other) :
+	program(0)
 {
 	*this = std::move(other);
 }
 
 ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
 {
-	glDeleteProgram(program);
-	program = other.program;
-	uniforms = other.uniforms;
-	other.program = 0;
-	other.uniforms.clear();
+	if (this != &other)
+	{
+		glDeleteProgram(program);
+		program = other.program;
+		uniforms = other.uniforms;
+		other.program = 0;
+		other.uniforms.clear();
+	}
 	return *this;
 }
 
