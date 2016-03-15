@@ -78,8 +78,8 @@ class BlobCam : public Camera
 		glm::vec3 Forward = glm::vec3(0, 0, 1);
 		glm::vec3 Up = glm::vec3(0, 1, 0);
 
-		float Distance = 10.0f;
-		float Height = 5.0f;
+		float Distance = 30.0f;
+		float Height = 15.0f;
 
 		glm::vec3 Target = glm::vec3(0);
 
