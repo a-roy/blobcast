@@ -56,6 +56,8 @@ void SoftBody::Update()
 {
 	vertices = std::vector<glm::vec3>(softbody->m_nodes.size());
 	normals = std::vector<glm::vec3>(softbody->m_nodes.size());
+#pragma loop(hint_parallel(0))
+#pragma loop(ivdep)
 	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
 		vertices[i] = convert(softbody->m_nodes[i].m_x);
