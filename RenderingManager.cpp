@@ -47,8 +47,8 @@ bool RenderingManager::init()
 	initSkybox();
 
 	// For shadows
-	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
+	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, 0.1f, 200.0f);
+	glm::mat4 lightView = glm::lookAt(-dirLight.direction, glm::vec3(0.0f), glm::vec3(1.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	// For ambient occlusion
