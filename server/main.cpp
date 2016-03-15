@@ -73,19 +73,12 @@ glm::mat4 viewMatrix;
 glm::mat4 projMatrix;
 glm::mat4 lightSpaceMatrix;
 
-GLuint cubeMapFBO;
-GLuint depthMapFBO;
-GLuint dynamicCubeMap;
-GLuint depthMap;
+IOBuffer cubeMapBuffer;
+IOBuffer gBuffer;
+IOBuffer aoBuffer;
+IOBuffer blurBuffer;
+IOBuffer depthBuffer;
 
-//IOBuffer gBuffer;
-//IOBuffer aoBuffer;
-//IOBuffer blurBuffer;
-
-GLuint gBuffer;
-GLuint gPosition, gNormal, gAlbedoSpec;
-GLuint ssaoFBO, ssaoBlurFBO;
-GLuint ssaoColorBuffer, ssaoColorBufferBlur;
 GLuint noiseTexture;
 
 Skybox skybox;
@@ -336,20 +329,24 @@ bool init_graphics()
 
 	skybox.buildCubeMesh();
 	std::vector<const GLchar*> faces;
-	faces.push_back(TextureDir "skybox/posx.jpg");
-	faces.push_back(TextureDir "skybox/negx.jpg");
-	faces.push_back(TextureDir "skybox/posy.jpg");
-	faces.push_back(TextureDir "skybox/negy.jpg");
-	faces.push_back(TextureDir "skybox/posz.jpg");
-	faces.push_back(TextureDir "skybox/negz.jpg");
+	faces.push_back(TextureDir "sunny_skybox/negx.png");
+	faces.push_back(TextureDir "sunny_skybox/posx.png");
+	faces.push_back(TextureDir "sunny_skybox/posy.png");
+	faces.push_back(TextureDir "sunny_skybox/negy.png");
+	faces.push_back(TextureDir "sunny_skybox/posz.png");
+	faces.push_back(TextureDir "sunny_skybox/negz.png");
 	skybox.loadCubeMap(faces);
 
-	// Sample kernel
 	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
 	std::default_random_engine generator;
 	for (GLuint i = 0; i < 64; ++i)
 	{
-		glm::vec3 sample(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, randomFloats(generator));
+		glm::vec3 sample(
+			randomFloats(generator) * 2.0 - 1.0,
+			randomFloats(generator) * 2.0 - 1.0, 
+			randomFloats(generator)
+		);
+
 		sample = glm::normalize(sample);
 		sample *= randomFloats(generator);
 		GLfloat scale = GLfloat(i) / 64.0;
@@ -364,7 +361,11 @@ bool init_graphics()
 	std::vector<glm::vec3> ssaoNoise;
 	for (GLuint i = 0; i < 16; i++)
 	{
-		glm::vec3 noise(randomFloats(generator) * 2.0 - 1.0, randomFloats(generator) * 2.0 - 1.0, 0.0f); // rotate around z-axis (in tangent space)
+		// rotate around z-axis (in tangent space)
+		glm::vec3 noise(
+			randomFloats(generator) * 2.0 - 1.0, 
+			randomFloats(generator) * 2.0 - 1.0, 
+			0.0f ); 
 		ssaoNoise.push_back(noise);
 	}
 	glGenTextures(1, &noiseTexture);
@@ -385,145 +386,22 @@ bool init_graphics()
 	return true;
 }
 
-// TO DO : all buffer creation to IOBuffer class
 bool init_frameBuffers()
 {
-	// G BUFFER
-	glGenFramebuffers(1, &gBuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
-
-	// - Position + linear depth color buffer
-	glGenTextures(1, &gPosition);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
-
-	// - Normal color buffer
-	glGenTextures(1, &gNormal);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
-
-	// - Color + Specular color buffer
-	glGenTextures(1, &gAlbedoSpec);
-	glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
-
-	// - Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-	glDrawBuffers(3, attachments);
-
-	GLuint rboDepth;
-	glGenRenderbuffers(1, &rboDepth);
-	glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, RENDER_WIDTH, RENDER_HEIGHT);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-	// - Finally check if framebuffer is complete
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "Framebuffer not complete!" << std::endl;
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// SSAO framebuffers
-	glGenFramebuffers(1, &ssaoFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-	// SSAO color buffer
-	glGenTextures(1, &ssaoColorBuffer);
-	glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBuffer, 0);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "SSAO Framebuffer not complete!" << std::endl;
-	// Blur stage buffer
-	glGenFramebuffers(1, &ssaoBlurFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
-	glGenTextures(1, &ssaoColorBufferBlur);
-	glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, RENDER_WIDTH, RENDER_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, ssaoColorBufferBlur, 0);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-		std::cout << "SSAO Blur Framebuffer not complete!" << std::endl;
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// FBO for CUBE MAP
-	glGenFramebuffers(1, &cubeMapFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
-
-	glGenTextures(1, &dynamicCubeMap);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	for (int i = 0; i<6; i++) {
-		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB,
-			TEX_WIDTH, TEX_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-	}
-
-
-	GLuint depthRenderBuffer;
-	glGenRenderbuffers(1, &depthRenderBuffer);
-	glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, TEX_WIDTH, TEX_WIDTH);
-	glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "Cube map FBO error" << std::endl;
+	if (!gBuffer.Init(width, height, true, GL_RGB32F))
 		return false;
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-	// FBO for DEPTH MAP
-	glGenFramebuffers(1, &depthMapFBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-
-	// Create depth buffer
-	glGenTextures(1, &depthMap);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-		SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-
-	// Disable writing to color buffer
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "Depth map FBO error" << std::endl;
+	if (!aoBuffer.Init(width, height, false, GL_RED))
 		return false;
-	}
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	//if (!gBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, true, GL_RGB32F))
-	//	return false;
+	if (!blurBuffer.Init(width, height, false, GL_RED))
+		return false;
 
-	//if (!aoBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
-	//	return false;
+	if (!cubeMapBuffer.Init(TEX_WIDTH, TEX_HEIGHT, true, GL_RGB))
+		return false;
 
-	//if (!blurBuffer.Init(RENDER_WIDTH, RENDER_HEIGHT, false, GL_R32F))
-	//	return false;
+	if (!depthBuffer.Init(SHADOW_WIDTH, SHADOW_HEIGHT, false, GL_DEPTH_COMPONENT))
+		return false;
 
 	return true;
 }
@@ -621,50 +499,48 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//depthPass();
+	depthPass();
 	dynamicCubePass();
 
-	glViewport(0, 0, RENDER_WIDTH, RENDER_HEIGHT);
+	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 1000.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
 	geometryPass();
-
 	SSAOPass();
-
 	blurPass();
 
 	// For debugging
 	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, gNormal);
+	//glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
 	//quadShaderProgram->Use([&]() {
 	//	quad->Draw();
 	//});
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
+	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
+	(*platformShaderProgram)["viewPos"] = activeCam->Position;
+	(*platformShaderProgram)["screenSize"] = glm::vec2(width, height);
+
+	(*platformShaderProgram)["projection"] = projMatrix;
+	(*platformShaderProgram)["view"] = viewMatrix;
+	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
+
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, ssaoColorBufferBlur);
+	glBindTexture(GL_TEXTURE_2D, blurBuffer.texture0);
 
-	(*lightingShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*lightingShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*lightingShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*lightingShaderProgram)["viewPos"] = activeCam->Position;
-
-	lightingShaderProgram->Use([&](){
-		quad->Draw();
+	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
+	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
+	platformShaderProgram->Use([&]() {
+		level->Render(uMMatrix, uColor);
 	});
-
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, RENDER_WIDTH, RENDER_HEIGHT, 0, 0, RENDER_WIDTH, RENDER_HEIGHT, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	drawBlob();
 
@@ -692,7 +568,7 @@ void depthPass()
 {
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.FBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
@@ -715,7 +591,7 @@ void depthPass()
 
 void geometryPass()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	(*geomPassShaderProgram)["projection"] = projMatrix;
@@ -731,21 +607,23 @@ void geometryPass()
 
 void SSAOPass()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, ssaoFBO);
-	
+	glBindFramebuffer(GL_FRAMEBUFFER, aoBuffer.FBO);	
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gPosition);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.texture0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gNormal);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.texture1);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture);
+	
+	(*SSAOShaderProgram)["screenSize"] = glm::vec2(width, height);
+	(*SSAOShaderProgram)["projection"] = projMatrix;
 	SSAOShaderProgram->Use([&](){
 		for (GLuint i = 0; i < 64; ++i)
 			glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
-		});
-	(*SSAOShaderProgram)["projection"] = projMatrix;
+	});
+	
 	SSAOShaderProgram->Use([&](){
 		quad->Draw();
 	});
@@ -755,10 +633,12 @@ void SSAOPass()
 
 void blurPass()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, ssaoBlurFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, blurBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT);
+
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, ssaoColorBuffer);
+	glBindTexture(GL_TEXTURE_2D, aoBuffer.texture0);
+
 	blurShaderProgram->Use([&](){
 		quad->Draw();
 	});
@@ -781,12 +661,10 @@ void drawBlob()
 	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	(*blobShaderProgram)["cubeMap"] = 0;
-	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
 
-	//glActiveTexture(GL_TEXTURE1);
-	//blobShaderProgram->SetUniform("depthMap", 1);
-	//glBindTexture(GL_TEXTURE_2D, depthMap);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
 	blobShaderProgram->Use([&](){
 		blob->RenderPatches();
@@ -804,10 +682,9 @@ void drawPlatforms()
 	(*platformShaderProgram)["projection"] = projMatrix;
 	(*platformShaderProgram)["view"] = viewMatrix;
 	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
-	(*platformShaderProgram)["screenSize"] = glm::vec2(RENDER_WIDTH, RENDER_HEIGHT);
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
 	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
 	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
@@ -832,7 +709,7 @@ void drawSkybox()
 
 void dynamicCubePass()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, cubeMapBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, TEX_WIDTH, TEX_HEIGHT);
 	projMatrix = glm::perspective(glm::radians(90.0f), (float)TEX_WIDTH / (float)TEX_HEIGHT, 0.1f, 1000.0f);
@@ -879,7 +756,7 @@ void dynamicCubePass()
 			glm::vec3(0.0f, 0.0f, -1.0f),
 			GL_TEXTURE_CUBE_MAP_NEGATIVE_Y);
 
-	glBindTexture(GL_TEXTURE_CUBE_MAP, dynamicCubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
 	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -888,7 +765,7 @@ void dynamicCubePass()
 void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up, GLenum face)
 {
 	viewMatrix = glm::lookAt(position, position + direction, up);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face, dynamicCubeMap, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, face, cubeMapBuffer.texture0, 0);
 
 	drawPlatforms();
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));

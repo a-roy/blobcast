@@ -15,7 +15,6 @@ struct DirectionalLight
 };
 
 uniform DirectionalLight directionalLight;
-uniform vec3 viewPos;
 
 void main()
 {             
@@ -27,7 +26,7 @@ void main()
 	float AmbientOcclusion = texture(ssao, TexCoords).r;
 	
 	// Ambient
-    vec3 ambient = vec3(AmbientOcclusion) * directionalLight.color;
+    vec3 ambient = vec3(AmbientOcclusion) * directionalLight.ambientColor;
 	
 	// Diffuse
     vec3 lightDir = normalize(-directionalLight.direction);
@@ -35,7 +34,7 @@ void main()
     vec3 diffuse = diff * directionalLight.color;
 	
 	// Specular
-    vec3 viewDir = normalize(viewPos-FragPos); // ViewPos is 0,0,0 
+    vec3 viewDir = normalize(-FragPos); // ViewPos is 0,0,0 
     vec3 halfwayDir = normalize(lightDir + viewDir);
 	float spec = pow(max(dot(Normal, halfwayDir), 0.0), 8.0);
     vec3 specular = Specular * spec * directionalLight.color;

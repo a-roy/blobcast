@@ -7,7 +7,7 @@ layout (binding = 1) uniform sampler2D gNormal;
 layout (binding = 2) uniform sampler2D texNoise;
 
 uniform vec3 samples[64];
-
+uniform vec2 screenSize;
 uniform mat4 projection;
 
 int kernelSize = 64;
@@ -15,8 +15,7 @@ float radius = 2.0;
 
 // tile noise texture over screen based on screen dimensions divided by noise size
 // TO DO : pass screen dimensions in as uniform
-const vec2 noiseScale = vec2(1600.0f/4.0f, 900.0f/4.0f); 
-
+vec2 noiseScale = vec2(screenSize.x/4.0f, screenSize.y/4.0f);
 
 void main()
 {
@@ -51,6 +50,6 @@ void main()
 	
 	occlusion = 1.0 - (occlusion / kernelSize);
 	
-	FragColor = pow(occlusion, 3.0);
+	FragColor = pow(occlusion, 6.0);
 }
 

@@ -9,13 +9,11 @@ public:
 	~IOBuffer();
 
 	bool Init(int Width, int Height, bool Depth, GLenum InternalType);
-	bool InitForCubeMap(int Width, int Height);
-	void BindForWriting();
-	void BindForReading(GLenum TextureUnit);
 
-private:
 	GLuint FBO;
-	GLuint texture;
-	GLuint depth;
+	GLuint texture0, texture1;
+	
+private:
+	GLuint depthRenderBuffer;
 	GLenum internalType;
 };

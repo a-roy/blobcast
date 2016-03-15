@@ -15,13 +15,20 @@ struct DirectionalLight
 
 uniform DirectionalLight directionalLight;
 uniform vec3 viewPos;
+uniform vec2 screenSize;
 uniform vec4 objectColor;
 
 layout (binding = 0) uniform sampler2DShadow depthMap;
+layout (binding = 1) uniform sampler2D aoMap;
 
 const vec2 mapSize = vec2(2048, 2048);
 
 #define EPSILON 0.00001
+
+vec2 CalcScreenTexCoord()
+{
+    return gl_FragCoord.xy / screenSize;
+}
 
 float CalcShadowFactor(vec4 LightSpacePos)
 {
@@ -54,6 +61,7 @@ void main()
 	// Ambient
 	float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * directionalLight.color;
+	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);
