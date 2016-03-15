@@ -77,39 +77,44 @@ void Blob::AddForce(const btVector3 &force, int i)
 		softbody->addForce(force * speed, i);
 }
 
-void Blob::AddForces(float magFwd, float magBack, float magLeft, float magRight)
+void Blob::AddForces(const AggregateInput& inputs)
 {
+	float total = (float)inputs.TotalCount;
+	if (total == 0.0f)
+		total = 1.0f;
+	float magFwd = (float)inputs.FCount / total,
+		  magBack = (float)inputs.BCount / total,
+		  magRight = (float)inputs.RCount / total,
+		  magLeft = (float)inputs.LCount / total,
+		  magFR = (float)inputs.FRCount / total,
+		  magFL = (float)inputs.FLCount / total,
+		  magBR = (float)inputs.BRCount / total,
+		  magBL = (float)inputs.BLCount / total;
 	btVector3 right = forward.cross(btVector3(0, 1, 0));
-
-	btVector3 L = forward.rotate(btVector3(0, -1, 0), -glm::quarter_pi<float>()); //assuming that forward is always on XZ plane
-	btVector3 R = forward.rotate(btVector3(0, -1, 0), glm::quarter_pi<float>());
-
-	for (int i = 0; i < softbody->m_nodes.size(); i++)
+	btVector3 fwdright = (forward + right) * SIMDSQRT12;
+	btVector3 fwdleft = (forward - right) * SIMDSQRT12;
+#pragma loop(hint_parallel(0))
+#pragma loop(ivdep)
+	for (int i = 0, n = softbody->m_nodes.size(); i < n; i++)
 	{
-		btVector3 blobSpaceNode =
-			(softbody->m_nodes[i].m_x - centroid) *
-			btVector3(1, 0, 1) / radius;
-		btVector3 force = blobSpaceNode * (
-			btPow(btMax(btDot(blobSpaceNode, forward), 0.f), 2) * magFwd +
-			btPow(btMax(btDot(blobSpaceNode, -forward), 0.f), 2) * magBack +
-			btPow(btMax(btDot(blobSpaceNode, right), 0.f), 2) * magRight +
-			btPow(btMax(btDot(blobSpaceNode, -right), 0.f), 2) * magLeft) /
-			btDistance2(btVector3(0, 0, 0), blobSpaceNode);
+		btVector3 blobSpaceDir =
+			((softbody->m_nodes[i].m_x - centroid) *
+			 btVector3(1, 0, 1)).normalized();
+		btScalar magnitude = btMin(
+			btPow(btMax(btDot(blobSpaceDir, forward), 0.f), 2) * magFwd +
+			btPow(btMax(btDot(blobSpaceDir, -forward), 0.f), 2) * magBack +
+			btPow(btMax(btDot(blobSpaceDir, right), 0.f), 2) * magRight +
+			btPow(btMax(btDot(blobSpaceDir, -right), 0.f), 2) * magLeft +
+			btPow(btMax(btDot(blobSpaceDir, fwdright), 0.f), 2) * magFR +
+			btPow(btMax(btDot(blobSpaceDir, fwdleft), 0.f), 2) * magFL +
+			btPow(btMax(btDot(blobSpaceDir, -fwdleft), 0.f), 2) * magBR +
+			btPow(btMax(btDot(blobSpaceDir, -fwdright), 0.f), 2) * magBL,
+			1.0f);
+		btVector3 force = blobSpaceDir * magnitude;
 		AddForce(force, i);
-
-		/* Quadrant movement
-		if (blobSpaceNode.dot(L) > 0)
-			if (blobSpaceNode.dot(R) > 0)
-				AddForce(forward * magFwd, i);
-			else
-				AddForce(-right * magLeft, i);
-		else
-			if (blobSpaceNode.dot(R) > 0)
-				AddForce(right * magRight, i);
-			else
-				AddForce(-forward * magBack, i);
-		*/
 	}
+
+	AddForce(btVector3(0, 1, 0) * inputs.JCount / total);
 }
 
 void Blob::ComputeCentroid()
