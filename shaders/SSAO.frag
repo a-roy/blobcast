@@ -11,7 +11,7 @@ uniform vec2 screenSize;
 uniform mat4 projection;
 
 int kernelSize = 64;
-float radius = 2.0;
+float radius = 1.0;
 
 // tile noise texture over screen based on screen dimensions divided by noise size
 // TO DO : pass screen dimensions in as uniform
@@ -50,6 +50,6 @@ void main()
 	
 	occlusion = 1.0 - (occlusion / kernelSize);
 	
-	FragColor = pow(occlusion, 6.0);
+	FragColor = pow(occlusion, 4.0);
 }
 

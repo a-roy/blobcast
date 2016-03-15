@@ -47,20 +47,18 @@ float CalcShadowFactor(vec4 LightSpacePos)
 		for(int x = -2; x <= 2; x++){
 			vec2 offsets = vec2(x * xOffset, y * yOffset);
 			vec3 UVC = vec3(UVCoords + offsets, z + EPSILON);
-			if(textureSize(depthMap, 0).x > 1){
-				factor += texture(depthMap, UVC);
-			}
+			factor += texture(depthMap, UVC);
 		}
 	}
 	
-	return (0.5 + (factor / 18.0));
+	return (0.5 + (factor / 16.0));
 }
 
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.5f;
-    vec3 ambient = ambientStrength * directionalLight.color;
+	float ambientStrength = 1.0f;
+    vec3 ambient = ambientStrength * directionalLight.ambientColor;
 	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
@@ -77,8 +75,8 @@ void main()
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	//float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 result = (ambient + 1 * (diffuse + specular)) * vec3(objectColor);
+	float ShadowFactor = CalcShadowFactor(LightSpacePos);
+    vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);
 	
     FragColor = vec4(result, 1.0f);
 }

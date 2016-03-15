@@ -323,7 +323,7 @@ bool init_graphics()
 			ShaderDir "Blur.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+	dirLight.direction = glm::vec3(0.2f, -0.5f, 0.2f);
 
 	quad = Mesh::CreateQuad();
 
@@ -344,7 +344,7 @@ bool init_graphics()
 		glm::vec3 sample(
 			randomFloats(generator) * 2.0 - 1.0,
 			randomFloats(generator) * 2.0 - 1.0, 
-			randomFloats(generator)
+			randomFloats(generator) 
 		);
 
 		sample = glm::normalize(sample);
@@ -524,7 +524,7 @@ void draw()
 	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
 	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
 	(*platformShaderProgram)["viewPos"] = activeCam->Position;
-	(*platformShaderProgram)["screenSize"] = glm::vec2(width, height);
+	(*platformShaderProgram)["screenSize"] = glm::vec2(RENDER_WIDTH, RENDER_HEIGHT);
 
 	(*platformShaderProgram)["projection"] = projMatrix;
 	(*platformShaderProgram)["view"] = viewMatrix;
@@ -573,7 +573,7 @@ void depthPass()
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
 	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, -100.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(dirLight.direction, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), dirLight.direction, glm::vec3(0.0f, 1.0f, 0.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
 	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
