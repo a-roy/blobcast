@@ -9,7 +9,7 @@ Blob::Blob(
 	radius(r),
 	speed(1120.f / vertices)
 {
-	forward = btVector3(0, 0, 1);
+	forward = btVector3(0, 0, -1);
 	btVector3 scale = btVector3(1, 1, 1) * r;
 	btVector3 points[6] = {
 		btVector3(center[0], center[1] - scale[1], center[2]),
