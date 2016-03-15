@@ -29,14 +29,16 @@ class LevelEditor
 
 private:
 	btSoftRigidDynamicsWorld *dynamicsWorld;
-	Level* level;
-
+	
 public:
+
+	Level* level;
 
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 	std::set<RigidBody*> selection;
 	bool bLocal = true;
+	bool bCtrl = false;
 
 	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld,
 		Level *p_level) :
