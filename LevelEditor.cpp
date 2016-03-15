@@ -66,6 +66,10 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 				first->mass = mass;
 			}
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
+			if (ImGui::CollapsingHeader("Path"))
+			{
+				Path();
+			}
 		}
 
 		ImGui::End();
@@ -278,6 +282,40 @@ void LevelEditor::Scale()
 			dynamicsWorld->updateSingleAabb(rb->rigidbody);
 		}
 	}
+}
+
+void LevelEditor::Path()
+{
+	RigidBody *rb = *selection.begin();
+	ImGui::DragFloat("Speed", &rb->path_speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Spacing();
+	std::vector<glm::vec3>& points = rb->path_points;
+	bool path_changed = false;
+	int x = 1;
+	for (auto i = points.begin(); i != points.end(); ++i)
+	{
+		std::string pt_text = ("Point " + std::to_string(x));
+		std::string rm_text = ("Remove " + std::to_string(x));
+		path_changed |=
+			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
+		if (ImGui::Button(rm_text.c_str()))
+		{
+			i = points.erase(i);
+			path_changed = true;
+			if (i == points.end())
+				break;
+		}
+		ImGui::Spacing();
+		x++;
+	}
+	if (ImGui::Button("+"))
+	{
+		points.push_back(glm::vec3(0, 0, 0));
+		path_changed = true;
+	}
+	if (path_changed)
+		rb->path_tangents =
+			Level::CatmullRomTangents(rb->path_points);
 }
 
 void LevelEditor::DeleteSelection()

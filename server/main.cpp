@@ -443,7 +443,11 @@ void update()
 
 	Profiler::Start("Physics");
 	if(bStepPhysics)
+	{
+		for (RigidBody *r : level->Objects)
+			r->Update();
 		dynamicsWorld->stepSimulation(deltaTime, 10);
+	}
 	Profiler::Finish("Physics");
 
 	blobCam->Target = convert(blob->GetCentroid());

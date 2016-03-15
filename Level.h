@@ -27,4 +27,6 @@ class Level
 		void Render(GLuint uMMatrix, GLuint uColor);
 		void Serialize(std::string file);
 		static Level *Deserialize(std::string file);
+		static std::vector<glm::vec3> CatmullRomTangents(
+				const std::vector<glm::vec3>& points);
 };

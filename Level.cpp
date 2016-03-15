@@ -94,7 +94,7 @@ void Level::Serialize(std::string file)
 
 		object["type"] = "box";
 		object["position"] = {
-			translation.x, translation.y, 
+			translation.x, translation.y,
 			translation.z };
 		object["orientation"] = {
 			orientation.w, orientation.x,
@@ -104,6 +104,14 @@ void Level::Serialize(std::string file)
 		object["color"] = {
 			r->trueColor.r, r->trueColor.g, r->trueColor.b, r->trueColor.a };
 		object["mass"] = r->mass;
+		if (!r->path_points.empty())
+		{
+			nlohmann::json path;
+			path["speed"] = r->path_speed;
+			for (glm::vec3 v : r->path_points)
+				path["points"].push_back({ v.x, v.y, v.z });
+			object["path"] = path;
+		}
 		objects.push_back(object);
 	}
 	nlohmann::json level;
@@ -116,7 +124,7 @@ Level *Level::Deserialize(std::string file)
 {
 	std::ifstream f(file);
 	if (!f.is_open())
-		return NULL;
+		return nullptr;
 	std::string s(
 			(std::istreambuf_iterator<char>(f)),
 			std::istreambuf_iterator<char>());
@@ -133,8 +141,46 @@ Level *Level::Deserialize(std::string file)
 		auto j_col = object["color"];
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
-		level->AddBox(position, orientation, dimensions, color, mass);
+		auto path = object["path"];
+		std::size_t i =
+			level->AddBox(position, orientation, dimensions, color, mass);
+		if (!path.is_null())
+		{
+			RigidBody *r = level->Objects[i];
+			auto speed = path["speed"];
+			auto points = path["points"];
+			r->path_speed = speed;
+			for (auto point : points)
+				r->path_points.push_back(
+						glm::vec3(point[0], point[1], point[2]));
+			r->path_tangents = CatmullRomTangents(r->path_points);
+		}
 	}
 	f.close();
 	return level;
+}
+
+std::vector<glm::vec3> Level::CatmullRomTangents(
+		const std::vector<glm::vec3>& points)
+{
+	int num_points = points.size();
+	std::vector<glm::vec3> tangents(num_points);
+	if (!points.empty())
+	{
+		if (num_points == 2)
+		{
+			tangents[0] = points[1] - points[0];
+			tangents[1] = tangents[0];
+		}
+		else if (num_points >= 3)
+		{
+			for (int i = 1; i < num_points - 1; i++)
+			{
+				tangents.push_back(points[i + 1] - points[i - 1]);
+			}
+			tangents[0] = tangents[1];
+			tangents[num_points - 1] = tangents[num_points - 2];
+		}
+	}
+	return tangents;
 }

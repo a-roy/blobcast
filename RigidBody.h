@@ -22,6 +22,10 @@ public:
 	glm::vec4 color;
 	glm::vec4 trueColor;
 	float mass;
+	std::vector<glm::vec3> path_points;
+	std::vector<glm::vec3> path_tangents;
+	float path_speed = 0.0f;
+	float path_position = 0.0f;
 
 	RigidBody(Mesh* p_mesh, glm::vec3 p_translation, glm::quat p_orientation, 
 		glm::vec3 p_scale, glm::vec4 p_color, float p_mass = 0);
@@ -31,6 +35,7 @@ public:
 	glm::mat4 GetModelMatrix();
 
 	void Render();
+	void Update();
 
 	glm::quat GetOrientation() 
 	{
