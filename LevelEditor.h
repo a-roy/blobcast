@@ -62,6 +62,7 @@ public:
 
 private:
 	void Translation();
+	void TranslateSelection(glm::vec3 translate);
 	void Rotation(ShaderProgram *shaderProgram);
 	void LocalRotation(float angle, glm::vec3 axis);
 	void GlobalRotation(float angle, glm::vec3 axis, glm::vec3 axisPosition);
