@@ -830,6 +830,8 @@ void gui()
 					level = Level::Deserialize(lTheOpenFileName);
 					for (RigidBody* rb : level->Objects)
 						dynamicsWorld->addRigidBody(rb->rigidbody);
+
+					levelEditor->level = level;
 				}
 			}
 
@@ -988,6 +990,11 @@ void key_callback(
 	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
 		levelEditor->DeleteSelection();
 
+	if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS)
+		levelEditor->bCtrl = true;
+	else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
+		levelEditor->bCtrl = false;
+
 	blob->Move(key, action);
 
 	GLFWProject::WASDStrafe(activeCam, window, key, scancode, action, mods);
@@ -1015,6 +1022,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 	{
 		if(!ImGui::GetIO().WantCaptureMouse)
 			if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_NORMAL)
-				levelEditor->Mouse(xcursor, height - ycursor, width, height, viewMatrix, projMatrix);
+				levelEditor->Mouse(xcursor, height - ycursor, width, height, 
+					viewMatrix, projMatrix);
 	}
 }
