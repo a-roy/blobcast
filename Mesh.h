@@ -9,9 +9,9 @@
 class Mesh : public Drawable
 {
 	public:
-		VertexArray *VAO;
-		std::vector<FloatBuffer *> VBOs;
-		ElementBuffer *IBO;
+		VertexArray VAO;
+		std::vector<FloatBuffer> VBOs;
+		ElementBuffer IBO;
 
 		int NumVerts;
 		int NumTris;
@@ -21,7 +21,6 @@ class Mesh : public Drawable
 				std::vector<GLfloat> vbo,
 				std::vector<GLfloat> nbo,
 				std::vector<GLuint> ibo);
-		~Mesh();
 		void Draw() const;
 		void SetVertexData(
 				GLuint attribute, GLfloat *data, int itemSize);
@@ -33,4 +32,5 @@ class Mesh : public Drawable
 		static Mesh *CreateCube();
 		static Mesh *CreateTriplePlane();
 		static Mesh *CreateCubeWithNormals();
+		static Mesh *CreateQuad();
 };

@@ -2,6 +2,11 @@
 
 #define CUBE_TEXTURE_SIZE 800
 
+Skybox::Skybox()
+{
+	modelMat = glm::mat4();
+}
+
 GLuint Skybox::getID()
 {
 	return textureID;

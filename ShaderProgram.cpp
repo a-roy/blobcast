@@ -1,27 +1,52 @@
 #include "ShaderProgram.h"
 #include <iostream>
+#include <exception>
 #include <glm/gtc/type_ptr.hpp>
 
-ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths)
+ShaderProgram::ShaderProgram()
+{
+	program = glCreateProgram();
+}
+
+ShaderProgram::ShaderProgram(std::initializer_list<std::string> paths) :
+	ShaderProgram()
 {
 	std::vector<Shader *> shaders;
 	for (std::string path : paths)
 		shaders.push_back(new Shader(path));
-	program = glCreateProgram();
 	LinkProgram(shaders);
 	for (int i = 0, n = shaders.size(); i < n; i++)
 		delete shaders[i];
 }
 
-ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders)
+ShaderProgram::ShaderProgram(std::vector<Shader *>& shaders) :
+	ShaderProgram()
 {
-	program = glCreateProgram();
 	LinkProgram(shaders);
 }
 
 ShaderProgram::~ShaderProgram()
 {
 	glDeleteProgram(program);
+}
+
+ShaderProgram::ShaderProgram(ShaderProgram&& other) :
+	program(0)
+{
+	*this = std::move(other);
+}
+
+ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
+{
+	if (this != &other)
+	{
+		glDeleteProgram(program);
+		program = other.program;
+		uniforms = other.uniforms;
+		other.program = 0;
+		other.uniforms.clear();
+	}
+	return *this;
 }
 
 void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
@@ -44,8 +69,7 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 		glGetProgramInfoLog(program, maxLength, &maxLength, &infoLog[0]);
 		std::cerr << &infoLog[0] << std::endl;
 
-		// TODO don't just terminate the application?
-		exit(1);
+		throw std::exception();
 	}
 
 	for (std::size_t i = 0; i < shaders.size(); i++)
@@ -103,6 +127,12 @@ ShaderProgram::Uniform ShaderProgram::operator[](GLint location) const
 	return u;
 }
 
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec2 value)
+{
+	program->Use([&](){ glUniform2fv(Location, 1, glm::value_ptr(value)); });
+	return *this;
+}
+
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec3 value)
 {
 	program->Use([&](){ glUniform3fv(Location, 1, glm::value_ptr(value)); });
@@ -132,7 +162,16 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat4 value)
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
-		std::vector<glm::vec3> values)
+		const std::vector<glm::vec2>& values)
+{
+	program->Use([&](){
+		glUniform2fv(Location, values.size(), glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		const std::vector<glm::vec3>& values)
 {
 	program->Use([&](){
 		glUniform3fv(Location, values.size(), glm::value_ptr(values[0]));
@@ -141,7 +180,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
-		std::vector<glm::vec4> values)
+		const std::vector<glm::vec4>& values)
 {
 	program->Use([&](){
 		glUniform4fv(Location, values.size(), glm::value_ptr(values[0]));
@@ -150,7 +189,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
-		std::vector<glm::mat3> values)
+		const std::vector<glm::mat3>& values)
 {
 	program->Use([&](){
 		glUniformMatrix3fv(
@@ -160,7 +199,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
-		std::vector<glm::mat4> values)
+		const std::vector<glm::mat4>& values)
 {
 	program->Use([&](){
 		glUniformMatrix4fv(

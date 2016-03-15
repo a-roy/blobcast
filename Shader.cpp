@@ -1,14 +1,18 @@
 #include "Shader.h"
 #include <fstream>
 #include <iostream>
+#include <exception>
 
-Shader::Shader(std::string path, GLenum shaderType) : ShaderType(shaderType)
+Shader::Shader(std::string path, GLenum shaderType) :
+	Path(path), ShaderType(shaderType)
 {
 	Name = glCreateShader(shaderType);
-	LoadAndCompile(path);
+	Load(path);
+	Compile();
 }
 
-Shader::Shader(std::string path)
+Shader::Shader(std::string path) :
+	Path(path)
 {
 	std::string extension = path.substr(path.length() - 4, 4);
 	GLenum shaderType;
@@ -24,7 +28,8 @@ Shader::Shader(std::string path)
 		shaderType = GL_FRAGMENT_SHADER;
 
 	Name = glCreateShader(shaderType);
-	LoadAndCompile(path);
+	Load(path);
+	Compile();
 }
 
 Shader::~Shader()
@@ -32,21 +37,70 @@ Shader::~Shader()
 	glDeleteShader(Name);
 }
 
-void Shader::LoadAndCompile(std::string path)
+Shader::Shader(const Shader& other) :
+	Name(0)
+{
+	*this = other;
+}
+
+Shader& Shader::operator=(const Shader& other)
+{
+	GLint length;
+	glGetShaderiv(other.Name, GL_SHADER_SOURCE_LENGTH, &length);
+	std::vector<char> buffer(length);
+	char *src = buffer.data();
+	glGetShaderSource(other.Name, length, nullptr, src);
+
+	glDeleteShader(Name);
+	Name = glCreateShader(other.ShaderType);
+	ShaderType = other.ShaderType;
+	Path = other.Path;
+	glShaderSource(Name, 1, &src, nullptr);
+	Compile();
+
+	return *this;
+}
+
+Shader::Shader(Shader&& other) :
+	Name(0)
+{
+	*this = std::move(other);
+}
+
+Shader& Shader::operator=(Shader&& other)
+{
+	if (this != &other)
+	{
+		glDeleteShader(Name);
+		Name = other.Name;
+		ShaderType = other.ShaderType;
+		Path = other.Path;
+		other.Name = 0;
+		other.ShaderType = 0;
+		other.Path.clear();
+	}
+	return *this;
+}
+
+void Shader::Load(std::string path)
 {
 	std::vector<char> buffer;
 	ReadSource(path.c_str(), buffer);
-	const char *src = &buffer[0];
+	const char *src = buffer.data();
+	glShaderSource(Name, 1, &src, nullptr);
+}
 
+void Shader::Compile()
+{
 	// Compile the shader
-	glShaderSource(Name, 1, &src, NULL);
 	glCompileShader(Name);
 	// Check the result of the compilation
 	GLint isCompiled;
 	glGetShaderiv(Name, GL_COMPILE_STATUS, &isCompiled);
 	if (!isCompiled)
 	{
-		std::cerr << "Shader compilation failed with this message:" << std::endl;
+		std::cerr << "Shader compilation (" << Path <<
+			") failed with this message:" << std::endl;
 		GLint maxLength = 0;
 		glGetShaderiv(Name, GL_INFO_LOG_LENGTH, &maxLength);
 
@@ -54,8 +108,7 @@ void Shader::LoadAndCompile(std::string path)
 		glGetShaderInfoLog(Name, maxLength, &maxLength, &infoLog[0]);
 		std::cerr << &infoLog[0] << std::endl;
 
-		// TODO don't just terminate the application?
-		exit(1);
+		throw std::exception();
 	}
 }
 
@@ -83,6 +136,6 @@ void Shader::ReadSource(const char *fname, std::vector<char> &buffer)
 	else
 	{
 		std::cerr << "Unable to open " << fname << std::endl;
-		exit(-1);
+		throw std::exception();
 	}
 }
