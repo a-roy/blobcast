@@ -98,6 +98,13 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			return;
 		//if(RayCallback.m_collisionObject->ma)
 
+		if (!bCtrl)
+		{
+			for (auto s : selection)
+				s->color = s->trueColor;
+			selection.clear();
+		}
+
 		RigidBody* newSelection = (RigidBody*)
 			RayCallback.m_collisionObject->getUserPointer();
 		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
