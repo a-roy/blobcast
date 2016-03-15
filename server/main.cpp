@@ -505,7 +505,7 @@ void draw()
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 500.f);
 
 	geometryPass();
 	SSAOPass();
