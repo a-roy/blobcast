@@ -16,6 +16,7 @@ class ShaderProgram
 		{
 			const ShaderProgram *program;
 			GLint Location;
+			Uniform& operator=(glm::vec2 value);
 			Uniform& operator=(glm::vec3 value);
 			Uniform& operator=(glm::vec4 value);
 			Uniform& operator=(glm::mat3 value);

@@ -252,3 +252,31 @@ Mesh *Mesh::CreateTriplePlane()
 
 	return triple_plane;
 }
+
+Mesh *Mesh::CreateQuad()
+{
+	Mesh *quad = new Mesh(2, 4, 2);
+
+	GLfloat vbo[] = {
+		-1.0f,  1.0f, 0.0f,   // 0
+		-1.0f, -1.0f, 0.0f,   // 1
+		 1.0f,  1.0f, 0.0f,   // 2
+		 1.0f, -1.0f, 0.0f }; // 3
+	quad->SetVertexData(0, vbo, 3);
+
+	GLfloat texCoords[] = {
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 1.0f,
+		1.0f, 0.0f };
+	quad->SetVertexData(1, texCoords, 2);
+
+	unsigned int ibo[] = {
+		2, 0, 1,
+		1, 3, 2 };
+	quad->SetIndexData(ibo);
+
+	return quad;
+}
+
+

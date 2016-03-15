@@ -33,4 +33,5 @@ class Mesh : public Drawable
 		static Mesh *CreateCube();
 		static Mesh *CreateTriplePlane();
 		static Mesh *CreateCubeWithNormals();
+		static Mesh *CreateQuad();
 };
