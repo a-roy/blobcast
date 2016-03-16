@@ -57,3 +57,12 @@ void RigidBody::Render()
 {
 	mesh->Draw();
 }
+
+void RigidBody::Update()
+{
+	if (!motion.Points.empty())
+	{
+		motion.Step();
+		rigidbody->translate(convert(motion.GetPosition() - GetTranslation()));
+	}
+}
