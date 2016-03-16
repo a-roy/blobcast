@@ -269,16 +269,24 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 		RigidBody *rb = *selection.begin();
 		if (!rb->motion.Points.empty())
 		{
-			std::vector<glm::vec3> p(rb->motion.Points);
+			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3> l(p);
 			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			if (rb->motion.Loop)
+				l.push_back(l.front());
 			if (c.size() > 1)
 			{
 				c.front() = glm::vec3(0, 1, 0);
 				c.back() = glm::vec3(1, 0, 0);
 			}
 			Points pts(p, c);
+			Line path(l);
 			program.Use([&](){
 				pts.Render(10.f);
+			});
+			program["uColor"] = glm::vec3(0, 0, 1);
+			program.Use([&](){
+				path.Render();
 			});
 		}
 	}
