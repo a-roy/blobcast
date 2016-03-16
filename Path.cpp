@@ -28,7 +28,14 @@ bool Path::Step(float dt)
 
 glm::vec3 Path::GetPosition()
 {
-	int i0 = (int)position;
+	return GetPosition(position);
+}
+
+glm::vec3 Path::GetPosition(float time)
+{
+	int i0 = (int)time;
+	if (i0 == Points.size())
+		i0 = 0;
 	int i1 = i0 + 1;
 	if (i1 == Points.size())
 		i1 = 0;
@@ -36,7 +43,7 @@ glm::vec3 Path::GetPosition()
 	glm::vec3 p1 = Points[i1];
 	glm::vec3 m0 = CatmullRomTangent(i0);
 	glm::vec3 m1 = CatmullRomTangent(i1);
-	float t = glm::fract(position);
+	float t = glm::fract(time);
 	float t2 = t * t;
 	float t3 = t2 * t;
 	glm::vec3 pt =

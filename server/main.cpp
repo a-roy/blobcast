@@ -152,7 +152,6 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
-		levelEditor->DrawPath(*debugdrawShaderProgram);
 		if(bShowGizmos)
 			drawGizmos();
 		if (bShowBulletDebug)
@@ -602,6 +601,10 @@ void gui()
 	ImGui::Render();
 	glDisable(GL_SCISSOR_TEST);
 	glEnable(GL_DEPTH_TEST);
+
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->DrawPath(*debugdrawShaderProgram);
+	});
 }
 
 void key_callback(

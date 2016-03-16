@@ -16,6 +16,7 @@ class Path
 		void Reset();
 		bool Step(float dt = 1.0f);
 		glm::vec3 GetPosition();
+		glm::vec3 GetPosition(float t);
 		glm::vec3 GetPoint(int p);
 
 	private:

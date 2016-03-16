@@ -270,10 +270,18 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 		if (!rb->motion.Points.empty())
 		{
 			std::vector<glm::vec3>& p(rb->motion.Points);
-			std::vector<glm::vec3> l(p);
 			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
-			if (rb->motion.Loop)
-				l.push_back(l.front());
+			std::vector<glm::vec3> l;
+			l.push_back(p.front());
+			for (int i = 0, n = (rb->motion.Loop ? p.size() : p.size() - 1);
+					i < n; i++)
+			{
+				float t = (float)i;
+				for (int j = 1; j <= 10; j++)
+				{
+					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+				}
+			}
 			if (c.size() > 1)
 			{
 				c.front() = glm::vec3(0, 1, 0);
@@ -339,7 +347,7 @@ void LevelEditor::Path()
 		ImGui::Spacing();
 		x++;
 	}
-	if (ImGui::Button("+"))
+	if (ImGui::Button("Add new point"))
 	{
 		rb->motion.Points.push_back(rb->GetTranslation());
 		path_changed = true;
