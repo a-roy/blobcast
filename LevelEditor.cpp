@@ -270,8 +270,16 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 		if (!rb->motion.Points.empty())
 		{
 			std::vector<glm::vec3>& p(rb->motion.Points);
-			std::vector<glm::vec3> l(p);
 			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			std::vector<glm::vec3> l;
+			for (int i = 0, n = p.size(); i < n; i++)
+			{
+				float t = (float)i;
+				for (int j = 0; j < 10; j++)
+				{
+					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+				}
+			}
 			if (rb->motion.Loop)
 				l.push_back(l.front());
 			if (c.size() > 1)
