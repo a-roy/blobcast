@@ -1,7 +1,7 @@
 #include <btBulletDynamicsCommon.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <GL\glew.h>
+#include <GL/glew.h>
 
 glm::vec3 convert(const btVector3& v);
 btVector3 convert(glm::vec3 v);
