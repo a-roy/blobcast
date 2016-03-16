@@ -28,7 +28,7 @@
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 
-#include "Point.h"
+#include "Points.h"
 #include "Line.h"
 #include "LevelEditor.h"
 #include "BulletDebugDrawer.h"
@@ -152,6 +152,7 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
+		levelEditor->DrawPath(*debugdrawShaderProgram);
 		if(bShowGizmos)
 			drawGizmos();
 		if (bShowBulletDebug)
@@ -367,7 +368,7 @@ void drawGizmos()
 		z.Render();
 	});
 
-	Point p(glm::vec3(0));
+	Points p(glm::vec3(0));
 	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
 	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
 	debugdrawShaderProgram->Use([&](){

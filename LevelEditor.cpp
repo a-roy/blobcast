@@ -1,6 +1,7 @@
 #include "LevelEditor.h"
 #include "config.h"
 #include "Line.h"
+#include "Points.h"
 #include <sstream>
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
@@ -261,6 +262,36 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	shaderProgram->Use([&]() { axisDraw.Render(); });
 }
 
+void LevelEditor::DrawPath(const ShaderProgram& program)
+{
+	if (selection.size() == 1)
+	{
+		RigidBody *rb = *selection.begin();
+		if (!rb->motion.Points.empty())
+		{
+			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3> l(p);
+			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			if (rb->motion.Loop)
+				l.push_back(l.front());
+			if (c.size() > 1)
+			{
+				c.front() = glm::vec3(0, 1, 0);
+				c.back() = glm::vec3(1, 0, 0);
+			}
+			Points pts(p, c);
+			Line path(l);
+			program.Use([&](){
+				pts.Render(10.f);
+			});
+			program["uColor"] = glm::vec3(0, 0, 1);
+			program.Use([&](){
+				path.Render();
+			});
+		}
+	}
+}
+
 void LevelEditor::Scale()
 {
 	glm::vec3 centroid = glm::vec3(0);
@@ -288,6 +319,7 @@ void LevelEditor::Path()
 {
 	RigidBody *rb = *selection.begin();
 	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &rb->motion.Loop);
 	ImGui::Spacing();
 	bool path_changed = false;
 	int x = 0;
@@ -309,7 +341,7 @@ void LevelEditor::Path()
 	}
 	if (ImGui::Button("+"))
 	{
-		rb->motion.Points.insert(rb->motion.Points.end(), glm::vec3(0));
+		rb->motion.Points.push_back(rb->GetTranslation());
 		path_changed = true;
 	}
 	if (path_changed)

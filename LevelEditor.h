@@ -59,6 +59,7 @@ public:
 
 	void DeleteSelection(); 
 	void CloneSelection();
+	void DrawPath(const ShaderProgram& program);
 
 private:
 	void Translation();
