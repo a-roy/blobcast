@@ -14,7 +14,7 @@ private:
 public:
 
 	Line(glm::vec3 from, glm::vec3 to) :
-		Line({{ from, to }})
+		Line(std::vector<glm::vec3>({{ from, to }}))
 	{ }
 
 	Line(const std::vector<glm::vec3>& verts) :

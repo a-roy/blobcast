@@ -1,3 +1,5 @@
+#include <utility>
+
 template <class T>
 inline Buffer<T>::Buffer(
 		VertexArray *vao,
@@ -110,7 +112,7 @@ inline void Buffer<T>::SetData(T *data, bool copy)
 }
 
 template <class T>
-inline void Buffer<T>::BufferData(GLuint attribute, size_t stride = 0)
+inline void Buffer<T>::BufferData(GLuint attribute, size_t stride)
 {
 	glBindBuffer(Target, Name);
 }

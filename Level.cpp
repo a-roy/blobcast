@@ -58,6 +58,7 @@ void Level::Clear()
 {
 	for (RigidBody *r : Objects)
 		delete r;
+	Objects.clear();
 }
 
 int Level::Find(btRigidBody *r)
