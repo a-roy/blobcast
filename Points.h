@@ -76,13 +76,14 @@ public:
 		{
 			glDeleteVertexArrays(1, &vao);
 			glDeleteBuffers(2, VBOs);
-			delete[] VBOs;
 
 			vao = other.vao;
 			other.vao = 0;
-			VBOs = other.VBOs;
 			for (int i = 0; i < 2; i++)
+			{
+				VBOs[i] = other.VBOs[i];
 				other.VBOs[i] = 0;
+			}
 			points = std::move(other.points);
 			colors = std::move(other.colors);
 		}
