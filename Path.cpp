@@ -34,6 +34,8 @@ glm::vec3 Path::GetPosition()
 glm::vec3 Path::GetPosition(float time)
 {
 	int i0 = (int)time;
+	if (i0 == Points.size())
+		i0 = 0;
 	int i1 = i0 + 1;
 	if (i1 == Points.size())
 		i1 = 0;
