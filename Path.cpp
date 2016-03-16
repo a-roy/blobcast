@@ -5,21 +5,25 @@ void Path::Reset()
 	position = 0.0f;
 }
 
-void Path::Step(float dt)
+bool Path::Step(float dt)
 {
-	position += Speed * dt;
 	if (Loop)
 	{
 		float path_length = (float)Points.size();
+		position += Speed * dt;
 		if (position > path_length)
 			position = 0.0f;
 	}
 	else
 	{
 		float path_length = (float)(Points.size() - 1);
+		if (position == path_length)
+			return false;
+		position += Speed * dt;
 		if (position > path_length)
 			position = path_length;
 	}
+	return true;
 }
 
 glm::vec3 Path::GetPosition()

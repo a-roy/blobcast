@@ -62,7 +62,11 @@ void RigidBody::Update()
 {
 	if (!motion.Points.empty())
 	{
-		motion.Step();
-		rigidbody->translate(convert(motion.GetPosition() - GetTranslation()));
+		if (motion.Step())
+		{
+			rigidbody->translate(
+					convert(motion.GetPosition() - GetTranslation()));
+			rigidbody->setLinearVelocity(btVector3(0, 0, 0));
+		}
 	}
 }
