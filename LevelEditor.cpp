@@ -347,7 +347,7 @@ void LevelEditor::Path()
 		ImGui::Spacing();
 		x++;
 	}
-	if (ImGui::Button("+"))
+	if (ImGui::Button("Add new point"))
 	{
 		rb->motion.Points.push_back(rb->GetTranslation());
 		path_changed = true;
