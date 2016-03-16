@@ -184,6 +184,7 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
+		levelEditor->DrawPath(*debugdrawShaderProgram);
 		if(bShowGizmos)
 			drawGizmos();
 		if (bShowBulletDebug)

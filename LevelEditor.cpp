@@ -1,6 +1,7 @@
 #include "LevelEditor.h"
 #include "config.h"
 #include "Line.h"
+#include "Points.h"
 #include <sstream>
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
@@ -259,6 +260,28 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	Line axisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
 		translation + (axis * ROTATION_GIZMO_SIZE));
 	shaderProgram->Use([&]() { axisDraw.Render(); });
+}
+
+void LevelEditor::DrawPath(const ShaderProgram& program)
+{
+	if (selection.size() == 1)
+	{
+		RigidBody *rb = *selection.begin();
+		if (!rb->motion.Points.empty())
+		{
+			std::vector<glm::vec3> p(rb->motion.Points);
+			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			if (c.size() > 1)
+			{
+				c.front() = glm::vec3(0, 1, 0);
+				c.back() = glm::vec3(1, 0, 0);
+			}
+			Points pts(p, c);
+			program.Use([&](){
+				pts.Render(10.f);
+			});
+		}
+	}
 }
 
 void LevelEditor::Scale()

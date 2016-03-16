@@ -19,9 +19,10 @@ public:
 		Points(std::vector<glm::vec3>(1, p), std::vector<glm::vec3>(1, c))
 	{ }
 
-	Points(std::vector<glm::vec3>&& p, std::vector<glm::vec3>&& c) :
+	Points(const std::vector<glm::vec3>& p, const std::vector<glm::vec3>& c) :
 		points(p), colors(c)
 	{
+		colors.resize(p.size());
 		glGenVertexArrays(1, &vao);
 		VBOs = new GLuint[2];
 		glGenBuffers(2, VBOs);
@@ -87,12 +88,26 @@ public:
 		}
 	}
 
-	void Update(glm::vec3 p_p, int i)
+	void Update(
+			const std::vector<glm::vec3>& p,
+			const std::vector<glm::vec3>& c = std::vector<glm::vec3>())
 	{
-		points[i] = p_p;
+		points = p;
+		colors.resize(p.size());
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::vec3), &points[i]);
+		glBufferData(
+				GL_ARRAY_BUFFER,
+				points.size() * sizeof(glm::vec3),
+				points.data(),
+				GL_STREAM_DRAW);
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
+		glBufferData(
+				GL_ARRAY_BUFFER,
+				colors.size() * sizeof(glm::vec3),
+				colors.data(),
+				GL_STREAM_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
