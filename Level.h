@@ -3,11 +3,13 @@
 #include <vector>
 #include <string>
 #include "RigidBody.h"
+#include "ParticleSystem.h"
 
 class Level
 {
 	public:
 		std::vector<RigidBody *> Objects;
+		std::vector<ParticleSystem *> ParticleSystems;
 
 		~Level();
 		std::size_t AddBox(
@@ -21,4 +23,11 @@ class Level
 		void Render(GLuint uMMatrix, GLuint uColor);
 		void Serialize(std::string file);
 		static Level *Deserialize(std::string file);
+
+		/*std::size_t AddParticleSystem(glm::vec3 position, Camera* camera = NULL)
+		{
+			ParticleSystem* ps = new ParticleSystem(camera);
+			ParticleSystems.push_back(ps);
+			return Objects.size() - 1;
+		}*/
 };

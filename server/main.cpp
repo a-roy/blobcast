@@ -135,16 +135,13 @@ std::map<std::string, Measurement> Profiler::measurements;
 char const *jsonExtension = ".json";
 
 ParticleSystem* particleSystem;
-
-#include <glm/gtc/random.hpp>
+Camera* BufferData::cam = activeCam;
 
 int main(int argc, char *argv[])
 {
 	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
 	if (!window)
 		return 1;
-
-	// Setup ImGui binding
 
 	ImGui_ImplGlfw_Init(window, true);
 
@@ -160,8 +157,7 @@ int main(int argc, char *argv[])
 
 	levelEditor = new LevelEditor(dynamicsWorld, level);
 
-	particleSystem = new ParticleSystem(1000);
-	particleSystem->Generate();
+	particleSystem = new ParticleSystem();
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
