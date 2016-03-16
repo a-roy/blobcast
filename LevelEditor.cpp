@@ -287,12 +287,11 @@ void LevelEditor::Scale()
 void LevelEditor::Path()
 {
 	RigidBody *rb = *selection.begin();
-	ImGui::DragFloat("Speed", &rb->path_speed, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
 	ImGui::Spacing();
-	std::vector<glm::vec3>& points = rb->path_points;
 	bool path_changed = false;
-	int x = 1;
-	for (auto i = points.begin(); i != points.end(); ++i)
+	int x = 0;
+	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
 	{
 		std::string pt_text = ("Point " + std::to_string(x));
 		std::string rm_text = ("Remove " + std::to_string(x));
@@ -300,9 +299,9 @@ void LevelEditor::Path()
 			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
 		if (ImGui::Button(rm_text.c_str()))
 		{
-			i = points.erase(i);
+			i = rb->motion.Points.erase(i);
 			path_changed = true;
-			if (i == points.end())
+			if (i == rb->motion.Points.end())
 				break;
 		}
 		ImGui::Spacing();
@@ -310,12 +309,11 @@ void LevelEditor::Path()
 	}
 	if (ImGui::Button("+"))
 	{
-		points.push_back(glm::vec3(0, 0, 0));
+		rb->motion.Points.insert(rb->motion.Points.end(), glm::vec3(0));
 		path_changed = true;
 	}
 	if (path_changed)
-		rb->path_tangents =
-			Level::CatmullRomTangents(rb->path_points);
+		rb->motion.Reset();
 }
 
 void LevelEditor::DeleteSelection()

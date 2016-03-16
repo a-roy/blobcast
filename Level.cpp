@@ -104,12 +104,13 @@ void Level::Serialize(std::string file)
 		object["color"] = {
 			r->trueColor.r, r->trueColor.g, r->trueColor.b, r->trueColor.a };
 		object["mass"] = r->mass;
-		if (!r->path_points.empty())
+		if (!r->motion.Points.empty())
 		{
 			nlohmann::json path;
-			path["speed"] = r->path_speed;
-			for (glm::vec3 v : r->path_points)
-				path["points"].push_back({ v.x, v.y, v.z });
+			path["speed"] = r->motion.Speed;
+			for (auto v = r->motion.Points.begin();
+					v != r->motion.Points.end(); ++v)
+				path["points"].push_back({ v->x, v->y, v->z });
 			object["path"] = path;
 		}
 		objects.push_back(object);
@@ -149,38 +150,13 @@ Level *Level::Deserialize(std::string file)
 			RigidBody *r = level->Objects[i];
 			auto speed = path["speed"];
 			auto points = path["points"];
-			r->path_speed = speed;
+			r->motion.Speed = speed;
 			for (auto point : points)
-				r->path_points.push_back(
+				r->motion.Points.insert(
+						r->motion.Points.end(),
 						glm::vec3(point[0], point[1], point[2]));
-			r->path_tangents = CatmullRomTangents(r->path_points);
 		}
 	}
 	f.close();
 	return level;
-}
-
-std::vector<glm::vec3> Level::CatmullRomTangents(
-		const std::vector<glm::vec3>& points)
-{
-	int num_points = points.size();
-	std::vector<glm::vec3> tangents(num_points);
-	if (!points.empty())
-	{
-		if (num_points == 2)
-		{
-			tangents[0] = points[1] - points[0];
-			tangents[1] = tangents[0];
-		}
-		else if (num_points >= 3)
-		{
-			for (int i = 1; i < num_points - 1; i++)
-			{
-				tangents.push_back(points[i + 1] - points[i - 1]);
-			}
-			tangents[0] = tangents[1];
-			tangents[num_points - 1] = tangents[num_points - 2];
-		}
-	}
-	return tangents;
 }

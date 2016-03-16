@@ -60,22 +60,9 @@ void RigidBody::Render()
 
 void RigidBody::Update()
 {
-	if (!path_points.empty() && path_speed != 0.0f &&
-			path_position < (float)(path_points.size() - 1))
+	if (!motion.Points.empty())
 	{
-		glm::vec3 p0(path_points  [(int)path_position]);
-		glm::vec3 m0(path_tangents[(int)path_position]);
-		glm::vec3 p1(path_points  [(int)(path_position + 1.0f)]);
-		glm::vec3 m1(path_tangents[(int)(path_position + 1.0f)]);
-		float t = path_position - glm::floor(path_position);
-		float t2 = t * t;
-		float t3 = t2 * t;
-		glm::vec3 pt =
-			(1 - 3 * t2 + 2 * t3) * p0 +
-			(3 * t2 - 2 * t3) * p1 +
-			(t - 2 * t2 + t3) * m0 +
-			(-t2 + t3) * m1;
-		rigidbody->translate(convert(pt - GetTranslation()));
-		path_position += path_speed;
+		motion.Step();
+		rigidbody->translate(convert(motion.GetPosition() - GetTranslation()));
 	}
 }
