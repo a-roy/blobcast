@@ -341,7 +341,7 @@ void LevelEditor::Path()
 	}
 	if (ImGui::Button("+"))
 	{
-		rb->motion.Points.insert(rb->motion.Points.end(), glm::vec3(0));
+		rb->motion.Points.push_back(rb->GetTranslation());
 		path_changed = true;
 	}
 	if (path_changed)
