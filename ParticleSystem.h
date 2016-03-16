@@ -67,7 +67,7 @@ public:
 	Emitter emitter;
 
 	int liveParticles = 0;
-	float simulationSpeed = 1.0f;
+	float simulationSpeed = PARTICLE_SIM_SPEED;
 	
 	bool bResponse = false;
 	glm::vec3 plane = glm::vec3(0, 0, 0);
@@ -76,19 +76,19 @@ public:
 
 	bool bGravity = true;
 	glm::vec3 gravity = glm::vec3(0, -9.81f, 0);
-	float mass = 1.0f;
+	float mass = PARTICLE_MASS;
 	float invMass = 1.0f / mass;
 
 	bool bDrag = true;
-	float dragCoefficient = 10.0f;
+	float dragCoefficient = PARTICLE_DRAG_COEFF;
 	
-	glm::vec4 startColour = glm::vec4(1, 0, 0, 1);
-	glm::vec4 endColour = glm::vec4(1, 0, 0, 1);
-	float particleLife = 5;
+	glm::vec4 startColour = PARTICLE_START_COLOR;
+	glm::vec4 endColour = PARTICLE_END_COLOR;
+	float particleLife = PARTICLE_LIFETIME;
 	bool bRecyclePlane = true;
 	bool bRecycleAge = true;
 
-	float pointSize = 5.0f;
+	float pointSize = PARTICLE_SIZE;
 	bool bZSort = true;
 
 	ParticleSystem(int size = 1000);

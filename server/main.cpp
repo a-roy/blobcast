@@ -135,7 +135,6 @@ std::map<std::string, Measurement> Profiler::measurements;
 char const *jsonExtension = ".json";
 
 ParticleSystem* particleSystem;
-Camera* BufferData::cam = activeCam;
 
 int main(int argc, char *argv[])
 {
@@ -163,6 +162,15 @@ int main(int argc, char *argv[])
 
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
+
+	glEnable(GL_CULL_FACE); 
+	glCullFace(GL_BACK);
+	glFrontFace(GL_CCW);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glEnable(GL_POINT_SPRITE);
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
 	while (!glfwWindowShouldClose(window))
@@ -321,6 +329,7 @@ bool init_graphics()
 	blobCam = new BlobCam();
 
 	activeCam = flyCam;
+	BufferData::cam = flyCam;
 
 	return true;
 }
@@ -541,7 +550,7 @@ void draw()
 	Profiler::Start("Particles");
 	(*particleShaderProgram)["uProj"] = projMatrix;
 	(*particleShaderProgram)["uView"] = viewMatrix;
-	(*particleShaderProgram)["uSize"] = 10.0f;
+	(*particleShaderProgram)["uSize"] = particleSystem->pointSize;
 	particleShaderProgram->Use([&]() {
 		particleSystem->Render();
 	});
@@ -927,6 +936,7 @@ void gui()
 			activeCam = flyCam;
 			ImGui::SliderFloat("Move Speed [1,100]",
 				&flyCam->MoveSpeed, 0.0f, 20.0f);
+			BufferData::cam = flyCam;
 		}
 		else
 		{
@@ -935,6 +945,7 @@ void gui()
 				&blobCam->Distance, 1.0f, 100.0f);
 			ImGui::SliderFloat("Height [1,100]",
 				&blobCam->Height, 1.0f, 100.0f);
+			BufferData::cam = blobCam;
 		}
 
 		ImGui::End();

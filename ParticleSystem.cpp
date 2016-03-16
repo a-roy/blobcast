@@ -1,5 +1,7 @@
 #include "ParticleSystem.h"
 
+Camera* BufferData::cam = NULL;
+
 bool operator<(BufferData& bd1, BufferData& bd2)
 {
 	return glm::length(bd1.position - BufferData::cam->Position) >
@@ -149,7 +151,8 @@ void ParticleSystem::Update(double deltaTime)
 	liveParticles = data.size();
 
 	if (bZSort)
-		std::sort(data.begin(), data.end());
+		if(BufferData::cam != NULL)
+			std::sort(data.begin(), data.end());
 
 	if (liveParticles > 0)
 	{

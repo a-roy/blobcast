@@ -36,3 +36,13 @@
 
 #define MAX_PROXIES 32766
 #define ROTATION_GIZMO_SIZE 15.0f
+
+#define PARTICLE_SIZE 100.0f
+#define PARTICLE_SIM_SPEED 1.0f
+#define PARTICLE_MASS 1.0f
+#define PARTICLE_LIFETIME 5.0f
+#define PARTICLE_START_COLOR glm::vec4(1,0,0,1)
+#define PARTICLE_END_COLOR glm::vec4(1,0,0,1)
+#define PARTICLE_DRAG_COEFF 3.0f
+
+

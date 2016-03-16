@@ -6,5 +6,5 @@ in vec4 color;
 
 void main()
 {
-	fragColor = texture(tex, gl_PointCoord) * color;
+	fragColor = texture(tex, gl_PointCoord);// * color;
 }
