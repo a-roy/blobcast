@@ -319,6 +319,7 @@ void LevelEditor::Path()
 {
 	RigidBody *rb = *selection.begin();
 	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &rb->motion.Loop);
 	ImGui::Spacing();
 	bool path_changed = false;
 	int x = 0;
