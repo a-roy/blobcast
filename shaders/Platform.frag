@@ -51,7 +51,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 		}
 	}
 	
-	return (0.5 + (factor / 16.0));
+	return (0.5 + (factor / 18.0));
 }
 
 void main()
