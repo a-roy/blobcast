@@ -42,9 +42,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
 	{
 		glDeleteProgram(program);
 		program = other.program;
-		uniforms = other.uniforms;
 		other.program = 0;
-		other.uniforms.clear();
 	}
 	return *this;
 }
@@ -76,34 +74,11 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 	{
 		glDetachShader(program, shaders[i]->Name);
 	}
-
-	GLint num_uniforms;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &num_uniforms);
-	GLint uniform_name_length;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_name_length);
-	GLchar *name = new GLchar[uniform_name_length];
-	for (GLint i = 0; i < num_uniforms; i++)
-	{
-		GLint size;
-		GLenum type;
-		glGetActiveUniform(
-				program, i, uniform_name_length, NULL, &size, &type, name);
-		uniforms[name] = glGetUniformLocation(program, name);
-	}
-	delete[] name;
 }
 
 GLint ShaderProgram::GetUniformLocation(std::string name) const
 {
-	auto it = uniforms.find(name);
-	if (it == uniforms.end())
-	{
-		return -1;
-	}
-	else
-	{
-		return it->second;
-	}
+	return glGetUniformLocation(program, name.c_str());
 }
 
 void ShaderProgram::DrawFrame(Frame *frame, glm::mat4 mvMatrix) const

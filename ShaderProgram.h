@@ -32,7 +32,6 @@ class ShaderProgram
 			void warn(GLenum sym, std::string keyword, int num = 1);
 		};
 		GLuint program;
-		std::map<std::string, GLint> uniforms;
 
 		ShaderProgram();
 		ShaderProgram(std::initializer_list<std::string> paths);
