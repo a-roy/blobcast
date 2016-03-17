@@ -547,14 +547,7 @@ void draw()
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 300.f);
 
-	Profiler::Start("Particles");
-	(*particleShaderProgram)["uProj"] = projMatrix;
-	(*particleShaderProgram)["uView"] = viewMatrix;
-	(*particleShaderProgram)["uSize"] = particleSystem->pointSize;
-	particleShaderProgram->Use([&]() {
-		particleSystem->Render();
-	});
-	Profiler::Finish("Particles", true);
+
 
 	drawBlob();
 
@@ -566,6 +559,15 @@ void draw()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	Profiler::Start("Particles");
+	(*particleShaderProgram)["uProj"] = projMatrix;
+	(*particleShaderProgram)["uView"] = viewMatrix;
+	(*particleShaderProgram)["uSize"] = particleSystem->pointSize;
+	particleShaderProgram->Use([&]() {
+		particleSystem->Render();
+	});
+	Profiler::Finish("Particles", true);
+
 	glm::mat4 displayMVP = glm::ortho(
 			-1.25f, ((float)width  / 128.f) - 1.25f,
 			-1.25f, ((float)height / 128.f) - 1.25f);

@@ -22,12 +22,12 @@ glm::quat convert(const btQuaternion& q)
 	return glm::quat(q.getW(), q.getX(), q.getY(), q.getZ());
 }
 
-GLuint loadTexture(const char* fileName)
+GLuint loadTexture(const char* fileName, bool alpha)
 {
 	int width, height;
 	unsigned char* image;
 
-	image = SOIL_load_image(fileName, &width, &height, 0, SOIL_LOAD_RGB);
+	image = SOIL_load_image(fileName, &width, &height, 0, (alpha ? SOIL_LOAD_RGBA : SOIL_LOAD_RGB));
 	if (image == NULL) {
 		std::cout << "Unable to open texture" << std::endl;
 	}
@@ -36,8 +36,8 @@ GLuint loadTexture(const char* fileName)
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
-		width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+	glTexImage2D(GL_TEXTURE_2D, 0, (alpha ? GL_RGBA : GL_RGB),
+		width, height, 0, (alpha ? GL_RGBA : GL_RGB), GL_UNSIGNED_BYTE, image);
 	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);

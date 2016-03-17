@@ -8,4 +8,4 @@ btVector3 convert(glm::vec3 v);
 btQuaternion convert(glm::quat q);
 glm::quat convert(const btQuaternion& q);
 
-GLuint loadTexture(const char* fileName);
+GLuint loadTexture(const char* fileName, bool alpha);
