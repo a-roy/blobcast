@@ -6,6 +6,22 @@
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
 {
+	(*shaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
+	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
+	shaderProgram->Use([&]() {
+		x.Render();
+	});
+	(*shaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
+	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	shaderProgram->Use([&]() {
+		y.Render();
+	});
+	(*shaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
+	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+	shaderProgram->Use([&]() {
+		z.Render();
+	});
+
 	if (selection.size() > 0)
 	{
 		ImGui::SetNextWindowSize(ImVec2(300, 400),
@@ -251,7 +267,6 @@ void LevelEditor::GlobalRotation(float angle, glm::vec3 axis,
 	}
 }
 
-//TODO - Scale it
 void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {

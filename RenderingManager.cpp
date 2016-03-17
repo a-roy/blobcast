@@ -36,6 +36,10 @@ bool RenderingManager::init()
 		ShaderDir "SSAO.vert",
 		ShaderDir "Blur.frag" });
 
+	particleShaderProgram = new ShaderProgram({
+		ShaderDir "Particle.vert",
+		ShaderDir "Particle.frag" });
+
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-0.2f, -0.4f, -0.2f);
 
@@ -187,6 +191,21 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 		level->Render(uMMatrix, uColor);
 	});
 	glDisable(GL_CULL_FACE);
+}
+
+void RenderingManager::drawParticles(Level *level, 
+	glm::mat4 viewMatrix, glm::mat4 projMatrix)
+{
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnable(GL_BLEND);
+	(*particleShaderProgram)["uProj"] = projMatrix;
+	(*particleShaderProgram)["uView"] = viewMatrix;
+	GLuint uSize = particleShaderProgram->GetUniformLocation("uSize");
+	particleShaderProgram->Use([&]() {
+		level->RenderParticles(uSize);
+	});
+	glDisable(GL_BLEND);
 }
 
 void RenderingManager::depthPass(Blob *blob, Level *level)

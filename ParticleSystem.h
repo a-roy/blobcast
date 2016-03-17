@@ -91,7 +91,8 @@ public:
 	float pointSize = PARTICLE_SIZE;
 	bool bZSort = true;
 
-	ParticleSystem(int size = 1000);
+	ParticleSystem(glm::vec3 position, const char* file = 
+		TextureDir "particle.png", int size = PARTICLE_SYSTEM_DEFAULT_SIZE);
 	~ParticleSystem();
 
 	void Update(double deltaTime);

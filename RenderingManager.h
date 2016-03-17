@@ -16,8 +16,10 @@ class RenderingManager
 public:
 	bool init();
 
-	void drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix);
-	void drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix);
+	void drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, 
+		glm::mat4 projMatrix);
+	void drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, 
+		glm::mat4 projMatrix);
 
 	void depthPass(Blob *blob, Level *level);
 	void dynamicCubeMapPass(Blob *blob, Level *level);
@@ -29,6 +31,9 @@ public:
 	void drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix);
 	void debugQuadDraw();
 
+	void drawParticles(Level *level, glm::mat4 viewMatrix,
+		glm::mat4 projMatrix);
+
 protected:
 	ShaderProgram *blobShaderProgram;
 	ShaderProgram *platformShaderProgram;
@@ -38,6 +43,7 @@ protected:
 	ShaderProgram *SSAOShaderProgram;
 	ShaderProgram *blurShaderProgram;
 	ShaderProgram *quadShaderProgram;
+	ShaderProgram *particleShaderProgram;
 
 	IOBuffer cubeMapBuffer;
 	IOBuffer gBuffer;

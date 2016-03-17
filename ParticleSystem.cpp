@@ -4,8 +4,8 @@ Camera* BufferData::cam = NULL;
 
 bool operator<(BufferData& bd1, BufferData& bd2)
 {
-	return glm::length(bd1.position - BufferData::cam->Position) >
-		glm::length(bd2.position - BufferData::cam->Position);
+	return glm::distance(bd1.position, BufferData::cam->Position) >
+		glm::distance(bd2.position, BufferData::cam->Position);
 }
 
 Particle::Particle(glm::vec3 startPos)
@@ -33,9 +33,9 @@ void Emitter::Emit(Particle* particle)
 		xz.y);
 }
 
-ParticleSystem::ParticleSystem(int size)
+ParticleSystem::ParticleSystem(glm::vec3 position, const char* file, int size)
 {
-	textureID = loadTexture(TextureDir "particle.png", true);
+	textureID = loadTexture(file, true);
 	maxSize = size;
 
 	for (int i = 0; i < size; i++)
@@ -150,9 +150,8 @@ void ParticleSystem::Update(double deltaTime)
 
 	liveParticles = data.size();
 
-	if (bZSort)
-		if(BufferData::cam != NULL)
-			std::sort(data.begin(), data.end());
+	if(PARTICLE_ZSORT && BufferData::cam != NULL)
+		std::sort(data.begin(), data.end());
 
 	if (liveParticles > 0)
 	{
