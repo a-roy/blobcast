@@ -35,7 +35,7 @@ void Emitter::Emit(Particle* particle)
 
 ParticleSystem::ParticleSystem(int size)
 {
-	textureID = loadTexture(TextureDir "particle.png");
+	textureID = loadTexture(TextureDir "particle.png", true);
 	maxSize = size;
 
 	for (int i = 0; i < size; i++)

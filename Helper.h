@@ -9,3 +9,4 @@ btQuaternion convert(glm::quat q);
 glm::quat convert(const btQuaternion& q);
 
 GLuint loadTexture(const char* fileName, bool alpha);
+GLfloat lerp(GLfloat a, GLfloat b, GLfloat f);

@@ -46,13 +46,12 @@ float CalcShadowFactor(vec4 LightSpacePos)
 		for(int x = -2; x <= 2; x++){
 			vec2 offsets = vec2(x * xOffset, y * yOffset);
 			vec3 UVC = vec3(UVCoords + offsets, z + EPSILON);
-			factor += texture(depthMap, UVC);
+			//factor += texture(depthMap, UVC);
 		}
 	}
 	
 	return (0.5 + (factor / 18.0));
 }
-
 
 void main()
 {   
@@ -63,21 +62,20 @@ void main()
 	// Diffuse
 	float diffuseStrength = 0.6f;
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(directionalLight.direction);
+    vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diffuseStrength * diff * directionalLight.color;
 	
 	// Specular
-    float specularStrength = 0.4f;
+    float specularStrength = 1.0f;
     vec3 viewDir = normalize(FragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
-	
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 diffuseColor = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
+	//float ShadowFactor = CalcShadowFactor(LightSpacePos);
+    vec3 diffuseColor = (ambient + 1 * (diffuse + specular)) * objectColor;
 	
 	// Reflection + refraction
 	float refractiveIndex = 1.15;
@@ -88,7 +86,6 @@ void main()
 	vec3 refractColor = vec3(texture(cubeMap, Refract));
 	vec3 reflectColor = vec3(texture(cubeMap, Reflect));
 	
-	//vec3 finalColor;
 	vec3 reflectionColor = mix(diffuseColor, reflectColor, 0.2);
 	vec3 finalColor = mix(reflectionColor, refractColor, 0.2);
 	

@@ -1,6 +1,7 @@
 #include "LevelEditor.h"
 #include "config.h"
 #include "Line.h"
+#include "Points.h"
 #include <sstream>
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
@@ -66,6 +67,10 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 				first->mass = mass;
 			}
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
+			if (ImGui::CollapsingHeader("Path"))
+			{
+				Path();
+			}
 		}
 
 		ImGui::End();
@@ -257,6 +262,44 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	shaderProgram->Use([&]() { axisDraw.Render(); });
 }
 
+void LevelEditor::DrawPath(const ShaderProgram& program)
+{
+	if (selection.size() == 1)
+	{
+		RigidBody *rb = *selection.begin();
+		if (!rb->motion.Points.empty())
+		{
+			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			std::vector<glm::vec3> l;
+			l.push_back(p.front());
+			for (int i = 0, n = (rb->motion.Loop ? p.size() : p.size() - 1);
+					i < n; i++)
+			{
+				float t = (float)i;
+				for (int j = 1; j <= 10; j++)
+				{
+					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+				}
+			}
+			if (c.size() > 1)
+			{
+				c.front() = glm::vec3(0, 1, 0);
+				c.back() = glm::vec3(1, 0, 0);
+			}
+			Points pts(p, c);
+			Line path(l);
+			program.Use([&](){
+				pts.Render(10.f);
+			});
+			program["uColor"] = glm::vec3(0, 0, 1);
+			program.Use([&](){
+				path.Render();
+			});
+		}
+	}
+}
+
 void LevelEditor::Scale()
 {
 	glm::vec3 centroid = glm::vec3(0);
@@ -278,6 +321,39 @@ void LevelEditor::Scale()
 			dynamicsWorld->updateSingleAabb(rb->rigidbody);
 		}
 	}
+}
+
+void LevelEditor::Path()
+{
+	RigidBody *rb = *selection.begin();
+	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &rb->motion.Loop);
+	ImGui::Spacing();
+	bool path_changed = false;
+	int x = 0;
+	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
+	{
+		std::string pt_text = ("Point " + std::to_string(x));
+		std::string rm_text = ("Remove " + std::to_string(x));
+		path_changed |=
+			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
+		if (ImGui::Button(rm_text.c_str()))
+		{
+			i = rb->motion.Points.erase(i);
+			path_changed = true;
+			if (i == rb->motion.Points.end())
+				break;
+		}
+		ImGui::Spacing();
+		x++;
+	}
+	if (ImGui::Button("Add new point"))
+	{
+		rb->motion.Points.push_back(rb->GetTranslation());
+		path_changed = true;
+	}
+	if (path_changed)
+		rb->motion.Reset();
 }
 
 void LevelEditor::DeleteSelection()

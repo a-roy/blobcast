@@ -1,12 +1,12 @@
 #include "Mesh.h"
 
 Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
-	VAO(new VertexArray()),
-	VBOs(vertexBuffers),
+	VBOs(vertexBuffers, FloatBuffer(&VAO, 1, numVerts)),
+	IBO(&VAO, numFaces),
 	NumVerts(numVerts),
 	NumTris(numFaces)
 {
-	glBindVertexArray(VAO->Name);
+	glBindVertexArray(VAO.Name);
 	for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
 		glEnableVertexAttribArray(i);
 	glBindVertexArray(0);
@@ -22,17 +22,9 @@ Mesh::Mesh(
 	SetIndexData(&ibo[0]);
 }
 
-Mesh::~Mesh()
-{
-	delete VAO;
-	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
-		delete VBOs[i];
-	delete IBO;
-}
-
 void Mesh::Draw() const
 {
-	glBindVertexArray(VAO->Name);
+	glBindVertexArray(VAO.Name);
 
 	glDrawElements(
 			GL_TRIANGLES,
@@ -47,19 +39,19 @@ void Mesh::Draw() const
 void Mesh::SetVertexData(
 		unsigned int attribute, GLfloat *data, int itemSize)
 {
-	VBOs[attribute] = new FloatBuffer(VAO, itemSize, NumVerts);
-	VBOs[attribute]->SetData(data);
-	glBindVertexArray(VAO->Name);
-	VBOs[attribute]->BufferData(attribute);
+	VBOs[attribute] = FloatBuffer(&VAO, itemSize, NumVerts);
+	VBOs[attribute].SetData(data);
+	glBindVertexArray(VAO.Name);
+	VBOs[attribute].BufferData(attribute);
 	glBindVertexArray(0);
 }
 
 void Mesh::SetIndexData(unsigned int *iboData)
 {
-	IBO = new ElementBuffer(VAO, NumTris);
-	IBO->SetData(iboData);
-	glBindVertexArray(VAO->Name);
-	IBO->BufferData(-1);
+	IBO = ElementBuffer(&VAO, NumTris);
+	IBO.SetData(iboData);
+	glBindVertexArray(VAO.Name);
+	IBO.BufferData(-1);
 	glBindVertexArray(0);
 }
 
@@ -67,21 +59,21 @@ void Mesh::ComputeAABB(
 		float& min_x, float& min_y, float& min_z,
 		float& max_x, float& max_y, float& max_z) const
 {
-	min_x = VBOs[0]->Data[0];
-	min_y = VBOs[0]->Data[1];
-	min_z = VBOs[0]->Data[2];
-	max_x = VBOs[0]->Data[0];
-	max_y = VBOs[0]->Data[1];
-	max_z = VBOs[0]->Data[2];
+	min_x = VBOs[0].Data[0];
+	min_y = VBOs[0].Data[1];
+	min_z = VBOs[0].Data[2];
+	max_x = VBOs[0].Data[0];
+	max_y = VBOs[0].Data[1];
+	max_z = VBOs[0].Data[2];
 	for (int i = 1; i < NumVerts; i++)
 	{
-		float x = VBOs[0]->Data[i * 3];
+		float x = VBOs[0].Data[i * 3];
 		if (x < min_x) min_x = x;
 		if (x > max_x) max_x = x;
-		float y = VBOs[0]->Data[i * 3 + 1];
+		float y = VBOs[0].Data[i * 3 + 1];
 		if (y < min_y) min_y = y;
 		if (y > max_y) max_y = y;
-		float z = VBOs[0]->Data[i * 3 + 2];
+		float z = VBOs[0].Data[i * 3 + 2];
 		if (z < min_z) min_z = z;
 		if (z > max_z) max_z = z;
 	}
@@ -92,9 +84,9 @@ float Mesh::ComputeRadius(glm::vec3 center) const
 	float max_square_distance = 0.f;
 	for (int i = 0; i < NumVerts; i++)
 	{
-		float x = VBOs[0]->Data[i * 3] - center.x;
-		float y = VBOs[0]->Data[i * 3 + 1] - center.y;
-		float z = VBOs[0]->Data[i * 3 + 2] - center.z;
+		float x = VBOs[0].Data[i * 3] - center.x;
+		float y = VBOs[0].Data[i * 3 + 1] - center.y;
+		float z = VBOs[0].Data[i * 3 + 2] - center.z;
 		float square_distance = x * x + y * y + z * z;
 		if (square_distance > max_square_distance)
 			max_square_distance = square_distance;
@@ -252,3 +244,31 @@ Mesh *Mesh::CreateTriplePlane()
 
 	return triple_plane;
 }
+
+Mesh *Mesh::CreateQuad()
+{
+	Mesh *quad = new Mesh(2, 4, 2);
+
+	GLfloat vbo[] = {
+		-1.0f,  1.0f, 0.0f,   // 0
+		-1.0f, -1.0f, 0.0f,   // 1
+		 1.0f,  1.0f, 0.0f,   // 2
+		 1.0f, -1.0f, 0.0f }; // 3
+	quad->SetVertexData(0, vbo, 3);
+
+	GLfloat texCoords[] = {
+		0.0f, 1.0f,
+		0.0f, 0.0f,
+		1.0f, 1.0f,
+		1.0f, 0.0f };
+	quad->SetVertexData(1, texCoords, 2);
+
+	unsigned int ibo[] = {
+		2, 0, 1,
+		1, 3, 2 };
+	quad->SetIndexData(ibo);
+
+	return quad;
+}
+
+

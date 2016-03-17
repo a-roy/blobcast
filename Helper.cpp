@@ -27,7 +27,8 @@ GLuint loadTexture(const char* fileName, bool alpha)
 	int width, height;
 	unsigned char* image;
 
-	image = SOIL_load_image(fileName, &width, &height, 0, (alpha ? SOIL_LOAD_RGBA : SOIL_LOAD_RGB));
+	image = SOIL_load_image(fileName, &width, &height, 0, (alpha ? 
+		SOIL_LOAD_RGBA : SOIL_LOAD_RGB));
 	if (image == NULL) {
 		std::cout << "Unable to open texture" << std::endl;
 	}
@@ -49,4 +50,9 @@ GLuint loadTexture(const char* fileName, bool alpha)
 
 	SOIL_free_image_data(image);
 	return textureID;
+}
+
+GLfloat lerp(GLfloat a, GLfloat b, GLfloat f)
+{
+	return a + f * (b - a);
 }

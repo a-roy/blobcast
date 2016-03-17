@@ -4,7 +4,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec4 LightSpacePos;
 
-out vec4 fragColor;                                                                               
+out vec4 FragColor;                                                                            
 
 struct DirectionalLight
 {
@@ -13,16 +13,22 @@ struct DirectionalLight
 	vec3 ambientColor;
 };
 
-uniform vec3 viewPos;
-uniform vec4 objectColor;
 uniform DirectionalLight directionalLight;
+uniform vec3 viewPos;
+uniform vec2 screenSize;
+uniform vec4 objectColor;
 
 layout (binding = 0) uniform sampler2DShadow depthMap;
+layout (binding = 1) uniform sampler2D aoMap;
 
 const vec2 mapSize = vec2(2048, 2048);
 
 #define EPSILON 0.00001
 
+vec2 CalcScreenTexCoord()
+{
+    return gl_FragCoord.xy / screenSize;
+}
 
 float CalcShadowFactor(vec4 LightSpacePos)
 {
@@ -31,9 +37,6 @@ float CalcShadowFactor(vec4 LightSpacePos)
     UVCoords.x = 0.5 * projCoords.x + 0.5;
     UVCoords.y = 0.5 * projCoords.y + 0.5;
     float z = 0.5 * projCoords.z + 0.5;
-	
-	if(projCoords.z > 1.0)
-		return 0.0;
 	
 	float xOffset = 1.0/mapSize.x;
 	float yOffset = 1.0/mapSize.y;
@@ -51,22 +54,20 @@ float CalcShadowFactor(vec4 LightSpacePos)
 	return (0.5 + (factor / 18.0));
 }
 
-
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.5f;
-    vec3 ambient = ambientStrength * directionalLight.ambientColor;
+    vec3 ambient = directionalLight.ambientColor;
+	//ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
-	float diffuseStrength = 1.0f;
 	vec3 normal = normalize(Normal);
-    vec3 lightDir = normalize(directionalLight.direction);
+    vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diffuseStrength * diff * directionalLight.color;
+    vec3 diffuse = diff * directionalLight.color;
 	
 	// Specular
-    float specularStrength = 0.2f;
+    float specularStrength = 0.5f;
     vec3 viewDir = normalize(FragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
@@ -74,7 +75,7 @@ void main()
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
 	float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 result = (ambient + ShadowFactor * (diffuse)) * vec3(objectColor);
+    vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);
 	
-    fragColor = vec4(result, 1.0f);
+    FragColor = vec4(result, 1.0f);
 }

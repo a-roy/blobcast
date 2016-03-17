@@ -14,7 +14,7 @@ void FloatBuffer::BufferData(GLuint attribute, size_t stride)
 			GL_FLOAT,
 			GL_FALSE,
 			stride,
-			(void *)0);
+			nullptr);
 }
 
 ElementBuffer::ElementBuffer(VertexArray *vao, int numItems) :
