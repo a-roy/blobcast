@@ -1,4 +1,5 @@
 #include "Mesh.h"
+#include <glm/gtc/constants.hpp>
 
 Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
 	VBOs(vertexBuffers, FloatBuffer(&VAO, 1, numVerts)),
@@ -271,4 +272,66 @@ Mesh *Mesh::CreateQuad()
 	return quad;
 }
 
+Mesh *Mesh::CreateCylinderWithNormals(int segments)
+{
+	const float height = 1.0f; 
+	const float radiusTop = 1.0f;
+	const float radiusBottom = 1.0f;
+
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> normals;
+	std::vector<GLuint> indices;
+	
+	double angle = 0.0;
+
+	vertices.push_back(glm::vec3(0, height, 0));
+	normals.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		angle = ((double)i) / ((double)segments) * 2.0 * 3.14;
+		
+		glm::vec3 v = glm::vec3(radiusTop*cos(angle), height, 
+			radiusTop*sin(angle));
+		vertices.push_back(v);
+		
+		normals.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+		
+		indices.push_back(0);
+		indices.push_back((i + 1) % segments + 1);
+		indices.push_back(i + 1);
+	}
+
+	vertices.push_back(glm::vec3(0, 0, 0));
+	normals.push_back(glm::vec3(0.0f, -1.0f, 0.0f));
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		angle = ((double)i) / ((double)segments) * 2.0 * 3.14;
+		vertices.push_back(glm::vec3(radiusBottom*cos(angle), -height, 
+			radiusBottom*sin(angle)));
+		normals.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+		indices.push_back(segments + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+		indices.push_back(segments + i + 2);
+	}
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		indices.push_back(i + 1);
+		indices.push_back((i + 1) % segments + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+
+		indices.push_back(i + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+		indices.push_back(segments + i + 2);
+	}
+
+	Mesh *cylinder = new Mesh(2, vertices.size(), indices.size() / 3);
+	cylinder->SetVertexData(0, &vertices[0][0], 3);
+	cylinder->SetVertexData(1, &normals[0][0], 3);
+	cylinder->SetIndexData(&indices[0]);
+
+	return cylinder;
+}
 

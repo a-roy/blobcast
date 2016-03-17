@@ -875,16 +875,16 @@ void gui()
 
 		if (ImGui::BeginMenu("Create"))
 		{
-			if (ImGui::MenuItem("Platform"))
+			if (ImGui::MenuItem("Box"))
 			{
 				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f));
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size()-1]->rigidbody);
+					level->Objects[level->Objects.size() - 1]->rigidbody);
 			}
-			if (ImGui::MenuItem("Physics Box"))
+			if (ImGui::MenuItem("Cylinder"))
 			{
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);

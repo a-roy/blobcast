@@ -44,7 +44,23 @@ std::size_t Level::AddBox(
 {
 	Mesh *box(Mesh::CreateCubeWithNormals());
 	RigidBody *r =
-		new RigidBody(box, position, orientation, dimensions, color, mass);
+		new RigidBody(box, Shape::Box, position,
+			orientation, dimensions, color, mass);
+	Objects.push_back(r);
+	return Objects.size() - 1;
+}
+
+std::size_t Level::AddCylinder(
+	glm::vec3 position,
+	glm::quat orientation,
+	glm::vec3 dimensions,
+	glm::vec4 color,
+	float mass)
+{
+	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
+	RigidBody *r =
+		new RigidBody(cylinder, Shape::Cylinder, position,
+			orientation, dimensions, color, mass);
 	Objects.push_back(r);
 	return Objects.size() - 1;
 }
@@ -92,7 +108,10 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = r->GetOrientation();
 		glm::vec3 scale = r->GetScale();
 
-		object["type"] = "box";
+		if(r->shapeType == Shape::Box)
+			object["type"] = "box";
+		else
+			object["type"] = "cylinder";
 		object["position"] = {
 			translation.x, translation.y,
 			translation.z };
@@ -143,8 +162,12 @@ Level *Level::Deserialize(std::string file)
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
 		auto path = object["path"];
-		std::size_t i =
-			level->AddBox(position, orientation, dimensions, color, mass);
+		std::size_t i;
+		if (object["type"] == "box")
+			i = level->AddBox(position, orientation, dimensions, color, mass);
+		else if (object["type"] == "cylinder")
+			i = level->AddCylinder(position, orientation, dimensions, 
+				color, mass);
 		if (!path.is_null())
 		{
 			RigidBody *r = level->Objects[i];
