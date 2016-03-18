@@ -23,8 +23,8 @@ class Buffer
 				unsigned int itemSize,
 				unsigned int numItems);
 		~Buffer();
-		Buffer(const Buffer<T>& other);
-		Buffer<T>& operator=(const Buffer<T>& other);
+		Buffer(const Buffer<T>&) = delete;
+		Buffer<T>& operator=(const Buffer<T>&) = delete;
 		Buffer(Buffer<T>&& other);
 		Buffer<T>& operator=(Buffer<T>&& other);
 

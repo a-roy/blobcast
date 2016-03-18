@@ -1,19 +1,12 @@
 #include "Text.h"
 
 Text::Text(Font *font) :
-	FontStyle(font), VAO(new VertexArray()), Vertices(NULL), TexCoords(NULL)
+	FontStyle(font), Vertices(&VAO, 2, 0), TexCoords(&VAO, 2, 0)
 { }
-
-Text::~Text()
-{
-	delete VAO;
-	delete Vertices;
-	delete TexCoords;
-}
 
 void Text::Draw() const
 {
-	VAO->Bind([&](){
+	VAO.Bind([&](){
 		glDrawArrays(GL_TRIANGLES, 0, NumVerts);
 	});
 }
@@ -22,8 +15,6 @@ void Text::SetText(std::string text)
 {
 	float pen_x = XPosition;
 	float pen_y = YPosition;
-	delete Vertices;
-	delete TexCoords;
 
 	std::size_t length = text.size();
 	NumVerts = length * 6;
@@ -69,10 +60,10 @@ void Text::SetText(std::string text)
 		}
 	}
 
-	Vertices = new FloatBuffer(VAO, 2, NumVerts);
-	Vertices->SetData(&vertices[0]);
-	TexCoords = new FloatBuffer(VAO, 2, NumVerts);
-	TexCoords->SetData(&texcoords[0]);
-	Vertices->VertexAttribPointer(0);
-	TexCoords->VertexAttribPointer(1);
+	Vertices = FloatBuffer(&VAO, 2, NumVerts);
+	Vertices.SetData(&vertices[0]);
+	TexCoords = FloatBuffer(&VAO, 2, NumVerts);
+	TexCoords.SetData(&texcoords[0]);
+	Vertices.VertexAttribPointer(0);
+	TexCoords.VertexAttribPointer(1);
 }

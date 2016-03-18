@@ -26,35 +26,6 @@ inline Buffer<T>::~Buffer()
 }
 
 template <class T>
-inline Buffer<T>::Buffer(const Buffer<T>& other) :
-	Name(0), Data(nullptr)
-{
-	*this = other;
-}
-
-template <class T>
-inline Buffer<T>& Buffer<T>::operator=(const Buffer<T>& other)
-{
-	if (this != &other)
-	{
-		glDeleteBuffers(1, &Name);
-		if (managed_data)
-			delete[] Data;
-
-		Name = other.Name;
-		VAO = other.VAO;
-		Target = other.Target;
-		if (other.managed_data)
-		{
-			Data = new T[NumItems * ItemSize];
-			memcpy(Data, other.Data, sizeof(T) * ItemSize * NumItems);
-		}
-		managed_data = other.managed_data;
-	}
-	return *this;
-}
-
-template <class T>
 inline Buffer<T>::Buffer(Buffer<T>&& other) :
 	Name(0), Data(nullptr)
 {

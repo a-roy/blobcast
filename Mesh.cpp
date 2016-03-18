@@ -1,11 +1,12 @@
 #include "Mesh.h"
 
 Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
-	VBOs(vertexBuffers, FloatBuffer(&VAO, 1, numVerts)),
 	IBO(&VAO, numFaces),
 	NumVerts(numVerts),
 	NumTris(numFaces)
 {
+	for (int i = 0; i < vertexBuffers; i++)
+		VBOs.push_back(FloatBuffer(&VAO, 1, numVerts));
 	VAO.Bind([&](){
 		for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
 			glEnableVertexAttribArray(i);
