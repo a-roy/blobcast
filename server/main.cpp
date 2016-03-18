@@ -317,16 +317,19 @@ void draw()
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
 
 	renderManager.geometryPass(level, viewMatrix, projMatrix);
-	renderManager.SSAOPass(projMatrix);
+	renderManager.SSAOPass(projMatrix, activeCam->Position);
 	renderManager.blurPass();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glViewport(0, 0, width, height);
+
 	//renderManager.debugQuadDraw();
 
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
 	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
 
 	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);

@@ -2,6 +2,7 @@
 
 in vec3 FragPos;
 in vec3 Normal;
+in vec2 TexCoords;
 in vec4 LightSpacePos;
 
 out vec4 FragColor;                                                                            
@@ -58,7 +59,7 @@ void main()
 {   
 	// Ambient
     vec3 ambient = directionalLight.ambientColor;
-	//ambient *= texture(aoMap, CalcScreenTexCoord()).r;
+	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);

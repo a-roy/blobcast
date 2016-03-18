@@ -141,7 +141,7 @@ Mesh *Mesh::CreateCube()
 
 Mesh *Mesh::CreateCubeWithNormals()
 {
-	Mesh *cube = new Mesh(2, 24, 12);
+	Mesh *cube = new Mesh(3, 24, 12);
 	GLfloat vbo[] = {
 		-1, -1, -1,   // 0
 		-1, -1,  1,   // 1
@@ -151,6 +151,7 @@ Mesh *Mesh::CreateCubeWithNormals()
 		 1, -1,  1,   // 5
 		 1,  1, -1,   // 6
 		 1,  1,  1,	  // 7
+
 		-1, -1, -1,   // 8
 		-1, -1,  1,   // 9
 		-1,  1, -1,   // 10
@@ -159,6 +160,7 @@ Mesh *Mesh::CreateCubeWithNormals()
 		 1, -1,  1,   // 13
 		 1,  1, -1,   // 14
 		 1,  1,  1,   // 15
+
 		-1, -1, -1,   // 16
 		-1, -1,  1,   // 17
 		-1,  1, -1,   // 18
@@ -199,6 +201,36 @@ Mesh *Mesh::CreateCubeWithNormals()
 		0, 1, 0
 	};
 	cube->SetVertexData(1, normals, 3);
+
+	GLfloat texCoords[] = {
+		0, 0,	//front/back
+		1, 0,
+		0, 1,
+		1, 1,
+		1, 0,
+		0, 0,
+		1, 1,
+		0, 1,
+
+		1, 0,	//left/right
+		0, 0,
+		1, 1,
+		0, 1,
+		0, 0,
+		1, 0,
+		0, 1,
+		1, 1,
+
+		0, 1,	//top/bottom
+		0, 0,
+		0, 0,
+		0, 1,
+		1, 1,
+		1, 0,
+		1, 0,
+		1, 1,
+	};
+	cube->SetVertexData(2, texCoords, 2);
 
 	unsigned int ibo[] = {
 		// front (-Z)

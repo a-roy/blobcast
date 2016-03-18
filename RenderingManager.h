@@ -23,26 +23,26 @@ public:
 	void dynamicCubeMapPass(Blob *blob, Level *level);
 
 	void geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat4 projMatrix);
-	void SSAOPass(glm::mat4 projMatrix);
+	void SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos);
 	void blurPass();
 
 	void drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix);
 	void debugQuadDraw();
 
 protected:
-	ShaderProgram *blobShaderProgram;
-	ShaderProgram *platformShaderProgram;
-	ShaderProgram *skyboxShaderProgram;
-	ShaderProgram *depthShaderProgram;
-	ShaderProgram *geomPassShaderProgram;
-	ShaderProgram *SSAOShaderProgram;
-	ShaderProgram *blurShaderProgram;
-	ShaderProgram *quadShaderProgram;
+	ShaderProgram *blobShader;
+	ShaderProgram *platformShader;
+	ShaderProgram *skyboxShader;
+	ShaderProgram *depthShader;
+	ShaderProgram *geomPassShader;
+	ShaderProgram *SSAOShader;
+	ShaderProgram *blurShader;
+	ShaderProgram *quadShader;
 
 	IOBuffer cubeMapBuffer;
 	IOBuffer gBuffer;
 	IOBuffer aoBuffer;
-	IOBuffer blurBuffer;
+	std::vector<IOBuffer> pingpongBuffers;
 	IOBuffer depthBuffer;
 
 	glm::mat4 lightSpaceMatrix;
