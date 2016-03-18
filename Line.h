@@ -10,19 +10,20 @@ private:
 	GLuint vao;
 	GLuint *VBOs;
 	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> colors;
 
 public:
 
-	Line(glm::vec3 from, glm::vec3 to) :
-		Line(std::vector<glm::vec3>({{ from, to }}))
+	Line(glm::vec3 from, glm::vec3 to, glm::vec3 color = { 0, 0, 0 }) :
+		Line(std::vector<glm::vec3>({{ from, to }}), color)
 	{ }
 
-	Line(const std::vector<glm::vec3>& verts) :
-		vertices(verts)
+	Line(const std::vector<glm::vec3>& verts, glm::vec3 color = { 0, 0, 0 }) :
+		vertices(verts), colors(verts.size(), color)
 	{
 		glGenVertexArrays(1, &vao);
-		VBOs = new GLuint[1];
-		glGenBuffers(1, VBOs);
+		VBOs = new GLuint[2];
+		glGenBuffers(2, VBOs);
 
 		glBindVertexArray(vao);
 
@@ -36,6 +37,16 @@ public:
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 
+		glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
+		glBufferData(
+				GL_ARRAY_BUFFER,
+				colors.size() * sizeof(glm::vec3),
+				&colors[0],
+				GL_STREAM_DRAW);
+
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
 	}
@@ -43,7 +54,7 @@ public:
 	~Line()
 	{
 		glDeleteVertexArrays(1, &vao);
-		glDeleteBuffers(1, VBOs);
+		glDeleteBuffers(2, VBOs);
 		delete[] VBOs;
 	}
 
@@ -51,7 +62,7 @@ public:
 	Line& operator=(const Line&) = delete;
 
 	Line(Line&& other) :
-		vao(0), VBOs(new GLuint[1] { 0 })
+		vao(0), VBOs(new GLuint[2] { 0 })
 	{
 		*this = std::move(other);
 	}
@@ -61,7 +72,7 @@ public:
 		if (this != &other)
 		{
 			glDeleteVertexArrays(1, &vao);
-			glDeleteBuffers(1, VBOs);
+			glDeleteBuffers(2, VBOs);
 
 			vao = other.vao;
 			other.vao = 0;

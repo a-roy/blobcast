@@ -122,10 +122,7 @@ bool init()
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	vbo->SetData(vertex_data);
 
-	glBindVertexArray(vao->Name);
-	vbo->BufferData(0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
+	vbo->VertexAttribPointer(0);
 
 	glGenTextures(1, &tex);
 	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
@@ -228,11 +225,11 @@ void draw()
 			width, height, 0,
 			GL_BGRA, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
-	glBindVertexArray(vao->Name);
 	stream_program->Use([&](){
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		vao->Bind([](){
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		});
 	});
-	glBindVertexArray(0);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

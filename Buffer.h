@@ -23,13 +23,15 @@ class Buffer
 				unsigned int itemSize,
 				unsigned int numItems);
 		~Buffer();
-		Buffer(const Buffer<T>& other);
-		Buffer<T>& operator=(const Buffer<T>& other);
+		Buffer(const Buffer<T>&) = delete;
+		Buffer<T>& operator=(const Buffer<T>&) = delete;
 		Buffer(Buffer<T>&& other);
 		Buffer<T>& operator=(Buffer<T>&& other);
 
 		virtual void SetData(T *data, bool copy = true);
-		virtual void BufferData(GLuint attribute, size_t stride = 0);
+		virtual void BindBuffer();
+		virtual void VertexAttribPointer(GLuint attribute, size_t stride = 0)
+		{ }
 
 	private:
 		bool managed_data = false;
@@ -44,7 +46,7 @@ class FloatBuffer : public Buffer<GLfloat>
 				unsigned int itemSize,
 				unsigned int numItems);
 
-		void BufferData(GLuint attribute, size_t stride = 0);
+		void VertexAttribPointer(GLuint attribute, size_t stride = 0);
 };
 
 class ElementBuffer : public Buffer<unsigned int>

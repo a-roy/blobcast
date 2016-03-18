@@ -12,13 +12,17 @@ class StreamReceiver
 		StreamReceiver(
 				const char *address, int viewportWidth, int viewportHeight);
 		~StreamReceiver();
+		StreamReceiver(const StreamReceiver&) = delete;
+		StreamReceiver& operator=(const StreamReceiver&) = delete;
+		StreamReceiver(StreamReceiver&& other) = default;
+		StreamReceiver& operator=(StreamReceiver&& other) = default;
 		void ReceiveFrame(uint8_t *data);
 
 	private:
-		AVFormatContext *avfmt = NULL;
-		AVCodecContext *avctx = NULL;
-		AVFrame *avframe = NULL;
-		SwsContext *swctx = NULL;
+		AVFormatContext *avfmt = nullptr;
+		AVCodecContext *avctx = nullptr;
+		AVFrame *avframe = nullptr;
+		SwsContext *swctx = nullptr;
 		int width;
 		int height;
 };
