@@ -48,8 +48,10 @@ class ShaderProgram
 		template<class Fn>
 		void Use(Fn func) const
 		{
+			GLint name;
+			glGetIntegerv(GL_CURRENT_PROGRAM, &name);
 			glUseProgram(program);
 			func();
-			glUseProgram(0);
+			glUseProgram(name);
 		}
 };
