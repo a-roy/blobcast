@@ -18,5 +18,8 @@ public:
 
 	static btSoftBodyWorldInfo softBodyWorldInfo;
 
+	static bool bStepPhysics;
+	static bool bShowBulletDebug;
+
 	static void init();
 };

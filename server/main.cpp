@@ -50,12 +50,10 @@ bool init();
 bool init_physics();
 bool init_graphics();
 bool init_stream();
-bool init_particles();
 void update();
 void draw();
 
 void infoBox();
-void mainMenuBar();
 void drawBulletDebug();
 void gui();
 void key_callback(
@@ -87,13 +85,6 @@ double lastFrame = currentFrame;
 double deltaTime;
 AggregateInput current_inputs;
 
-bool bShowBlobCfg = false;
-bool bShowBulletDebug = true;
-bool bShowImguiDemo = false;
-bool bShowCameraSettings = true;
-
-bool bStepPhysics = false;
-
 LevelEditor *levelEditor;
 
 double xcursor, ycursor;
@@ -109,7 +100,6 @@ double frameCounterTime = 0.0f;
 std::map<std::string, Measurement> Profiler::measurements;
 
 #pragma warning(disable:4996)
-char const *jsonExtension = ".json";
 
 int main(int argc, char *argv[])
 {
@@ -129,7 +119,7 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	levelEditor = new LevelEditor(Physics::dynamicsWorld, level);
+	levelEditor = new LevelEditor(level);
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
@@ -155,7 +145,7 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
-		if (bShowBulletDebug)
+		if (Physics::bShowBulletDebug)
 			drawBulletDebug();
 		if(bGui)
 			gui();
@@ -282,7 +272,7 @@ void update()
 	}
 
 	Profiler::Start("Physics");
-	if(bStepPhysics)
+	if(Physics::bStepPhysics)
 	{
 		for (RigidBody *r : level->Objects)
 			r->Update();
@@ -350,17 +340,18 @@ void gui()
 	ImGui_ImplGlfw_NewFrame();
 
 	infoBox();
-	mainMenuBar();
+	levelEditor->MainMenuBar();
 
-	if (bShowImguiDemo)
+	if (levelEditor->bShowImguiDemo)
 		ImGui::ShowTestWindow();
-	if (bShowBlobCfg)
+	if (levelEditor->bShowBlobCfg)
 		blob->Gui();
-	if (bShowCameraSettings)
+	
+	if (levelEditor->bShowCameraSettings)
 	{
 		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
 
-		ImGui::Begin("Camera Settings", &bShowCameraSettings);
+		ImGui::Begin("Camera Settings", &levelEditor->bShowCameraSettings);
 		static int n;
 		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
 
@@ -387,7 +378,7 @@ void gui()
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 	debugdrawShaderProgram->Use([&](){
-		levelEditor->Gui(debugdrawShaderProgram);
+		levelEditor->SelectionWindow(debugdrawShaderProgram);
 	});
 
 	ImGui::Render();
@@ -427,106 +418,6 @@ void infoBox()
 			activeCam->Position.y, activeCam->Position.z);
 
 		ImGui::End();
-	}
-}
-
-void mainMenuBar()
-{
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Load"))
-			{
-				char const *lTheOpenFileName = NULL;
-				lTheOpenFileName = tinyfd_openFileDialog(
-					"Load level",
-					"",
-					0,
-					NULL,
-					NULL,
-					0);
-				if (lTheOpenFileName != NULL)
-				{
-					levelEditor->selection.clear();
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
-					delete level;
-					level = Level::Deserialize(lTheOpenFileName);
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->addRigidBody(rb->rigidbody);
-					levelEditor->level = level;
-				}
-			}
-
-			if (ImGui::MenuItem("Save as.."))
-			{
-				char const *lTheSaveFileName = NULL;
-
-				lTheSaveFileName = tinyfd_saveFileDialog(
-					"Save Level",
-					"level.json",
-					/*1*/0,
-					/*&jsonExtension*/NULL,
-					NULL);
-
-				if (lTheSaveFileName != NULL)
-					level->Serialize(lTheSaveFileName);
-			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("View"))
-		{
-			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
-				bShowBlobCfg ^= 1;
-			if (ImGui::MenuItem("Bullet Debug", NULL, bShowBulletDebug))
-				bShowBulletDebug ^= 1;
-			if (ImGui::MenuItem("ImGui Demo", NULL, bShowImguiDemo))
-				bShowImguiDemo ^= 1;
-			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
-				bShowCameraSettings ^= 1;
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Create"))
-		{
-			if (ImGui::MenuItem("Box"))
-			{
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f));
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-			}
-			if (ImGui::MenuItem("Cylinder"))
-			{
-				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-			}
-			if (ImGui::MenuItem("Button"))
-			{
-				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Settings"))
-		{
-			if (ImGui::MenuItem("Step Physics", NULL, bStepPhysics))
-				bStepPhysics ^= 1;
-
-			ImGui::EndMenu();
-		}
-
-		ImGui::EndMainMenuBar();
 	}
 }
 
