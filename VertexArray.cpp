@@ -31,8 +31,8 @@ VertexArray& VertexArray::operator=(VertexArray&& other)
 void VertexArray::SetBufferData(
 		GLuint buffer, GLenum target, size_t size, void *data, GLenum usage)
 {
-	glBindVertexArray(Name);
-	glBindBuffer(target, buffer);
-	glBufferData(target, size, data, usage);
-	glBindVertexArray(0);
+	Bind([&](){
+		glBindBuffer(target, buffer);
+		glBufferData(target, size, data, usage);
+	});
 }

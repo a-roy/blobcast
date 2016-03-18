@@ -112,7 +112,9 @@ inline void Buffer<T>::SetData(T *data, bool copy)
 }
 
 template <class T>
-inline void Buffer<T>::BufferData(GLuint attribute, size_t stride)
+inline void Buffer<T>::BindBuffer()
 {
-	glBindBuffer(Target, Name);
+	VAO->Bind([&](){
+		glBindBuffer(Target, Name);
+	});
 }

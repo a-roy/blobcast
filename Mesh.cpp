@@ -6,10 +6,10 @@ Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
 	NumVerts(numVerts),
 	NumTris(numFaces)
 {
-	glBindVertexArray(VAO.Name);
-	for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
-		glEnableVertexAttribArray(i);
-	glBindVertexArray(0);
+	VAO.Bind([&](){
+		for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
+			glEnableVertexAttribArray(i);
+	});
 }
 
 Mesh::Mesh(
@@ -24,16 +24,14 @@ Mesh::Mesh(
 
 void Mesh::Draw() const
 {
-	glBindVertexArray(VAO.Name);
-
-	glDrawElements(
-			GL_TRIANGLES,
-			NumTris * 3,
-			GL_UNSIGNED_INT,
-			(void *)0
-			);
-
-	glBindVertexArray(0);
+	VAO.Bind([&](){
+		glDrawElements(
+				GL_TRIANGLES,
+				NumTris * 3,
+				GL_UNSIGNED_INT,
+				(void *)0
+				);
+	});
 }
 
 void Mesh::SetVertexData(
@@ -41,18 +39,14 @@ void Mesh::SetVertexData(
 {
 	VBOs[attribute] = FloatBuffer(&VAO, itemSize, NumVerts);
 	VBOs[attribute].SetData(data);
-	glBindVertexArray(VAO.Name);
-	VBOs[attribute].BufferData(attribute);
-	glBindVertexArray(0);
+	VBOs[attribute].VertexAttribPointer(attribute);
 }
 
 void Mesh::SetIndexData(unsigned int *iboData)
 {
 	IBO = ElementBuffer(&VAO, NumTris);
 	IBO.SetData(iboData);
-	glBindVertexArray(VAO.Name);
-	IBO.BufferData(-1);
-	glBindVertexArray(0);
+	IBO.BindBuffer();
 }
 
 void Mesh::ComputeAABB(
