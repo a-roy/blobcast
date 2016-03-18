@@ -38,6 +38,14 @@ Blob::Blob(
 	softbody->m_cfg.kDP = 0.001;
 	softbody->m_cfg.kPR = 2500;
 	softbody->setTotalMass(30, true);
+
+	softbody->m_cfg.collisions |= btSoftBody::fCollision::CL_RS +
+		btSoftBody::fCollision::RVSmask,	///Rigid versus soft mask
+		btSoftBody::fCollision::SDF_RS,	///SDF based rigid vs soft
+		btSoftBody::fCollision::CL_RS; ///Cluster vs convex rigid vs soft;
+	//class btSoftRididCollisionAlgorithm;
+	//class btSoftRigidDynamicsWorld;
+
 }
 
 Blob::~Blob()

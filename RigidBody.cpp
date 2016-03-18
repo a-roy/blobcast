@@ -32,6 +32,8 @@ RigidBody::RigidBody(Mesh* p_mesh, Shape p_shapeType,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
+	rigidbody->setRestitution(0.0);
+
 	const char* name = shape->getName();
 
 	if(mass != 0)

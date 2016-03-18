@@ -9,6 +9,7 @@ class Button //: RigidBody .. perhaps then is a 'has a' relationship
 {
 
 public:
+
 	RigidBody* button;
 	btGeneric6DofSpring2Constraint* constraint;
 
@@ -25,14 +26,30 @@ public:
 		constraint->setLinearUpperLimit(btVector3(0., 1., 0.));
 		constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
 		constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
-		Physics::dynamicsWorld->addConstraint(constraint);
+		
 
 		constraint->enableSpring(0, true);
 		constraint->setStiffness(0, 100);
+
+		//constraint->getTranslationalLimitMotor()->m_enableMotor[0] = true;
+		//constraint->getTranslationalLimitMotor()->m_targetVelocity[0] = -5.0f;
+
+		//constraint->setEquilibriumPoint(0, 0);
+
+		//button->rigidbody->setGravity(btVector3(0, 10, 0));
+		//button->rigidbody->set
+
+
+		Physics::dynamicsWorld->addConstraint(constraint);
 	}
 
 	~Button()
 	{
 		delete button;
+	}
+
+	void Update()
+	{
+		
 	}
 };

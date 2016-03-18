@@ -10,7 +10,7 @@ btSoftBodySolver *Physics::softBodySolver;
 
 btSoftBodyWorldInfo Physics::softBodyWorldInfo;
 
-void Physics::init()
+void Physics::Init()
 {
 	broadphase = new btDbvtBroadphase();
 	btVector3 worldAabbMin(-1000, -1000, -1000);
@@ -35,4 +35,34 @@ void Physics::init()
 	softBodyWorldInfo.water_offset = 0;
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
+}
+
+void Physics::Cleanup()
+{
+	delete Physics::dynamicsWorld;
+	delete Physics::solver;
+	delete Physics::collisionConfiguration;
+	delete Physics::dispatcher;
+	delete Physics::broadphase;
+}
+
+bool Physics::BroadphaseTest(btCollisionObject* obj1,
+	btCollisionObject* obj2)
+{
+	btBroadphasePair* pair =
+		Physics::broadphase->getOverlappingPairCache()->findPair(
+			obj1->getBroadphaseHandle(),
+			obj2->getBroadphaseHandle());
+	return (pair != NULL);
+}
+
+bool Physics::NarrowphaseTest(btSoftBody* sb,
+	btCollisionObject* rb)
+{
+	for (int i = 0; i < sb->m_rcontacts.size(); i++)
+		if (sb->m_rcontacts[i].m_cti.m_colObj == rb)
+			return true;
+
+	return false;
+	//return obj1->checkCollideWith(obj2); //Always returns true..
 }

@@ -6,6 +6,8 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 
+#include <iostream>
+
 class Physics
 {
 public:
@@ -18,5 +20,27 @@ public:
 
 	static btSoftBodyWorldInfo softBodyWorldInfo;
 
-	static void init();
+	static void Init();
+	static void Cleanup();
+
+	//Works between rigid bodies only!
+	struct ContactResultCallback : 
+		public btCollisionWorld::ContactResultCallback
+	{
+		btScalar addSingleResult(btManifoldPoint& cp,
+			const btCollisionObjectWrapper* colObj0Wrap,
+			int partId0,
+			int index0,
+			const btCollisionObjectWrapper* colObj1Wrap,
+			int partId1,
+			int index1)
+		{
+			std::cout << "Collision!";
+			return 1;
+		}
+	};
+
+	static bool BroadphaseTest(btCollisionObject* obj1,
+		btCollisionObject* obj2);
+	static bool NarrowphaseTest(btSoftBody* sb, btCollisionObject* rb);
 };

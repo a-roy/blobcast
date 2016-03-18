@@ -39,6 +39,7 @@
 #include "tinyfiledialogs.h"
 
 #include "Physics.h"
+#include "Button.h"
 
 bool init();
 bool init_physics();
@@ -104,6 +105,8 @@ std::map<std::string, Measurement> Profiler::measurements;
 #pragma warning(disable:4996) /* allows usage of strncpy, strcpy, strcat, sprintf, fopen */
 char const *jsonExtension = ".json";
 
+std::vector<Button*> buttons;
+
 int main(int argc, char *argv[])
 {
 	window = GLFWProject::Init("Blobserver", RENDER_WIDTH, RENDER_HEIGHT);
@@ -166,11 +169,7 @@ int main(int argc, char *argv[])
 	}
 	delete stream;
 
-	delete Physics::dynamicsWorld;
-	delete Physics::solver;
-	delete Physics::collisionConfiguration;
-	delete Physics::dispatcher;
-	delete Physics::broadphase;
+	Physics::Cleanup();
 
 	delete blob;
 	delete levelEditor;
@@ -191,7 +190,7 @@ bool init()
 
 bool init_physics()
 {
-	Physics::init();
+	Physics::Init();
 	
 	blob = new Blob(Physics::softBodyWorldInfo, 
 		btVector3(0, 100, 0), 3.0f, 512);
@@ -273,8 +272,34 @@ void update()
 	Profiler::Start("Physics");
 	if(bStepPhysics)
 	{
+		//For trigger objects
+		/*mBody->setCollisionFlags(mBody->getCollisionFlags() |
+		btCollisionObject::CF_NO_CONTACT_RESPONSE));*/
+
+		std::cout << blob->softbody->m_rcontacts.size(); 
+		if (buttons.size() > 0)
+		{
+			if (Physics::BroadphaseTest(blob->softbody, 
+				buttons[0]->button->rigidbody))
+				std::cout << "broadphase";
+			if (Physics::NarrowphaseTest(blob->softbody, 
+				buttons[0]->button->rigidbody))
+				std::cout << "narrowphase" << std::endl;
+			//rigidbody->getUserPointer to do things
+
+			Physics::ContactResultCallback callback;
+			Physics::dynamicsWorld->contactTest(buttons[0]->button->rigidbody,
+				callback);
+			Physics::dynamicsWorld->contactPairTest(blob->softbody,
+				buttons[0]->button->rigidbody,
+				callback);
+			//btCollisionShape* shape = blob->softbody->getCollisionShape();
+		}
+
 		for (RigidBody *r : level->Objects)
 			r->Update();
+		for (Button *b : buttons)
+			b->Update();
 		Physics::dynamicsWorld->stepSimulation(deltaTime, 10);
 	}
 	Profiler::Finish("Physics");
@@ -486,8 +511,12 @@ void gui()
 			}
 			if (ImGui::MenuItem("Button"))
 			{
-				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
+				/*level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);*/
+				Button *b = new Button(glm::vec3(0), glm::quat(), glm::vec3(1),
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				level->Objects.push_back(b->button);
+				buttons.push_back(b);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 			}
