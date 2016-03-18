@@ -10,7 +10,7 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 	glGenBuffers(1, &pbo);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
 	avcodec_register_all();
-	AVDictionary *opts = NULL;
+	AVDictionary *opts = nullptr;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_dict_set(&opts, "crf", xstr(CODEC_CRF), 0);
@@ -20,7 +20,7 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
-		throw new std::exception();
+		throw std::exception();
 	avctx = avcodec_alloc_context3(codec);
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = STREAM_WIDTH;
@@ -30,7 +30,7 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 	avctx->gop_size = 0;
 #endif // UDP_STREAM
 	if (avcodec_open2(avctx, codec, &opts) < 0)
-		throw new std::exception();
+		throw std::exception();
 
 	avframe = av_frame_alloc();
 	avframe->format = AV_PIX_FMT_YUV420P;
@@ -40,12 +40,12 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 	avframe->linesize[1] = STREAM_WIDTH / 2;
 	avframe->linesize[2] = STREAM_WIDTH / 2;
 	if (av_frame_get_buffer(avframe, 0) != 0)
-		throw new std::exception();
+		throw std::exception();
 
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
 	glBufferData(
-			GL_PIXEL_PACK_BUFFER, width * height * 3, NULL, GL_STREAM_READ);
+			GL_PIXEL_PACK_BUFFER, width * height * 3, nullptr, GL_STREAM_READ);
 
 	av_register_all();
 	avformat_network_init();
@@ -57,24 +57,24 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 	avfmt->start_time_realtime = AV_NOPTS_VALUE;
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
-	if (s == NULL)
-		throw new std::exception();
+	if (s == nullptr)
+		throw std::exception();
 	s->codec = avctx;
 	int io_result =
-		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, NULL, &opts);
+		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, nullptr, &opts);
 	open = (io_result >= 0);
 	if (!open)
 		return;
 	avfmt->pb = ioctx;
 	if (avformat_write_header(avfmt, &opts) != 0)
-		throw new std::exception();
+		throw std::exception();
 
 	swctx = sws_getContext(
 			width, height, AV_PIX_FMT_RGB24,
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
-			SWS_BICUBIC, NULL, NULL, NULL);
-	if (swctx == NULL)
-		throw new std::exception();
+			SWS_BICUBIC, nullptr, nullptr, nullptr);
+	if (swctx == nullptr)
+		throw std::exception();
 }
 
 StreamWriter::~StreamWriter()
@@ -94,7 +94,7 @@ void StreamWriter::WriteFrame()
 		(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
 	uint8_t *const srcSlice[] = { data };
 	int srcStride[] = { width * 3 };
-	if (data != NULL)
+	if (data != nullptr)
 		sws_scale(
 				swctx,
 				srcSlice, srcStride,
