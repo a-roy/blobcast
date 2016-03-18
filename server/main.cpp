@@ -353,6 +353,13 @@ void drawBulletDebug()
 
 void gui()
 {
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->DrawPath(*debugdrawShaderProgram);
+	});
+
 	ImGui_ImplGlfw_NewFrame();
 
 	ImGui::SetNextWindowPos(ImVec2(width - 500, 40));
@@ -564,8 +571,6 @@ void gui()
 		ImGui::End();
 	}
 
-	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 	debugdrawShaderProgram->Use([&](){
 		levelEditor->Gui(debugdrawShaderProgram);
 	});
@@ -573,10 +578,6 @@ void gui()
 	ImGui::Render();
 	glDisable(GL_SCISSOR_TEST);
 	glEnable(GL_DEPTH_TEST);
-
-	debugdrawShaderProgram->Use([&](){
-		levelEditor->DrawPath(*debugdrawShaderProgram);
-	});
 }
 
 void key_callback(
