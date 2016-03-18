@@ -9,13 +9,12 @@
 class BlobDisplay
 {
 	public:
-		VertexArray *VAO;
-		FloatBuffer *VBO;
+		VertexArray VAO;
+		FloatBuffer VBO;
 		glm::mat4 MVPMatrix;
 		float InnerRadius = 0.7f;
 		float OuterRadius = 0.9f;
 
 		BlobDisplay(int viewportWidth, int viewportHeight, int displaySize);
-		~BlobDisplay();
 		void Render(const ShaderProgram& program, AggregateInput& inputs);
 };

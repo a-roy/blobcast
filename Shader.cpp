@@ -37,9 +37,9 @@ Shader::~Shader()
 	glDeleteShader(Name);
 }
 
-Shader::Shader(const Shader& other)
+Shader::Shader(const Shader& other) :
+	Name(0)
 {
-	Name = 0;
 	*this = other;
 }
 
@@ -49,15 +49,36 @@ Shader& Shader::operator=(const Shader& other)
 	glGetShaderiv(other.Name, GL_SHADER_SOURCE_LENGTH, &length);
 	std::vector<char> buffer(length);
 	char *src = buffer.data();
-	glGetShaderSource(other.Name, length, NULL, src);
+	glGetShaderSource(other.Name, length, nullptr, src);
 
 	glDeleteShader(Name);
 	Name = glCreateShader(other.ShaderType);
 	ShaderType = other.ShaderType;
 	Path = other.Path;
-	glShaderSource(Name, 1, &src, NULL);
+	glShaderSource(Name, 1, &src, nullptr);
 	Compile();
 
+	return *this;
+}
+
+Shader::Shader(Shader&& other) :
+	Name(0)
+{
+	*this = std::move(other);
+}
+
+Shader& Shader::operator=(Shader&& other)
+{
+	if (this != &other)
+	{
+		glDeleteShader(Name);
+		Name = other.Name;
+		ShaderType = other.ShaderType;
+		Path = other.Path;
+		other.Name = 0;
+		other.ShaderType = 0;
+		other.Path.clear();
+	}
 	return *this;
 }
 
@@ -66,7 +87,7 @@ void Shader::Load(std::string path)
 	std::vector<char> buffer;
 	ReadSource(path.c_str(), buffer);
 	const char *src = buffer.data();
-	glShaderSource(Name, 1, &src, NULL);
+	glShaderSource(Name, 1, &src, nullptr);
 }
 
 void Shader::Compile()

@@ -19,16 +19,16 @@ StreamReceiver::StreamReceiver(
 				NULL,
 				&opts
 				) < 0)
-		throw new std::exception();
+		throw std::exception();
 	if (avfmt->streams[0]->codec->codec_id == AV_CODEC_ID_NONE)
 		avfmt->streams[0]->codec->codec_id = AV_CODEC_ID_H264;
 	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
 	if (codec == NULL)
-		throw new std::exception();
+		throw std::exception();
 	
 	avctx = avcodec_alloc_context3(codec);
 	if (avcodec_open2(avctx, NULL, &opts) < 0)
-		throw new std::exception();
+		throw std::exception();
 	
 	swctx = sws_getContext(
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,

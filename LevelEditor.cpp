@@ -1,6 +1,7 @@
 #include "LevelEditor.h"
 #include "config.h"
 #include "Line.h"
+#include "Points.h"
 #include <sstream>
 
 void LevelEditor::Gui(ShaderProgram *shaderProgram)
@@ -13,28 +14,30 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 		std::stringstream ss;
 		ss << "Selection (" << selection.size() << " objects)###Selection";
 		ImGui::Begin(ss.str().c_str());
-		Translation();
-		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-		Rotation(shaderProgram);
+
+		if (ImGui::CollapsingHeader("Translation"))
+			Translation();
+		ImGui::Spacing(); 
 		
-		static int e = 0;
-		ImGui::RadioButton("Global", &e, 0); ImGui::SameLine();
-		ImGui::RadioButton("Local", &e, 1); ImGui::SameLine();
-		bLocal = e;
+		if (ImGui::CollapsingHeader("Rotation"))
+			Rotation(shaderProgram);	
+		ImGui::Spacing(); 
 
-		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-
-		Scale();
-		ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
+		if (ImGui::CollapsingHeader("Scale"))
+		{
+			Scale();
+			ImGui::Separator();
+		}
+		ImGui::Spacing();
 		if (ImGui::Button("Clone selection"))
-			CloneSelection();
+			CloneSelection(); ImGui::SameLine();
 		if (ImGui::Button("Delete selection"))
 			DeleteSelection();
 
 		if (selection.size() >= 2)
 		{
-			if (ImGui::Button("Create compound object")) //TODO
-			{
+			//if (ImGui::Button("Create compound object")) //TODO
+			//{
 				/*btCompoundShape* compoundShape = new btCompoundShape();
 				for (auto rb : selection)
 				{
@@ -44,12 +47,11 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 						rb->rigidbody->getWorldTransform(),
 						boxShape);
 				}*/
-			}
+			//}
 		}
 
 		if (selection.size() == 1)
 		{
-			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
 			RigidBody *first = *selection.begin();
 			float mass = first->mass;
 			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
@@ -64,8 +66,11 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 
 				first->mass = mass;
 			}
-			ImGui::Spacing(); ImGui::Separator(); ImGui::Spacing();
-			ImGui::ColorEdit4("color 2", glm::value_ptr(first->trueColor));
+			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
+			if (ImGui::CollapsingHeader("Path"))
+			{
+				Path();
+			}
 		}
 
 		ImGui::End();
@@ -124,19 +129,25 @@ void LevelEditor::Translation()
 	for (auto rb : selection)
 		centroid += rb->GetTranslation();
 	centroid /= selection.size();
-	glm::vec3 before = centroid;
-	if (ImGui::DragFloat3("Position", glm::value_ptr(centroid)))
-	{
-		btVector3 relTrans = convert(centroid - before);
-		for (auto rb : selection)
-		{
-			rb->rigidbody->setWorldTransform(btTransform(
-				rb->rigidbody->getOrientation(),
-				rb->rigidbody->getWorldTransform().getOrigin()
-				+ relTrans));
-		}
+	float x = centroid.x;
+	if (ImGui::InputFloat("X", &x, 1.0f, 5.0f))
+		TranslateSelection(glm::vec3(x-centroid.x,0,0));
+	float y = centroid.y;
+	if (ImGui::InputFloat("Y", &y, 1.0f, 5.0f))
+		TranslateSelection(glm::vec3(0,y-centroid.y,0));
+	float z = centroid.z;
+	if (ImGui::InputFloat("Z", &z, 1.0f, 5.0f))
+		TranslateSelection(glm::vec3(0,0,z-centroid.z));
+}
 
-		dynamicsWorld->updateAabbs();
+void LevelEditor::TranslateSelection(glm::vec3 translate)
+{
+	for (auto rb : selection)
+	{
+		rb->rigidbody->setWorldTransform(btTransform(
+			rb->rigidbody->getOrientation(),
+			rb->rigidbody->getWorldTransform().getOrigin()
+			+ convert(translate)));
 	}
 }
 
@@ -172,21 +183,21 @@ void LevelEditor::Rotation(ShaderProgram *shaderProgram)
 	}
 
 	float x = 0;
-	if (ImGui::InputFloat("RotationX", &x, 15.0f, 15.0f))
+	if (ImGui::InputFloat("X", &x, 15.0f, 15.0f))
 	{
 		if (bLocal) LocalRotation(x, glm::vec3(1, 0, 0));
 		else GlobalRotation(x, glm::vec3(1, 0, 0), centroid);
 	}
 
 	float y = 0;
-	if (ImGui::InputFloat("RotationY", &y, 15.0f, 15.0f))
+	if (ImGui::InputFloat("Y", &y, 15.0f, 15.0f))
 	{
 		if (bLocal) LocalRotation(y, glm::vec3(0, 1, 0));
 		else GlobalRotation(y, glm::vec3(0, 1, 0), centroid);
 	}
 
 	float z = 0;
-	if (ImGui::InputFloat("RotationZ", &z, 15.0f, 15.0f))
+	if (ImGui::InputFloat("Z", &z, 15.0f, 15.0f))
 	{
 		if (bLocal) LocalRotation(z, glm::vec3(0, 0, 1));
 		else GlobalRotation(z, glm::vec3(0, 0, 1), centroid);
@@ -200,6 +211,11 @@ void LevelEditor::Rotation(ShaderProgram *shaderProgram)
 				rb->rigidbody->getWorldTransform().getOrigin()));
 		}
 	}
+
+	static int e = 0;
+	ImGui::RadioButton("Global", &e, 0); ImGui::SameLine();
+	ImGui::RadioButton("Local", &e, 1); ImGui::SameLine();
+	bLocal = e;
 }
 
 void LevelEditor::LocalRotation(float angle, glm::vec3 axis)
@@ -240,10 +256,45 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {
 	axis = glm::toMat3(orientation) * axis;
-	(*shaderProgram)["uColor"] = color;
 	Line axisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
-		translation + (axis * ROTATION_GIZMO_SIZE));
+		translation + (axis * ROTATION_GIZMO_SIZE),
+		glm::vec3(color));
 	shaderProgram->Use([&]() { axisDraw.Render(); });
+}
+
+void LevelEditor::DrawPath(const ShaderProgram& program)
+{
+	if (selection.size() == 1)
+	{
+		RigidBody *rb = *selection.begin();
+		if (!rb->motion.Points.empty())
+		{
+			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
+			std::vector<glm::vec3> l;
+			l.push_back(p.front());
+			for (int i = 0, n = (rb->motion.Loop ? p.size() : p.size() - 1);
+					i < n; i++)
+			{
+				float t = (float)i;
+				for (int j = 1; j <= 10; j++)
+				{
+					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+				}
+			}
+			if (c.size() > 1)
+			{
+				c.front() = glm::vec3(0, 1, 0);
+				c.back() = glm::vec3(1, 0, 0);
+			}
+			Points pts(p, c);
+			Line path(l, glm::vec3(0, 0, 1));
+			program.Use([&](){
+				pts.Render(10.f);
+				path.Render();
+			});
+		}
+	}
 }
 
 void LevelEditor::Scale()
@@ -267,6 +318,47 @@ void LevelEditor::Scale()
 			dynamicsWorld->updateSingleAabb(rb->rigidbody);
 		}
 	}
+}
+
+void LevelEditor::Path()
+{
+	RigidBody *rb = *selection.begin();
+	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &rb->motion.Loop);
+	ImGui::Spacing();
+	bool path_changed = false;
+	int x = 0;
+	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
+	{
+		std::string pt_text = ("P" + std::to_string(x));
+		std::string rm_text = ("Rm " + std::to_string(x));
+		std::string ins_text = ("Ins " + std::to_string(x));
+		path_changed |=
+			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
+		ImGui::SameLine();
+		if (ImGui::Button(rm_text.c_str()))
+		{
+			i = rb->motion.Points.erase(i);
+			path_changed = true;
+			if (i == rb->motion.Points.end())
+				break;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(ins_text.c_str()))
+		{
+			i = rb->motion.Points.insert(i, rb->GetTranslation());
+			path_changed = true;
+		}
+		ImGui::Spacing();
+		x++;
+	}
+	if (ImGui::Button("Add new point"))
+	{
+		rb->motion.Points.push_back(rb->GetTranslation());
+		path_changed = true;
+	}
+	if (path_changed)
+		rb->motion.Reset();
 }
 
 void LevelEditor::DeleteSelection()

@@ -5,16 +5,20 @@ FloatBuffer::FloatBuffer(
 	Buffer<GLfloat>(vao, GL_ARRAY_BUFFER, GL_STATIC_DRAW, itemSize, numItems)
 { }
 
-void FloatBuffer::BufferData(GLuint attribute, size_t stride)
+void FloatBuffer::VertexAttribPointer(GLuint attribute, size_t stride)
 {
-	Buffer<GLfloat>::BufferData(attribute);
-	glVertexAttribPointer(
-			attribute,
-			ItemSize,
-			GL_FLOAT,
-			GL_FALSE,
-			stride,
-			(void *)0);
+	BindBuffer();
+	VAO->Bind([&](){
+		glVertexAttribPointer(
+				attribute,
+				ItemSize,
+				GL_FLOAT,
+				GL_FALSE,
+				stride,
+				nullptr);
+		glEnableVertexAttribArray(attribute);
+	});
+	glBindBuffer(Target, 0);
 }
 
 ElementBuffer::ElementBuffer(VertexArray *vao, int numItems) :

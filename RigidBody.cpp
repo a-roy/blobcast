@@ -4,14 +4,21 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation, 
-	glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
-	float p_mass) : mesh(p_mesh), color(p_color), trueColor(p_color), 
+RigidBody::RigidBody(Mesh* p_mesh, Shape p_shapeType, 
+	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, 
+	glm::vec4 p_color, float p_mass) 
+	: mesh(p_mesh), color(p_color), trueColor(p_color), 
 	mass(p_mass)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 	btCollisionShape* shape;
-	shape = new btBoxShape(btVector3(1,1,1));
+	shapeType = p_shapeType;
+	
+	if(p_shapeType == Shape::Box)
+		shape = new btBoxShape(btVector3(1,1,1));
+	else 
+		shape = new btCylinderShape(btVector3(1, 1, 1));
+
 	shape->setLocalScaling(convert(p_scale));
 
 	btDefaultMotionState* transform = 
@@ -25,8 +32,10 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
-	//if(mass != 0)
-		//rigidbody->setActivationState(DISABLE_DEACTIVATION);
+	const char* name = shape->getName();
+
+	if(mass != 0)
+		rigidbody->setActivationState(DISABLE_DEACTIVATION);
 	//rigidbody->setMassProps(mass, inertia);
 
 	rigidbody->setUserPointer(this);
@@ -34,6 +43,7 @@ RigidBody::RigidBody(Mesh* p_mesh, glm::vec3 p_translation,
 
 RigidBody::RigidBody(RigidBody& rb) :
 	RigidBody(Mesh::CreateCubeWithNormals(),
+		rb.shapeType,
 		rb.GetTranslation(),
 		rb.GetOrientation(),
 		rb.GetScale(),
@@ -56,4 +66,17 @@ glm::mat4 RigidBody::GetModelMatrix()
 void RigidBody::Render()
 {
 	mesh->Draw();
+}
+
+void RigidBody::Update()
+{
+	if (!motion.Points.empty())
+	{
+		if (motion.Step())
+		{
+			rigidbody->translate(
+					convert(motion.GetPosition() - GetTranslation()));
+			rigidbody->setLinearVelocity(btVector3(0, 0, 0));
+		}
+	}
 }

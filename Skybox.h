@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iostream>
 #include <GL/glew.h>
-#include <glm\glm.hpp>
+#include <glm/glm.hpp>
 
 
 class Skybox

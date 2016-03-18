@@ -42,9 +42,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
 	{
 		glDeleteProgram(program);
 		program = other.program;
-		uniforms = other.uniforms;
 		other.program = 0;
-		other.uniforms.clear();
 	}
 	return *this;
 }
@@ -76,34 +74,11 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 	{
 		glDetachShader(program, shaders[i]->Name);
 	}
-
-	GLint num_uniforms;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &num_uniforms);
-	GLint uniform_name_length;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_name_length);
-	GLchar *name = new GLchar[uniform_name_length];
-	for (GLint i = 0; i < num_uniforms; i++)
-	{
-		GLint size;
-		GLenum type;
-		glGetActiveUniform(
-				program, i, uniform_name_length, NULL, &size, &type, name);
-		uniforms[name] = glGetUniformLocation(program, name);
-	}
-	delete[] name;
 }
 
 GLint ShaderProgram::GetUniformLocation(std::string name) const
 {
-	auto it = uniforms.find(name);
-	if (it == uniforms.end())
-	{
-		return -1;
-	}
-	else
-	{
-		return it->second;
-	}
+	return glGetUniformLocation(program, name.c_str());
 }
 
 void ShaderProgram::DrawFrame(Frame *frame, glm::mat4 mvMatrix) const
@@ -117,36 +92,34 @@ void ShaderProgram::DrawFrame(Frame *frame, glm::mat4 mvMatrix) const
 
 ShaderProgram::Uniform ShaderProgram::operator[](std::string name) const
 {
-	Uniform u = { this, glGetUniformLocation(program, name.c_str()) };
-	return u;
-}
-
-ShaderProgram::Uniform ShaderProgram::operator[](GLint location) const
-{
-	Uniform u = { this, location };
+	Uniform u = { this, glGetUniformLocation(program, name.c_str()), name };
 	return u;
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec2 value)
 {
+	warn(GL_FLOAT_VEC2, "vec2");
 	program->Use([&](){ glUniform2fv(Location, 1, glm::value_ptr(value)); });
 	return *this;
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec3 value)
 {
+	warn(GL_FLOAT_VEC3, "vec3");
 	program->Use([&](){ glUniform3fv(Location, 1, glm::value_ptr(value)); });
 	return *this;
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::vec4 value)
 {
+	warn(GL_FLOAT_VEC4, "vec4");
 	program->Use([&](){ glUniform4fv(Location, 1, glm::value_ptr(value)); });
 	return *this;
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat3 value)
 {
+	warn(GL_FLOAT_MAT3, "mat3");
 	program->Use([&](){
 		glUniformMatrix3fv(Location, 1, GL_FALSE, glm::value_ptr(value));
 	});
@@ -155,6 +128,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat3 value)
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat4 value)
 {
+	warn(GL_FLOAT_MAT4, "mat4");
 	program->Use([&](){
 		glUniformMatrix4fv(Location, 1, GL_FALSE, glm::value_ptr(value));
 	});
@@ -162,8 +136,19 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(glm::mat4 value)
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
+		const std::vector<glm::vec2>& values)
+{
+	warn(GL_FLOAT_VEC2, "vec2", values.size());
+	program->Use([&](){
+		glUniform2fv(Location, values.size(), glm::value_ptr(values[0]));
+	});
+	return *this;
+}
+
+ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 		const std::vector<glm::vec3>& values)
 {
+	warn(GL_FLOAT_VEC3, "vec3", values.size());
 	program->Use([&](){
 		glUniform3fv(Location, values.size(), glm::value_ptr(values[0]));
 	});
@@ -173,6 +158,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 		const std::vector<glm::vec4>& values)
 {
+	warn(GL_FLOAT_VEC4, "vec4", values.size());
 	program->Use([&](){
 		glUniform4fv(Location, values.size(), glm::value_ptr(values[0]));
 	});
@@ -182,6 +168,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 		const std::vector<glm::mat3>& values)
 {
+	warn(GL_FLOAT_MAT3, "mat3", values.size());
 	program->Use([&](){
 		glUniformMatrix3fv(
 				Location, values.size(), GL_FALSE, glm::value_ptr(values[0]));
@@ -192,6 +179,7 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 		const std::vector<glm::mat4>& values)
 {
+	warn(GL_FLOAT_MAT4, "mat4", values.size());
 	program->Use([&](){
 		glUniformMatrix4fv(
 				Location, values.size(), GL_FALSE, glm::value_ptr(values[0]));
@@ -201,12 +189,42 @@ ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(GLfloat value)
 {
+	warn(GL_FLOAT, "float");
 	program->Use([&](){ glUniform1f(Location, value); });
 	return *this;
 }
 
 ShaderProgram::Uniform& ShaderProgram::Uniform::operator=(GLint value)
 {
+	/// \TODO type check
 	program->Use([&](){ glUniform1i(Location, value); });
 	return *this;
+}
+
+void ShaderProgram::Uniform::warn(GLenum sym, std::string keyword, int num)
+{
+	const GLchar *name = Name.c_str();
+	GLuint index;
+	glGetUniformIndices(program->program, 1, &name, &index);
+	if (index == GL_INVALID_INDEX)
+	{
+		std::cerr << "Warning: Uniform variable `" << Name << "` "
+			"is not an active uniform." << std::endl;
+		return;
+	}
+	GLint size;
+	GLenum type;
+	glGetActiveUniform(
+			program->program, index, 0, nullptr, &size, &type, nullptr);
+	if (type != sym)
+	{
+		std::cerr << "Warning: Uniform variable `" << Name << "` "
+			"does not have type `" << keyword << "`." << std::endl;
+	}
+	if (num > 1 && size != num)
+	{
+		std::cerr << "Warning: Uniform variable `" << Name << "` "
+			"with size " << size << " initialized by data with size " <<
+			num << "." << std::endl;
+	}
 }

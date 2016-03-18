@@ -1,15 +1,17 @@
 #include "Mesh.h"
+#include <glm/gtc/constants.hpp>
 
 Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
-	VAO(new VertexArray()),
-	VBOs(vertexBuffers),
+	IBO(&VAO, numFaces),
 	NumVerts(numVerts),
 	NumTris(numFaces)
 {
-	glBindVertexArray(VAO->Name);
-	for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
-		glEnableVertexAttribArray(i);
-	glBindVertexArray(0);
+	for (int i = 0; i < vertexBuffers; i++)
+		VBOs.push_back(FloatBuffer(&VAO, 1, numVerts));
+	VAO.Bind([&](){
+		for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
+			glEnableVertexAttribArray(i);
+	});
 }
 
 Mesh::Mesh(
@@ -22,66 +24,52 @@ Mesh::Mesh(
 	SetIndexData(&ibo[0]);
 }
 
-Mesh::~Mesh()
-{
-	delete VAO;
-	for (std::size_t i = 0, n = VBOs.size(); i < n; i++)
-		delete VBOs[i];
-	delete IBO;
-}
-
 void Mesh::Draw() const
 {
-	glBindVertexArray(VAO->Name);
-
-	glDrawElements(
-			GL_TRIANGLES,
-			NumTris * 3,
-			GL_UNSIGNED_INT,
-			(void *)0
-			);
-
-	glBindVertexArray(0);
+	VAO.Bind([&](){
+		glDrawElements(
+				GL_TRIANGLES,
+				NumTris * 3,
+				GL_UNSIGNED_INT,
+				(void *)0
+				);
+	});
 }
 
 void Mesh::SetVertexData(
 		unsigned int attribute, GLfloat *data, int itemSize)
 {
-	VBOs[attribute] = new FloatBuffer(VAO, itemSize, NumVerts);
-	VBOs[attribute]->SetData(data);
-	glBindVertexArray(VAO->Name);
-	VBOs[attribute]->BufferData(attribute);
-	glBindVertexArray(0);
+	VBOs[attribute] = FloatBuffer(&VAO, itemSize, NumVerts);
+	VBOs[attribute].SetData(data);
+	VBOs[attribute].VertexAttribPointer(attribute);
 }
 
 void Mesh::SetIndexData(unsigned int *iboData)
 {
-	IBO = new ElementBuffer(VAO, NumTris);
-	IBO->SetData(iboData);
-	glBindVertexArray(VAO->Name);
-	IBO->BufferData(-1);
-	glBindVertexArray(0);
+	IBO = ElementBuffer(&VAO, NumTris);
+	IBO.SetData(iboData);
+	IBO.BindBuffer();
 }
 
 void Mesh::ComputeAABB(
 		float& min_x, float& min_y, float& min_z,
 		float& max_x, float& max_y, float& max_z) const
 {
-	min_x = VBOs[0]->Data[0];
-	min_y = VBOs[0]->Data[1];
-	min_z = VBOs[0]->Data[2];
-	max_x = VBOs[0]->Data[0];
-	max_y = VBOs[0]->Data[1];
-	max_z = VBOs[0]->Data[2];
+	min_x = VBOs[0].Data[0];
+	min_y = VBOs[0].Data[1];
+	min_z = VBOs[0].Data[2];
+	max_x = VBOs[0].Data[0];
+	max_y = VBOs[0].Data[1];
+	max_z = VBOs[0].Data[2];
 	for (int i = 1; i < NumVerts; i++)
 	{
-		float x = VBOs[0]->Data[i * 3];
+		float x = VBOs[0].Data[i * 3];
 		if (x < min_x) min_x = x;
 		if (x > max_x) max_x = x;
-		float y = VBOs[0]->Data[i * 3 + 1];
+		float y = VBOs[0].Data[i * 3 + 1];
 		if (y < min_y) min_y = y;
 		if (y > max_y) max_y = y;
-		float z = VBOs[0]->Data[i * 3 + 2];
+		float z = VBOs[0].Data[i * 3 + 2];
 		if (z < min_z) min_z = z;
 		if (z > max_z) max_z = z;
 	}
@@ -92,9 +80,9 @@ float Mesh::ComputeRadius(glm::vec3 center) const
 	float max_square_distance = 0.f;
 	for (int i = 0; i < NumVerts; i++)
 	{
-		float x = VBOs[0]->Data[i * 3] - center.x;
-		float y = VBOs[0]->Data[i * 3 + 1] - center.y;
-		float z = VBOs[0]->Data[i * 3 + 2] - center.z;
+		float x = VBOs[0].Data[i * 3] - center.x;
+		float y = VBOs[0].Data[i * 3 + 1] - center.y;
+		float z = VBOs[0].Data[i * 3 + 2] - center.z;
 		float square_distance = x * x + y * y + z * z;
 		if (square_distance > max_square_distance)
 			max_square_distance = square_distance;
@@ -311,4 +299,66 @@ Mesh *Mesh::CreateQuad()
 	return quad;
 }
 
+Mesh *Mesh::CreateCylinderWithNormals(int segments)
+{
+	const float height = 1.0f; 
+	const float radiusTop = 1.0f;
+	const float radiusBottom = 1.0f;
+
+	std::vector<glm::vec3> vertices;
+	std::vector<glm::vec3> normals;
+	std::vector<GLuint> indices;
+	
+	double angle = 0.0;
+
+	vertices.push_back(glm::vec3(0, height, 0));
+	normals.push_back(glm::vec3(0.0f, 1.0f, 0.0f));
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		angle = ((double)i) / ((double)segments) * 2.0 * 3.14;
+		
+		glm::vec3 v = glm::vec3(radiusTop*cos(angle), height, 
+			radiusTop*sin(angle));
+		vertices.push_back(v);
+		
+		normals.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+		
+		indices.push_back(0);
+		indices.push_back((i + 1) % segments + 1);
+		indices.push_back(i + 1);
+	}
+
+	vertices.push_back(glm::vec3(0, 0, 0));
+	normals.push_back(glm::vec3(0.0f, -1.0f, 0.0f));
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		angle = ((double)i) / ((double)segments) * 2.0 * 3.14;
+		vertices.push_back(glm::vec3(radiusBottom*cos(angle), -height, 
+			radiusBottom*sin(angle)));
+		normals.push_back(glm::vec3(cos(angle), 0.0f, sin(angle)));
+		indices.push_back(segments + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+		indices.push_back(segments + i + 2);
+	}
+
+	for (unsigned int i = 0; i<segments; i++)
+	{
+		indices.push_back(i + 1);
+		indices.push_back((i + 1) % segments + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+
+		indices.push_back(i + 1);
+		indices.push_back(segments + 2 + (i + 1) % segments);
+		indices.push_back(segments + i + 2);
+	}
+
+	Mesh *cylinder = new Mesh(2, vertices.size(), indices.size() / 3);
+	cylinder->SetVertexData(0, &vertices[0][0], 3);
+	cylinder->SetVertexData(1, &normals[0][0], 3);
+	cylinder->SetIndexData(&indices[0]);
+
+	return cylinder;
+}
 
