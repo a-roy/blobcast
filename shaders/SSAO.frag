@@ -16,7 +16,7 @@ float shadowContrast = 0.5;
 float aoBias = 0.002;
 float epsilon = 0.01;
 int numSamples = 16;
-int numSpiralTurns = 7;
+int numSpiralTurns = 8;
 
 vec2 focalLength = vec2(1.0 / tan(45.0 * 0.5) * screenSize.y / screenSize.x, 1.0 / tan(45.0 * 0.5));
 
@@ -77,10 +77,10 @@ void main()
 	}
 	
 	float aoTemp = sampleRadius * sampleRadius * sampleRadius;
-	occlusion /= aoTemp*aoTemp;
-	occlusion = max(0.0,1.0 - occlusion*(1.0/numSamples));
+	occlusion /= aoTemp * aoTemp;
+	occlusion = max(0.0, 1.0 - occlusion * (1.0/numSamples));
 
-	FragColor = pow(occlusion, 4.0);
+	FragColor = pow(occlusion, 10.0);
 }
 
 // void main()

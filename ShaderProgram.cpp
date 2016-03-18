@@ -206,25 +206,15 @@ void ShaderProgram::Uniform::warn(GLenum sym, std::string keyword, int num)
 	const GLchar *name = Name.c_str();
 	GLuint index;
 	glGetUniformIndices(program->program, 1, &name, &index);
-	if (index == GL_INVALID_INDEX)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"is not an active uniform." << std::endl;
-		return;
-	}
+	//if (index == GL_INVALID_INDEX)
+	//{
+	//	std::cerr << "Warning: Uniform variable `" << Name << "` "
+	//		"is not an active uniform." << std::endl;
+	//	return;
+	//}
 	GLint size;
 	GLenum type;
 	glGetActiveUniform(
 			program->program, index, 0, nullptr, &size, &type, nullptr);
-	if (type != sym)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"does not have type `" << keyword << "`." << std::endl;
-	}
-	if (num > 1 && size != num)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"with size " << size << " initialized by data with size " <<
-			num << "." << std::endl;
-	}
+   
 }

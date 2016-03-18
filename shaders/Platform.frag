@@ -22,7 +22,7 @@ uniform vec4 objectColor;
 layout (binding = 0) uniform sampler2DShadow depthMap;
 layout (binding = 1) uniform sampler2D aoMap;
 
-const vec2 mapSize = vec2(2048, 2048);
+const vec2 mapSize = vec2(4096, 4096);
 
 #define EPSILON 0.00001
 
@@ -58,7 +58,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 void main()
 {   
 	// Ambient
-    vec3 ambient = directionalLight.ambientColor;
+    vec3 ambient = 0.5 * directionalLight.ambientColor;
 	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
 	
 	// Diffuse
@@ -68,12 +68,11 @@ void main()
     vec3 diffuse = diff * directionalLight.color;
 	
 	// Specular
-    float specularStrength = 0.5f;
     vec3 viewDir = normalize(FragPos - viewPos);
     vec3 reflectDir = reflect(-lightDir, normal);  
     vec3 halfwayDir = normalize(lightDir + viewDir);
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
-    vec3 specular = specularStrength * spec * directionalLight.color;
+    vec3 specular = spec * directionalLight.color;
 	
 	float ShadowFactor = CalcShadowFactor(LightSpacePos);
     vec3 result = (ambient + ShadowFactor * (diffuse + specular)) * vec3(objectColor);

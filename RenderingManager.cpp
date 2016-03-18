@@ -38,7 +38,7 @@ bool RenderingManager::init()
 		ShaderDir "Blur.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.0f, -0.4f, -0.2f);
+	dirLight.direction = glm::vec3(-0.2f, -0.4f, -0.2f);
 
 	width = RENDER_WIDTH;
 	height = RENDER_HEIGHT;
@@ -87,13 +87,13 @@ bool RenderingManager::initFrameBuffers()
 	if (!gBuffer.Init(width, height, true, GL_RGBA32F))
 		return false;
 
-	if (!aoBuffer.Init(width, height, false, GL_RED))
+	if (!aoBuffer.Init(width/2, height/2, false, GL_RED))
 		return false;
 
-	if (!pingpongBuffers[0].Init(width, height, false, GL_RGB16F))
+	if (!pingpongBuffers[0].Init(width/2, height/2, false, GL_RGB16F))
 		return false;
 
-	if (!pingpongBuffers[1].Init(width, height, false, GL_RGB16F))
+	if (!pingpongBuffers[1].Init(width/2, height/2, false, GL_RGB16F))
 		return false;
 
 	if (!cubeMapBuffer.Init(TEX_WIDTH, TEX_HEIGHT, true, GL_RGB))
@@ -215,6 +215,7 @@ void RenderingManager::geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat
 
 void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 {
+	glViewport(0, 0, width / 2, height / 2);
 	glBindFramebuffer(GL_FRAMEBUFFER, aoBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -225,7 +226,7 @@ void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture);
 
-	(*SSAOShader)["screenSize"] = glm::vec2(width, height);
+	(*SSAOShader)["screenSize"] = glm::vec2(width/2, height/2);
 	SSAOShader->Use([&]() {
 		quad->Draw();
 	});
@@ -236,7 +237,7 @@ void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 void RenderingManager::blurPass()
 {
 	GLboolean firstIteration = true, horizontal = true;
-	GLuint amount = 20;
+	GLuint amount = 4;
 	for (GLuint i = 0; i < amount; i++)
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, pingpongBuffers[horizontal].FBO);
@@ -254,6 +255,7 @@ void RenderingManager::blurPass()
 		if (firstIteration)  firstIteration = false;
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, width, height);
 }
 
 void RenderingManager::dynamicCubeMapPass(Blob *blob, Level *level)
