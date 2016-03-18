@@ -256,9 +256,9 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {
 	axis = glm::toMat3(orientation) * axis;
-	(*shaderProgram)["uColor"] = color;
 	Line axisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
-		translation + (axis * ROTATION_GIZMO_SIZE));
+		translation + (axis * ROTATION_GIZMO_SIZE),
+		glm::vec3(color));
 	shaderProgram->Use([&]() { axisDraw.Render(); });
 }
 
@@ -288,12 +288,9 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 				c.back() = glm::vec3(1, 0, 0);
 			}
 			Points pts(p, c);
-			Line path(l);
+			Line path(l, glm::vec3(0, 0, 1));
 			program.Use([&](){
 				pts.Render(10.f);
-			});
-			program["uColor"] = glm::vec3(0, 0, 1);
-			program.Use([&](){
 				path.Render();
 			});
 		}
