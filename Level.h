@@ -3,11 +3,13 @@
 #include <vector>
 #include <string>
 #include "RigidBody.h"
+#include "Button.h"
 
 class Level
 {
 	public:
 		std::vector<RigidBody *> Objects;
+		std::vector<Button *> Buttons;
 
 		Level() = default;
 		~Level();

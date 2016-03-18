@@ -43,4 +43,5 @@ public:
 	static bool BroadphaseTest(btCollisionObject* obj1,
 		btCollisionObject* obj2);
 	static bool NarrowphaseTest(btSoftBody* sb, btCollisionObject* rb);
+	static bool NarrowphaseTest(btCollisionObject* rb, btSoftBody* sb);
 };

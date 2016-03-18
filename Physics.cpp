@@ -66,3 +66,16 @@ bool Physics::NarrowphaseTest(btSoftBody* sb,
 	return false;
 	//return obj1->checkCollideWith(obj2); //Always returns true..
 }
+
+bool Physics::NarrowphaseTest(btCollisionObject* rb, btSoftBody* sb)
+{
+	return NarrowphaseTest(sb, rb);
+}
+
+//OnEnter
+//OnStay
+//OnLeave
+
+//For trigger objects
+/*mBody->setCollisionFlags(mBody->getCollisionFlags() |
+btCollisionObject::CF_NO_CONTACT_RESPONSE));*/

@@ -75,8 +75,8 @@ std::size_t Level::AddButton(
 {
 	Button *b = new Button(position, orientation, dimensions,
 		color, 1.0f);
-	Objects.push_back(b->button);
-	return Objects.size() - 1;
+	Buttons.push_back(b);
+	return Buttons.size() - 1;
 }
 
 void Level::Delete(std::size_t index)
@@ -108,6 +108,14 @@ void Level::Render(GLuint uMMatrix, GLuint uColor)
 		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &r->GetModelMatrix()[0][0]);
 		glUniform4fv(uColor, 1, &r->color.r);
 		r->Render();
+	}
+
+	for (Button *b : Buttons)
+	{
+		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, 
+			&b->button->GetModelMatrix()[0][0]);
+		glUniform4fv(uColor, 1, &b->button->color.r);
+		b->button->Render();
 	}
 }
 
