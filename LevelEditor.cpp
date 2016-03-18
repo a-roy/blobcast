@@ -256,9 +256,9 @@ void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {
 	axis = glm::toMat3(orientation) * axis;
-	(*shaderProgram)["uColor"] = color;
 	Line axisDraw(translation - (axis * ROTATION_GIZMO_SIZE),
-		translation + (axis * ROTATION_GIZMO_SIZE));
+		translation + (axis * ROTATION_GIZMO_SIZE),
+		glm::vec3(color));
 	shaderProgram->Use([&]() { axisDraw.Render(); });
 }
 
@@ -288,12 +288,9 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 				c.back() = glm::vec3(1, 0, 0);
 			}
 			Points pts(p, c);
-			Line path(l);
+			Line path(l, glm::vec3(0, 0, 1));
 			program.Use([&](){
 				pts.Render(10.f);
-			});
-			program["uColor"] = glm::vec3(0, 0, 1);
-			program.Use([&](){
 				path.Render();
 			});
 		}
@@ -333,16 +330,24 @@ void LevelEditor::Path()
 	int x = 0;
 	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
 	{
-		std::string pt_text = ("Point " + std::to_string(x));
-		std::string rm_text = ("Remove " + std::to_string(x));
+		std::string pt_text = ("P" + std::to_string(x));
+		std::string rm_text = ("Rm " + std::to_string(x));
+		std::string ins_text = ("Ins " + std::to_string(x));
 		path_changed |=
 			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
+		ImGui::SameLine();
 		if (ImGui::Button(rm_text.c_str()))
 		{
 			i = rb->motion.Points.erase(i);
 			path_changed = true;
 			if (i == rb->motion.Points.end())
 				break;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(ins_text.c_str()))
+		{
+			i = rb->motion.Points.insert(i, rb->GetTranslation());
+			path_changed = true;
 		}
 		ImGui::Spacing();
 		x++;

@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include "tinyfiledialogs.h"
 
+#include "Physics.h"
+
 bool init();
 bool init_physics();
 bool init_graphics();
@@ -65,21 +67,12 @@ RenderingManager renderManager;
 StreamWriter *stream;
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
-btCollisionDispatcher *dispatcher;
-btBroadphaseInterface *broadphase;
-btSequentialImpulseConstraintSolver *solver;
-btSoftBodyRigidBodyCollisionConfiguration *collisionConfiguration;
-btSoftBodySolver *softBodySolver;
-btSoftRigidDynamicsWorld *dynamicsWorld;
-
 BlobDisplay *blobDisplay;
 Blob *blob;
 Level *level;
 
 ShaderProgram *displayShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
-
-btSoftBodyWorldInfo softBodyWorldInfo;
 
 double currentFrame = glfwGetTime();
 double lastFrame = currentFrame;
@@ -130,7 +123,7 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	levelEditor = new LevelEditor(dynamicsWorld, level);
+	levelEditor = new LevelEditor(Physics::dynamicsWorld, level);
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
@@ -173,11 +166,11 @@ int main(int argc, char *argv[])
 	}
 	delete stream;
 
-	delete dynamicsWorld;
-	delete solver;
-	delete collisionConfiguration;
-	delete dispatcher;
-	delete broadphase;
+	delete Physics::dynamicsWorld;
+	delete Physics::solver;
+	delete Physics::collisionConfiguration;
+	delete Physics::dispatcher;
+	delete Physics::broadphase;
 
 	delete blob;
 	delete levelEditor;
@@ -198,36 +191,17 @@ bool init()
 
 bool init_physics()
 {
-	broadphase = new btDbvtBroadphase();
-	btVector3 worldAabbMin(-1000, -1000, -1000);
-	btVector3 worldAabbMax(1000, 1000, 1000);
-	broadphase = new btAxisSweep3(worldAabbMin, worldAabbMax, MAX_PROXIES);
-
-	collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
-	dispatcher = new btCollisionDispatcher(collisionConfiguration);
-	solver = new btSequentialImpulseConstraintSolver();
-	softBodySolver = new btDefaultSoftBodySolver();
-	dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
-
-	dynamicsWorld->setGravity(btVector3(0, -10, 0));
-
-	softBodyWorldInfo.m_broadphase = broadphase;
-	softBodyWorldInfo.m_dispatcher = dispatcher;
-	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
-	softBodyWorldInfo.air_density = (btScalar)1.2;
-	softBodyWorldInfo.water_density = 0;
-	softBodyWorldInfo.water_offset = 0;
-	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
-	softBodyWorldInfo.m_sparsesdf.Initialize();
-
-	blob = new Blob(softBodyWorldInfo, btVector3(0, 100, 0), 3.0f, 512);
+	Physics::init();
+	
+	blob = new Blob(Physics::softBodyWorldInfo, 
+		btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
 	level = Level::Deserialize(LevelDir "test_level.json");
 	for(RigidBody* r : level->Objects)
-		dynamicsWorld->addRigidBody(r->rigidbody);
-	dynamicsWorld->addSoftBody(blob->softbody);
-	dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
+		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
+	Physics::dynamicsWorld->addSoftBody(blob->softbody);
+	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	return true;
 }
@@ -301,7 +275,7 @@ void update()
 	{
 		for (RigidBody *r : level->Objects)
 			r->Update();
-		dynamicsWorld->stepSimulation(deltaTime, 10);
+		Physics::dynamicsWorld->stepSimulation(deltaTime, 10);
 	}
 	Profiler::Finish("Physics");
 
@@ -351,26 +325,17 @@ void drawGizmos()
 	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
 	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 
-	(*debugdrawShaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
-	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
+	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), glm::vec3(1, 0, 0));
+	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
+	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1), glm::vec3(0, 0, 1));
+
+	Points p(glm::vec3(0), glm::vec3(0, 0, 0));
+	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
+
 	debugdrawShaderProgram->Use([&](){
 		x.Render();
-	});
-	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
-	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	debugdrawShaderProgram->Use([&](){
 		y.Render();
-	});
-	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
-	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
-	debugdrawShaderProgram->Use([&](){
 		z.Render();
-	});
-
-	Points p(glm::vec3(0));
-	(*debugdrawShaderProgram)["uColor"] = glm::vec4(0, 0, 0, 1);
-	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
-	debugdrawShaderProgram->Use([&](){
 		p.Render(sz);
 	});
 
@@ -383,11 +348,18 @@ void drawGizmos()
 void drawBulletDebug()
 {
 	bulletDebugDrawer.SetMatrices(viewMatrix, projMatrix);
-	dynamicsWorld->debugDrawWorld();
+	Physics::dynamicsWorld->debugDrawWorld();
 }
 
 void gui()
 {
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->DrawPath(*debugdrawShaderProgram);
+	});
+
 	ImGui_ImplGlfw_NewFrame();
 
 	ImGui::SetNextWindowPos(ImVec2(width - 500, 40));
@@ -449,12 +421,12 @@ void gui()
 					levelEditor->selection.clear();
 
 					for (RigidBody* rb : level->Objects)
-						dynamicsWorld->removeRigidBody(rb->rigidbody);
+						Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
 					delete level;
 
 					level = Level::Deserialize(lTheOpenFileName);
 					for (RigidBody* rb : level->Objects)
-						dynamicsWorld->addRigidBody(rb->rigidbody);
+						Physics::dynamicsWorld->addRigidBody(rb->rigidbody);
 
 					levelEditor->level = level;
 				}
@@ -496,18 +468,25 @@ void gui()
 
 		if (ImGui::BeginMenu("Create"))
 		{
-			if (ImGui::MenuItem("Platform"))
-			{
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f));
-				dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size()-1]->rigidbody);
-			}
-			if (ImGui::MenuItem("Physics Box"))
+			if (ImGui::MenuItem("Box"))
 			{
 				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				dynamicsWorld->addRigidBody(
+				Physics::dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Cylinder"))
+			{
+				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				Physics::dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Button"))
+			{
+				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 			}
 
@@ -592,8 +571,6 @@ void gui()
 		ImGui::End();
 	}
 
-	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
 	debugdrawShaderProgram->Use([&](){
 		levelEditor->Gui(debugdrawShaderProgram);
 	});
@@ -601,10 +578,6 @@ void gui()
 	ImGui::Render();
 	glDisable(GL_SCISSOR_TEST);
 	glEnable(GL_DEPTH_TEST);
-
-	debugdrawShaderProgram->Use([&](){
-		levelEditor->DrawPath(*debugdrawShaderProgram);
-	});
 }
 
 void key_callback(

@@ -33,4 +33,5 @@ class Mesh : public Drawable
 		static Mesh *CreateTriplePlane();
 		static Mesh *CreateCubeWithNormals();
 		static Mesh *CreateQuad();
+		static Mesh *CreateCylinderWithNormals(int segments = 30);
 };
