@@ -27,6 +27,12 @@ class Level
 				glm::vec3 dimensions,
 				glm::vec4 color,
 				float mass = 0.f);
+		std::size_t Level::AddButton(
+				glm::vec3 position,
+				glm::quat orientation,
+				glm::vec3 dimensions,
+				glm::vec4 color,
+				float mass = 0.f);
 		void Delete(std::size_t index);
 		void Clear();
 		int Find(btRigidBody *r);

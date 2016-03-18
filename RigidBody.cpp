@@ -34,8 +34,8 @@ RigidBody::RigidBody(Mesh* p_mesh, Shape p_shapeType,
 
 	const char* name = shape->getName();
 
-	//if(mass != 0)
-		//rigidbody->setActivationState(DISABLE_DEACTIVATION);
+	if(mass != 0)
+		rigidbody->setActivationState(DISABLE_DEACTIVATION);
 	//rigidbody->setMassProps(mass, inertia);
 
 	rigidbody->setUserPointer(this);

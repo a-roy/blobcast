@@ -1,6 +1,7 @@
 #include "Level.h"
 #include <json.hpp>
 #include <fstream>
+#include "Button.h"
 
 Level::~Level()
 {
@@ -65,6 +66,19 @@ std::size_t Level::AddCylinder(
 	return Objects.size() - 1;
 }
 
+std::size_t Level::AddButton(
+	glm::vec3 position,
+	glm::quat orientation,
+	glm::vec3 dimensions,
+	glm::vec4 color,
+	float mass)
+{
+	Button *b = new Button(position, orientation, dimensions,
+		color, 1.0f);
+	Objects.push_back(b->button);
+	return Objects.size() - 1;
+}
+
 void Level::Delete(std::size_t index)
 {
 	Objects.erase(Objects.begin() + index);
@@ -109,7 +123,9 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = r->GetOrientation();
 		glm::vec3 scale = r->GetScale();
 
-		if(r->shapeType == Shape::Box)
+		/*if (typeid(r) == typeid(Button))
+			object["type"] = "button";
+		else*/ if(r->shapeType == Shape::Box)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
