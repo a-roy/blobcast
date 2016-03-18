@@ -332,6 +332,7 @@ void LevelEditor::Path()
 	{
 		std::string pt_text = ("P" + std::to_string(x));
 		std::string rm_text = ("Rm " + std::to_string(x));
+		std::string ins_text = ("Ins " + std::to_string(x));
 		path_changed |=
 			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
 		ImGui::SameLine();
@@ -341,6 +342,12 @@ void LevelEditor::Path()
 			path_changed = true;
 			if (i == rb->motion.Points.end())
 				break;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(ins_text.c_str()))
+		{
+			i = rb->motion.Points.insert(i, rb->GetTranslation());
+			path_changed = true;
 		}
 		ImGui::Spacing();
 		x++;
