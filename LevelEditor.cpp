@@ -330,10 +330,11 @@ void LevelEditor::Path()
 	int x = 0;
 	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
 	{
-		std::string pt_text = ("Point " + std::to_string(x));
-		std::string rm_text = ("Remove " + std::to_string(x));
+		std::string pt_text = ("P" + std::to_string(x));
+		std::string rm_text = ("Rm " + std::to_string(x));
 		path_changed |=
 			ImGui::DragFloat3(pt_text.c_str(), glm::value_ptr(*i));
+		ImGui::SameLine();
 		if (ImGui::Button(rm_text.c_str()))
 		{
 			i = rb->motion.Points.erase(i);
