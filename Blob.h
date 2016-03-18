@@ -40,4 +40,5 @@ public:
 	btVector3 GetCentroid();
 
 	void DrawGizmos(ShaderProgram* shaderProgram);
+	void Gui();
 };

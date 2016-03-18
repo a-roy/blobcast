@@ -16,33 +16,40 @@ class RenderingManager
 public:
 	bool init();
 
-	void drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix);
-	void drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix);
+	void drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, 
+		glm::mat4 projMatrix);
+	void drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, 
+		glm::mat4 projMatrix);
 
 	void depthPass(Blob *blob, Level *level);
 	void dynamicCubeMapPass(Blob *blob, Level *level);
 
 	void geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat4 projMatrix);
-	void SSAOPass(glm::mat4 projMatrix);
+	void SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos);
 	void blurPass();
 
 	void drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix);
 	void debugQuadDraw();
 
+	void drawParticles(Level *level, glm::mat4 viewMatrix,
+		glm::mat4 projMatrix);
+
 protected:
-	ShaderProgram *blobShaderProgram;
-	ShaderProgram *platformShaderProgram;
-	ShaderProgram *skyboxShaderProgram;
-	ShaderProgram *depthShaderProgram;
-	ShaderProgram *geomPassShaderProgram;
-	ShaderProgram *SSAOShaderProgram;
-	ShaderProgram *blurShaderProgram;
-	ShaderProgram *quadShaderProgram;
+
+	ShaderProgram *blobShader;
+	ShaderProgram *platformShader;
+	ShaderProgram *skyboxShader;
+	ShaderProgram *depthShader;
+	ShaderProgram *geomPassShader;
+	ShaderProgram *SSAOShader;
+	ShaderProgram *blurShader;
+	ShaderProgram *quadShader;
+	ShaderProgram *particleShader;
 
 	IOBuffer cubeMapBuffer;
 	IOBuffer gBuffer;
 	IOBuffer aoBuffer;
-	IOBuffer blurBuffer;
+	std::vector<IOBuffer> pingpongBuffers;
 	IOBuffer depthBuffer;
 
 	glm::mat4 lightSpaceMatrix;

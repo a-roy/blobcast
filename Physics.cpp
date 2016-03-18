@@ -10,6 +10,9 @@ btSoftBodySolver *Physics::softBodySolver;
 
 btSoftBodyWorldInfo Physics::softBodyWorldInfo;
 
+bool Physics::bStepPhysics = false;
+bool Physics::bShowBulletDebug = true;
+
 void Physics::Init()
 {
 	broadphase = new btDbvtBroadphase();

@@ -4,12 +4,15 @@
 #include <string>
 #include "RigidBody.h"
 #include "Button.h"
+#include "ParticleSystem.h"
+#include "Profiler.h"
 
 class Level
 {
 	public:
 		std::vector<RigidBody *> Objects;
 		std::vector<Button *> Buttons;
+		std::vector<ParticleSystem *> ParticleSystems;
 
 		Level() = default;
 		~Level();
@@ -41,4 +44,22 @@ class Level
 		void Render(GLuint uMMatrix, GLuint uColor);
 		void Serialize(std::string file);
 		static Level *Deserialize(std::string file);
+
+		std::size_t AddParticleSystem(glm::vec3 position)
+		{
+			ParticleSystem* ps = new ParticleSystem(position);
+			ParticleSystems.push_back(ps);
+			return Objects.size() - 1;
+		}
+
+		void RenderParticles(GLuint uSize)
+		{
+			Profiler::Start("Particles");
+			for (auto ps : ParticleSystems)
+			{
+				glUniform1f(uSize, ps->pointSize);
+				ps->Render();
+			}
+			Profiler::Finish("Particles", true);
+		}
 };

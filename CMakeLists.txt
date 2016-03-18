@@ -41,6 +41,8 @@ target_link_libraries(${LIB_NAME}
 	optimized BulletDynamics  debug BulletDynamics_Debug
 	optimized BulletSoftBody  debug BulletSoftBody_Debug
 	optimized LinearMath      debug LinearMath_Debug
+	optimized SPARK	          debug SPARK_Debug
+	optimized SPARK_GL	  debug SPARK_GL_Debug
 	)
 else()
 set(GLFW_LIBRARIES X11 Xrandr Xinerama Xcursor dl z bz2 Xxf86vm GL pthread)

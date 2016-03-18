@@ -1,40 +1,45 @@
 #include "RenderingManager.h"
+#define KERNEL_SIZE 32.0f
 
 bool RenderingManager::init()
 {
-	skyboxShaderProgram = new ShaderProgram({
+	skyboxShader = new ShaderProgram({
 		ShaderDir "Skybox.vert",
 		ShaderDir "Skybox.frag" });
 
-	depthShaderProgram = new ShaderProgram({
+	depthShader = new ShaderProgram({
 		ShaderDir "DepthShader.vert",
 		ShaderDir "DepthShader.frag" });
 
-	blobShaderProgram = new ShaderProgram({
+	blobShader = new ShaderProgram({
 		ShaderDir "Blob.vert",
 		ShaderDir "Blob.tesc",
 		ShaderDir "Blob.tese",
 		ShaderDir "Blob.frag" });
 
-	platformShaderProgram = new ShaderProgram({
+	platformShader = new ShaderProgram({
 		ShaderDir "Platform.vert",
 		ShaderDir "Platform.frag" });
 
-	quadShaderProgram = new ShaderProgram({
+	quadShader = new ShaderProgram({
 		ShaderDir "toQuad.vert",
 		ShaderDir "toQuad.frag" });
 
-	geomPassShaderProgram = new ShaderProgram({
+	geomPassShader = new ShaderProgram({
 		ShaderDir "GeometryPass.vert",
 		ShaderDir "GeometryPass.frag" });
 
-	SSAOShaderProgram = new ShaderProgram({
+	SSAOShader = new ShaderProgram({
 		ShaderDir "SSAO.vert",
 		ShaderDir "SSAO.frag" });
 
-	blurShaderProgram = new ShaderProgram({
-		ShaderDir "SSAO.vert",
+	blurShader = new ShaderProgram({
+		ShaderDir "Blur.vert",
 		ShaderDir "Blur.frag" });
+
+	particleShader = new ShaderProgram({
+		ShaderDir "Particle.vert",
+		ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-0.2f, -0.4f, -0.2f);
@@ -47,32 +52,16 @@ bool RenderingManager::init()
 	initSkybox();
 
 	// For shadows
-	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, 0.1f, 200.0f);
-	glm::mat4 lightView = glm::lookAt(-dirLight.direction, glm::vec3(0.0f), glm::vec3(1.0f));
+	glm::mat4 lightProjection = glm::ortho(300.0f, -300.0f, 300.0f, -300.0f, -300.0f, 300.0f);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 
-	// For ambient occlusion
-	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
-	std::default_random_engine generator;
-	for (GLuint i = 0; i < 64; ++i)
-	{
-		glm::vec3 sample(
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator) * 2.0 - 1.0,
-			randomFloats(generator)
-			);
-
-		sample = glm::normalize(sample);
-		sample *= randomFloats(generator);
-		GLfloat scale = GLfloat(i) / 64.0;
-
-		// Scale samples s.t. they're more aligned to center of kernel
-		scale = lerp(0.1f, 1.0f, scale * scale);
-		sample *= scale;
-		ssaoKernel.push_back(sample);
-	}
+	// For blurring
+	pingpongBuffers = std::vector<IOBuffer>(2);
 
 	// Noise texture
+	std::uniform_real_distribution<GLfloat> randomFloats(0.0, 1.0);
+	std::default_random_engine generator;
 	std::vector<glm::vec3> ssaoNoise;
 	for (GLuint i = 0; i < 16; i++)
 	{
@@ -99,13 +88,16 @@ bool RenderingManager::init()
 
 bool RenderingManager::initFrameBuffers()
 {
-	if (!gBuffer.Init(width, height, true, GL_RGB32F))
+	if (!gBuffer.Init(width, height, true, GL_RGBA32F))
 		return false;
 
-	if (!aoBuffer.Init(width, height, false, GL_RED))
+	if (!aoBuffer.Init(width/2, height/2, false, GL_RED))
 		return false;
 
-	if (!blurBuffer.Init(width, height, false, GL_RED))
+	if (!pingpongBuffers[0].Init(width/2, height/2, false, GL_RGB16F))
+		return false;
+
+	if (!pingpongBuffers[1].Init(width/2, height/2, false, GL_RGB16F))
 		return false;
 
 	if (!cubeMapBuffer.Init(TEX_WIDTH, TEX_HEIGHT, true, GL_RGB))
@@ -138,17 +130,17 @@ bool RenderingManager::initSkybox()
 
 void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
-	(*blobShaderProgram)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
-	(*blobShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*blobShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*blobShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*blobShaderProgram)["viewPos"] = camPos;
-	(*blobShaderProgram)["blobDistance"] =
+	(*blobShader)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
+	(*blobShader)["directionalLight.color"] = dirLight.color;
+	(*blobShader)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*blobShader)["directionalLight.direction"] = dirLight.direction;
+	(*blobShader)["viewPos"] = camPos;
+	(*blobShader)["blobDistance"] =
 		glm::distance(convert(blob->GetCentroid()), camPos);
 
-	(*blobShaderProgram)["projection"] = projMatrix;
-	(*blobShaderProgram)["view"] = viewMatrix;
-	(*blobShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*blobShader)["projection"] = projMatrix;
+	(*blobShader)["view"] = viewMatrix;
+	(*blobShader)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
@@ -156,37 +148,52 @@ void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatr
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
-	blobShaderProgram->Use([&]() {
+	blobShader->Use([&]() {
 		blob->RenderPatches();
 	});
 }
 
 void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
-	(*platformShaderProgram)["directionalLight.color"] = dirLight.color;
-	(*platformShaderProgram)["directionalLight.ambientColor"] = dirLight.ambientColor;
-	(*platformShaderProgram)["directionalLight.direction"] = dirLight.direction;
-	(*platformShaderProgram)["viewPos"] = camPos;
-	(*platformShaderProgram)["screenSize"] = glm::vec2(RENDER_WIDTH, RENDER_HEIGHT);
+	(*platformShader)["directionalLight.color"] = dirLight.color;
+	(*platformShader)["directionalLight.ambientColor"] = dirLight.ambientColor;
+	(*platformShader)["directionalLight.direction"] = dirLight.direction;
+	(*platformShader)["viewPos"] = camPos;
+	(*platformShader)["screenSize"] = glm::vec2(width, height);
 
-	(*platformShaderProgram)["projection"] = projMatrix;
-	(*platformShaderProgram)["view"] = viewMatrix;
-	(*platformShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
+	(*platformShader)["projection"] = projMatrix;
+	(*platformShader)["view"] = viewMatrix;
+	(*platformShader)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, blurBuffer.texture0);
+	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
-	GLuint uMMatrix = platformShaderProgram->GetUniformLocation("model");
-	GLuint uColor = platformShaderProgram->GetUniformLocation("objectColor");
-	platformShaderProgram->Use([&]() {
+	GLuint uMMatrix = platformShader->GetUniformLocation("model");
+	GLuint uColor = platformShader->GetUniformLocation("objectColor");
+	platformShader->Use([&]() {
 		level->Render(uMMatrix, uColor);
 	});
 	glDisable(GL_CULL_FACE);
+}
+
+void RenderingManager::drawParticles(Level *level, 
+	glm::mat4 viewMatrix, glm::mat4 projMatrix)
+{
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnable(GL_BLEND);
+	(*particleShader)["uProj"] = projMatrix;
+	(*particleShader)["uView"] = viewMatrix;
+	GLuint uSize = particleShader->GetUniformLocation("uSize");
+	particleShader->Use([&]() {
+		level->RenderParticles(uSize);
+	});
+	glDisable(GL_BLEND);
 }
 
 void RenderingManager::depthPass(Blob *blob, Level *level)
@@ -197,11 +204,11 @@ void RenderingManager::depthPass(Blob *blob, Level *level)
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
-	(*depthShaderProgram)["lightSpaceMat"] = lightSpaceMatrix;
-	(*depthShaderProgram)["model"] = glm::mat4();
-	depthShaderProgram->Use([&]() {
+	(*depthShader)["lightSpaceMat"] = lightSpaceMatrix;
+	(*depthShader)["model"] = glm::mat4();
+	depthShader->Use([&]() {
 		blob->Render();
-		GLuint uMMatrix = depthShaderProgram->GetUniformLocation("model");
+		GLuint uMMatrix = depthShader->GetUniformLocation("model");
 		level->Render(uMMatrix, -1);
 	});
 
@@ -214,19 +221,20 @@ void RenderingManager::geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	(*geomPassShaderProgram)["projection"] = projMatrix;
-	(*geomPassShaderProgram)["view"] = viewMatrix;
-	GLuint uMMatrix = geomPassShaderProgram->GetUniformLocation("model");
-	GLuint uColor = geomPassShaderProgram->GetUniformLocation("objectColor");
-	geomPassShaderProgram->Use([&]() {
+	(*geomPassShader)["projection"] = projMatrix;
+	(*geomPassShader)["view"] = viewMatrix;
+	GLuint uMMatrix = geomPassShader->GetUniformLocation("model");
+	GLuint uColor = geomPassShader->GetUniformLocation("objectColor");
+	geomPassShader->Use([&]() {
 		level->Render(uMMatrix, uColor);
 	});
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void RenderingManager::SSAOPass(glm::mat4 projMatrix)
+void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 {
+	glViewport(0, 0, width / 2, height / 2);
 	glBindFramebuffer(GL_FRAMEBUFFER, aoBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -237,14 +245,8 @@ void RenderingManager::SSAOPass(glm::mat4 projMatrix)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture);
 
-	(*SSAOShaderProgram)["screenSize"] = glm::vec2(width, height);
-	(*SSAOShaderProgram)["projection"] = projMatrix;
-	SSAOShaderProgram->Use([&]() {
-		for (GLuint i = 0; i < 64; ++i)
-			glUniform3fv(glGetUniformLocation(SSAOShaderProgram->program, ("samples[" + std::to_string(i) + "]").c_str()), 1, &ssaoKernel[i][0]);
-	});
-
-	SSAOShaderProgram->Use([&]() {
+	(*SSAOShader)["screenSize"] = glm::vec2(width/2, height/2);
+	SSAOShader->Use([&]() {
 		quad->Draw();
 	});
 
@@ -253,17 +255,26 @@ void RenderingManager::SSAOPass(glm::mat4 projMatrix)
 
 void RenderingManager::blurPass()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, blurBuffer.FBO);
-	glClear(GL_COLOR_BUFFER_BIT);
+	GLboolean firstIteration = true, horizontal = true;
+	GLuint amount = 4;
+	for (GLuint i = 0; i < amount; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pingpongBuffers[horizontal].FBO);
+		glClear(GL_COLOR_BUFFER_BIT);
+		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, firstIteration ? aoBuffer.texture0 : pingpongBuffers[!horizontal].texture0);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, aoBuffer.texture0);
-
-	blurShaderProgram->Use([&]() {
-		quad->Draw();
-	});
-
+		(*blurShader)["horizontal"] = horizontal;
+		blurShader->Use([&]() {
+			quad->Draw();
+		});
+	
+		horizontal = !horizontal;
+		if (firstIteration)  firstIteration = false;
+	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, width, height);
 }
 
 void RenderingManager::dynamicCubeMapPass(Blob *blob, Level *level)
@@ -347,13 +358,13 @@ void RenderingManager::drawCubeFace(glm::vec3 position, glm::vec3 direction, glm
 void RenderingManager::drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
 	glDepthFunc(GL_LEQUAL);
-	(*skyboxShaderProgram)["model"] = skybox.modelMat;
-	(*skyboxShaderProgram)["view"] = viewMatrix;
-	(*skyboxShaderProgram)["projection"] = projMatrix;
+	(*skyboxShader)["model"] = skybox.modelMat;
+	(*skyboxShader)["view"] = viewMatrix;
+	(*skyboxShader)["projection"] = projMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.getID());
-	skyboxShaderProgram->Use([&]() {
+	skyboxShader->Use([&]() {
 		skybox.render();
 	});
 
@@ -363,8 +374,8 @@ void RenderingManager::drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix)
 void RenderingManager::debugQuadDraw()
 {
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.texture1);
-	quadShaderProgram->Use([&]() {
+	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
+	quadShader->Use([&]() {
 		quad->Draw();
 	});
 }

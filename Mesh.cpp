@@ -2,15 +2,16 @@
 #include <glm/gtc/constants.hpp>
 
 Mesh::Mesh(int vertexBuffers, int numVerts, int numFaces) :
-	VBOs(vertexBuffers, FloatBuffer(&VAO, 1, numVerts)),
 	IBO(&VAO, numFaces),
 	NumVerts(numVerts),
 	NumTris(numFaces)
 {
-	glBindVertexArray(VAO.Name);
-	for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
-		glEnableVertexAttribArray(i);
-	glBindVertexArray(0);
+	for (int i = 0; i < vertexBuffers; i++)
+		VBOs.push_back(FloatBuffer(&VAO, 1, numVerts));
+	VAO.Bind([&](){
+		for (std::size_t i = 0, n = vertexBuffers; i < n; i++)
+			glEnableVertexAttribArray(i);
+	});
 }
 
 Mesh::Mesh(
@@ -25,16 +26,14 @@ Mesh::Mesh(
 
 void Mesh::Draw() const
 {
-	glBindVertexArray(VAO.Name);
-
-	glDrawElements(
-			GL_TRIANGLES,
-			NumTris * 3,
-			GL_UNSIGNED_INT,
-			(void *)0
-			);
-
-	glBindVertexArray(0);
+	VAO.Bind([&](){
+		glDrawElements(
+				GL_TRIANGLES,
+				NumTris * 3,
+				GL_UNSIGNED_INT,
+				(void *)0
+				);
+	});
 }
 
 void Mesh::SetVertexData(
@@ -42,18 +41,14 @@ void Mesh::SetVertexData(
 {
 	VBOs[attribute] = FloatBuffer(&VAO, itemSize, NumVerts);
 	VBOs[attribute].SetData(data);
-	glBindVertexArray(VAO.Name);
-	VBOs[attribute].BufferData(attribute);
-	glBindVertexArray(0);
+	VBOs[attribute].VertexAttribPointer(attribute);
 }
 
 void Mesh::SetIndexData(unsigned int *iboData)
 {
 	IBO = ElementBuffer(&VAO, NumTris);
 	IBO.SetData(iboData);
-	glBindVertexArray(VAO.Name);
-	IBO.BufferData(-1);
-	glBindVertexArray(0);
+	IBO.BindBuffer();
 }
 
 void Mesh::ComputeAABB(
@@ -134,7 +129,7 @@ Mesh *Mesh::CreateCube()
 
 Mesh *Mesh::CreateCubeWithNormals()
 {
-	Mesh *cube = new Mesh(2, 24, 12);
+	Mesh *cube = new Mesh(3, 24, 12);
 	GLfloat vbo[] = {
 		-1, -1, -1,   // 0
 		-1, -1,  1,   // 1
@@ -144,6 +139,7 @@ Mesh *Mesh::CreateCubeWithNormals()
 		 1, -1,  1,   // 5
 		 1,  1, -1,   // 6
 		 1,  1,  1,	  // 7
+
 		-1, -1, -1,   // 8
 		-1, -1,  1,   // 9
 		-1,  1, -1,   // 10
@@ -152,6 +148,7 @@ Mesh *Mesh::CreateCubeWithNormals()
 		 1, -1,  1,   // 13
 		 1,  1, -1,   // 14
 		 1,  1,  1,   // 15
+
 		-1, -1, -1,   // 16
 		-1, -1,  1,   // 17
 		-1,  1, -1,   // 18
@@ -192,6 +189,36 @@ Mesh *Mesh::CreateCubeWithNormals()
 		0, 1, 0
 	};
 	cube->SetVertexData(1, normals, 3);
+
+	GLfloat texCoords[] = {
+		0, 0,	//front/back
+		1, 0,
+		0, 1,
+		1, 1,
+		1, 0,
+		0, 0,
+		1, 1,
+		0, 1,
+
+		1, 0,	//left/right
+		0, 0,
+		1, 1,
+		0, 1,
+		0, 0,
+		1, 0,
+		0, 1,
+		1, 1,
+
+		0, 1,	//top/bottom
+		0, 0,
+		0, 0,
+		0, 1,
+		1, 1,
+		1, 0,
+		1, 0,
+		1, 1,
+	};
+	cube->SetVertexData(2, texCoords, 2);
 
 	unsigned int ibo[] = {
 		// front (-Z)

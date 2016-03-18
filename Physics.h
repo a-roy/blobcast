@@ -20,6 +20,9 @@ public:
 
 	static btSoftBodyWorldInfo softBodyWorldInfo;
 
+	static bool bStepPhysics;
+	static bool bShowBulletDebug;
+
 	static void Init();
 	static void Cleanup();
 
@@ -44,4 +47,6 @@ public:
 		btCollisionObject* obj2);
 	static bool NarrowphaseTest(btSoftBody* sb, btCollisionObject* rb);
 	static bool NarrowphaseTest(btCollisionObject* rb, btSoftBody* sb);
+
+	
 };

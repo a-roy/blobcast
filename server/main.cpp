@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -34,9 +36,13 @@
 #include "BulletDebugDrawer.h"
 #include "Profiler.h"
 
-
 #include <stdio.h>
 #include "tinyfiledialogs.h"
+
+#include "ParticleSystem.h"
+
+//#include <SPK.h>
+//#include <SPK_GL.h>
 
 #include "Physics.h"
 #include "Button.h"
@@ -48,7 +54,7 @@ bool init_stream();
 void update();
 void draw();
 
-void drawGizmos();
+void infoBox();
 void drawBulletDebug();
 void gui();
 void key_callback(
@@ -80,14 +86,6 @@ double lastFrame = currentFrame;
 double deltaTime;
 AggregateInput current_inputs;
 
-bool bShowBlobCfg = false;
-bool bShowGizmos = true;
-bool bShowBulletDebug = true;
-bool bShowImguiDemo = false;
-bool bShowCameraSettings = true;
-
-bool bStepPhysics = false;
-
 LevelEditor *levelEditor;
 
 double xcursor, ycursor;
@@ -102,8 +100,7 @@ BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 double frameCounterTime = 0.0f;
 std::map<std::string, Measurement> Profiler::measurements;
 
-#pragma warning(disable:4996) /* allows usage of strncpy, strcpy, strcat, sprintf, fopen */
-char const *jsonExtension = ".json";
+#pragma warning(disable:4996)
 
 int main(int argc, char *argv[])
 {
@@ -111,7 +108,6 @@ int main(int argc, char *argv[])
 	if (!window)
 		return 1;
 
-	// Setup ImGui binding
 	ImGui_ImplGlfw_Init(window, true);
 
 	glfwSetKeyCallback(window, key_callback);
@@ -124,12 +120,16 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	levelEditor = new LevelEditor(Physics::dynamicsWorld, level);
+	levelEditor = new LevelEditor(level);
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
+
+	glEnable(GL_POINT_SPRITE);
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	while (!glfwWindowShouldClose(window))
@@ -146,9 +146,7 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
-		if(bShowGizmos)
-			drawGizmos();
-		if (bShowBulletDebug)
+		if (Physics::bShowBulletDebug)
 			drawBulletDebug();
 		if(bGui)
 			gui();
@@ -200,6 +198,8 @@ bool init_physics()
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
+	level->AddParticleSystem(glm::vec3(0));
+
 	return true;
 }
 
@@ -218,10 +218,12 @@ bool init_graphics()
 			ShaderDir "Gizmo.vert",
 			ShaderDir "Gizmo.frag" });
 
-	flyCam = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 2.0f, 3.0f * (glm::half_pi<float>() / 60.0f));
+	flyCam = new FlyCam(glm::vec3(0.f, 3.0f, 2.f), 2.0f, 
+		3.0f * (glm::half_pi<float>() / 60.0f));
 	blobCam = new BlobCam();
 
 	activeCam = flyCam;
+	BufferData::cam = flyCam;
 
 	return true;
 }
@@ -256,7 +258,6 @@ void update()
 	currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
 	lastFrame = currentFrame;
-
 	frameCounterTime += deltaTime;
 	if (frameCounterTime >= 1.0f)
 	{
@@ -268,7 +269,7 @@ void update()
 	}
 
 	Profiler::Start("Physics");
-	if(bStepPhysics)
+	if(Physics::bStepPhysics)
 	{
 		for(Button* b : level->Buttons)
 		{
@@ -293,6 +294,11 @@ void update()
 	}
 	Profiler::Finish("Physics");
 
+	Profiler::Start("Particles");
+	for (auto ps : level->ParticleSystems)
+		ps->Update(deltaTime);
+	Profiler::Finish("Particles", false);
+
 	blobCam->Target = convert(blob->GetCentroid());
 	activeCam->Update();
 
@@ -309,54 +315,32 @@ void draw()
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.f);
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
 
 	renderManager.geometryPass(level, viewMatrix, projMatrix);
-	renderManager.SSAOPass(projMatrix);
+	renderManager.SSAOPass(projMatrix, activeCam->Position);
 	renderManager.blurPass();
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glViewport(0, 0, width, height);
+
 	//renderManager.debugQuadDraw();
 
+	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
 	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
-
 	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	renderManager.drawSkybox(viewMatrix, projMatrix);
 	viewMatrix = activeCam->GetMatrix();
 
+	renderManager.drawParticles(level, viewMatrix, projMatrix);
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	blobDisplay->Render(*displayShaderProgram, current_inputs);
 	glDisable(GL_BLEND);
-}
-
-
-void drawGizmos()
-{
-	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
-
-	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0), glm::vec3(1, 0, 0));
-	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
-	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1), glm::vec3(0, 0, 1));
-
-	Points p(glm::vec3(0), glm::vec3(0, 0, 0));
-	float sz = 1.0f/glm::distance(activeCam->Position, glm::vec3(0)) * 50.0f;
-
-	debugdrawShaderProgram->Use([&](){
-		x.Render();
-		y.Render();
-		z.Render();
-		p.Render(sz);
-	});
-
-	//Line ray(levelEditor->out_origin, levelEditor->out_end);
-	//ray.Render();
-
-	//blob->DrawGizmos(debugdrawShaderProgram);
 }
 
 void drawBulletDebug()
@@ -367,15 +351,61 @@ void drawBulletDebug()
 
 void gui()
 {
-	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
-	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
-
-	debugdrawShaderProgram->Use([&](){
-		levelEditor->DrawPath(*debugdrawShaderProgram);
-	});
-
 	ImGui_ImplGlfw_NewFrame();
 
+	infoBox();
+	levelEditor->MainMenuBar();
+
+	if (levelEditor->bShowImguiDemo)
+		ImGui::ShowTestWindow();
+	if (levelEditor->bShowBlobCfg)
+		blob->Gui();
+	
+	if (levelEditor->bShowCameraSettings)
+	{
+		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
+
+		ImGui::Begin("Camera Settings", &levelEditor->bShowCameraSettings);
+		static int n;
+		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
+
+		if (n == 0)
+		{
+			activeCam = flyCam;
+			ImGui::SliderFloat("Move Speed [1,100]",
+				&flyCam->MoveSpeed, 0.0f, 20.0f);
+			BufferData::cam = flyCam;
+		}
+		else
+		{
+			activeCam = blobCam;
+			ImGui::SliderFloat("Distance [1,100]",
+				&blobCam->Distance, 1.0f, 100.0f);
+			ImGui::SliderFloat("Height [1,100]",
+				&blobCam->Height, 1.0f, 100.0f);
+			BufferData::cam = blobCam;
+		}
+
+		ImGui::End();
+	}
+
+	glm::mat4 mvpMatrix = projMatrix * activeCam->GetMatrix();
+	(*debugdrawShaderProgram)["uMVPMatrix"] = mvpMatrix;
+	debugdrawShaderProgram->Use([&](){
+		levelEditor->SelectionWindow(debugdrawShaderProgram);
+	});
+
+	ImGui::Render();
+	glDisable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
+
+	debugdrawShaderProgram->Use([&]() {
+		levelEditor->DrawPath(*debugdrawShaderProgram);
+	});
+}
+
+void infoBox()
+{
 	ImGui::SetNextWindowPos(ImVec2(width - 500, 40));
 	if (ImGui::Begin("", (bool*)true, ImVec2(0, 0), 0.9f,
 		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -391,22 +421,10 @@ void gui()
 
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
 			1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-		ImGui::Text("Physics average %.3f ms/frame | %.1f percent | %.1f FPS",
-			Profiler::measurements["Physics"].result*1000,
-			(Profiler::measurements["Physics"].result
-				/ Profiler::measurements["Frame"].result) * 100.0f,
-			1.0f / Profiler::measurements["Physics"].result);
-		ImGui::Text("Streaming average %.3f ms/frame | %.1f percent | %.1f FPS",
-			Profiler::measurements["Streaming"].result * 1000,
-			(Profiler::measurements["Streaming"].result
-				/ Profiler::measurements["Frame"].result) * 100.0f,
-			1.0f / Profiler::measurements["Streaming"].result);
-		ImGui::Text("Rendering average %.3f ms/frame | %.1f percent | %.1f FPS",
-			Profiler::measurements["Rendering"].result * 1000,
-			(Profiler::measurements["Rendering"].result
-				/ Profiler::measurements["Frame"].result) * 100.0f,
-			1.0f / Profiler::measurements["Rendering"].result);
+		Profiler::Gui("Physics");
+		Profiler::Gui("Streaming");
+		Profiler::Gui("Rendering");
+		Profiler::Gui("Particles");
 
 		ImGui::Separator();
 		ImGui::Text("Mouse Position: (%.1f,%.1f)", xcursor, ycursor);
@@ -415,188 +433,6 @@ void gui()
 
 		ImGui::End();
 	}
-
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Load"))
-			{
-				char const *lTheOpenFileName = NULL;
-				lTheOpenFileName = tinyfd_openFileDialog (
-					"Load level",
-					"",
-					0,
-					NULL,
-					NULL,
-					0);
-				if (lTheOpenFileName != NULL)
-				{
-					levelEditor->selection.clear();
-
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
-					delete level;
-
-					level = Level::Deserialize(lTheOpenFileName);
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->addRigidBody(rb->rigidbody);
-
-					levelEditor->level = level;
-				}
-			}
-
-			if (ImGui::MenuItem("Save as.."))
-			{
-				char const *lTheSaveFileName = NULL;
-
-				lTheSaveFileName = tinyfd_saveFileDialog(
-					"Save Level",
-					"level.json",
-					/*1*/0,
-					/*&jsonExtension*/NULL,
-					NULL);
-
-				if(lTheSaveFileName != NULL )
-					level->Serialize(lTheSaveFileName);
-			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("View"))
-		{
-			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
-				bShowBlobCfg ^= 1;
-			if (ImGui::MenuItem("Gizmos", NULL, bShowGizmos))
-				bShowGizmos ^= 1;
-			if (ImGui::MenuItem("Bullet Debug", NULL, bShowBulletDebug))
-				bShowBulletDebug ^= 1;
-			if (ImGui::MenuItem("ImGui Demo", NULL, bShowImguiDemo))
-				bShowImguiDemo ^= 1;
-			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
-				bShowCameraSettings ^= 1;
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Create"))
-		{
-			if (ImGui::MenuItem("Box"))
-			{
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-			}
-			if (ImGui::MenuItem("Cylinder"))
-			{
-				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-			}
-			if (ImGui::MenuItem("Button"))
-			{
-				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Buttons[level->Buttons.size() - 1]->
-					button->rigidbody);
-			}
-			if (ImGui::MenuItem("LSO (Level Summon Object)"))
-			{
-				
-			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("Settings"))
-		{
-			if(ImGui::MenuItem("Step Physics", NULL, bStepPhysics))
-				bStepPhysics ^= 1;
-
-			ImGui::EndMenu();
-		}
-
-		ImGui::EndMainMenuBar();
-	}
-
-	if (bShowImguiDemo)
-	{
-		ImGui::ShowTestWindow();
-	}
-
-	if (bShowCameraSettings)
-	{
-		ImGui::SetNextWindowSize(ImVec2(300, 200), ImGuiSetCond_FirstUseEver);
-
-		ImGui::Begin("Camera Settings", &bShowCameraSettings);
-		static int n;
-		ImGui::Combo("Type", &n, "Fly Cam\0Blob Cam\0\0");
-
-		if (n == 0)
-		{
-			activeCam = flyCam;
-			ImGui::SliderFloat("Move Speed [1,100]",
-				&flyCam->MoveSpeed, 0.0f, 20.0f);
-		}
-		else
-		{
-			activeCam = blobCam;
-			ImGui::SliderFloat("Distance [1,100]",
-				&blobCam->Distance, 1.0f, 100.0f);
-			ImGui::SliderFloat("Height [1,100]",
-				&blobCam->Height, 1.0f, 100.0f);
-		}
-
-		ImGui::End();
-	}
-
-	if (bShowBlobCfg)
-	{
-		ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
-
-		ImGui::Begin("Blob Edtior", &bShowBlobCfg);
-		ImGui::SliderFloat("Rigid Contacts Hardness [0,1]",
-			&blob->softbody->m_cfg.kCHR, 0.0f, 1.0f);
-		ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]",
-			&blob->softbody->m_cfg.kDF, 0.0f, 1.0f);
-		ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
-			&blob->softbody->m_cfg.kPR, 1.0f, 100.0f);
-		ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
-			&blob->softbody->m_cfg.kVC, 1.0f, 100.0f);
-		ImGui::InputFloat("Drag coefficient [0, +inf]",
-			&blob->softbody->m_cfg.kDG, 1.0f, 100.0f);
-		ImGui::SliderFloat("Damping coefficient [0,1]",
-			&blob->softbody->m_cfg.kDP, 0.0f, 1.0f);
-		ImGui::InputFloat("Lift coefficient [0,+inf]",
-			&blob->softbody->m_cfg.kLF, 1.0f, 100.0f);
-		ImGui::SliderFloat("Pose matching coefficient [0,1]",
-			&blob->softbody->m_cfg.kMT, 0.0f, 1.0f);
-
-		ImGui::Separator();
-
-		ImGui::InputFloat("Movement force", &blob->speed, 0.1f, 100.0f);
-
-		static float vec3[3] = { 0.f, 0.f, 0.f };
-		if(ImGui::InputFloat3("", vec3))
-		ImGui::SameLine();
-		if (ImGui::SmallButton("Set Position"))
-			blob->softbody->translate(
-				btVector3(vec3[0], vec3[1], vec3[2]) - blob->GetCentroid());
-
-		ImGui::End();
-	}
-
-	debugdrawShaderProgram->Use([&](){
-		levelEditor->Gui(debugdrawShaderProgram);
-	});
-
-	ImGui::Render();
-	glDisable(GL_SCISSOR_TEST);
-	glEnable(GL_DEPTH_TEST);
 }
 
 void key_callback(

@@ -42,9 +42,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other)
 	{
 		glDeleteProgram(program);
 		program = other.program;
-		uniforms = other.uniforms;
 		other.program = 0;
-		other.uniforms.clear();
 	}
 	return *this;
 }
@@ -76,34 +74,11 @@ void ShaderProgram::LinkProgram(std::vector<Shader *> &shaders)
 	{
 		glDetachShader(program, shaders[i]->Name);
 	}
-
-	GLint num_uniforms;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &num_uniforms);
-	GLint uniform_name_length;
-	glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_name_length);
-	GLchar *name = new GLchar[uniform_name_length];
-	for (GLint i = 0; i < num_uniforms; i++)
-	{
-		GLint size;
-		GLenum type;
-		glGetActiveUniform(
-				program, i, uniform_name_length, NULL, &size, &type, name);
-		uniforms[name] = glGetUniformLocation(program, name);
-	}
-	delete[] name;
 }
 
 GLint ShaderProgram::GetUniformLocation(std::string name) const
 {
-	auto it = uniforms.find(name);
-	if (it == uniforms.end())
-	{
-		return -1;
-	}
-	else
-	{
-		return it->second;
-	}
+	return glGetUniformLocation(program, name.c_str());
 }
 
 void ShaderProgram::DrawFrame(Frame *frame, glm::mat4 mvMatrix) const
@@ -231,25 +206,15 @@ void ShaderProgram::Uniform::warn(GLenum sym, std::string keyword, int num)
 	const GLchar *name = Name.c_str();
 	GLuint index;
 	glGetUniformIndices(program->program, 1, &name, &index);
-	if (index == GL_INVALID_INDEX)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"is not an active uniform." << std::endl;
-		return;
-	}
+	//if (index == GL_INVALID_INDEX)
+	//{
+	//	std::cerr << "Warning: Uniform variable `" << Name << "` "
+	//		"is not an active uniform." << std::endl;
+	//	return;
+	//}
 	GLint size;
 	GLenum type;
 	glGetActiveUniform(
 			program->program, index, 0, nullptr, &size, &type, nullptr);
-	if (type != sym)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"does not have type `" << keyword << "`." << std::endl;
-	}
-	if (num > 1 && size != num)
-	{
-		std::cerr << "Warning: Uniform variable `" << Name << "` "
-			"with size " << size << " initialized by data with size " <<
-			num << "." << std::endl;
-	}
+   
 }

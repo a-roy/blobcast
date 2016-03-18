@@ -32,7 +32,6 @@ class ShaderProgram
 			void warn(GLenum sym, std::string keyword, int num = 1);
 		};
 		GLuint program;
-		std::map<std::string, GLint> uniforms;
 
 		ShaderProgram();
 		ShaderProgram(std::initializer_list<std::string> paths);
@@ -49,8 +48,10 @@ class ShaderProgram
 		template<class Fn>
 		void Use(Fn func) const
 		{
+			GLint name;
+			glGetIntegerv(GL_CURRENT_PROGRAM, &name);
 			glUseProgram(program);
 			func();
-			glUseProgram(0);
+			glUseProgram(name);
 		}
 };

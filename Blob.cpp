@@ -1,4 +1,6 @@
 #include "Blob.h"
+#include <imgui.h>
+#include "imgui_impl_glfw.h"
 
 Blob::Blob(
 		btSoftBodyWorldInfo& softBodyWorldInfo,
@@ -164,4 +166,41 @@ void Blob::DrawGizmos(ShaderProgram* shaderProgram)
 	shaderProgram->Use([&](){
 		fwd.Render();
 	});
+}
+
+void Blob::Gui()
+{
+	ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
+	ImGui::Begin("Blob Edtior");
+	ImGui::SliderFloat("Rigid Contacts Hardness [0,1]",
+		&softbody->m_cfg.kCHR, 0.0f, 1.0f);
+	ImGui::SliderFloat("Dynamic Friction Coefficient [0,1]",
+		&softbody->m_cfg.kDF, 0.0f, 1.0f);
+	ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
+		&softbody->m_cfg.kPR, 1.0f, 100.0f);
+	ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
+		&softbody->m_cfg.kVC, 1.0f, 100.0f);
+	ImGui::InputFloat("Drag coefficient [0, +inf]",
+		&softbody->m_cfg.kDG, 1.0f, 100.0f);
+	ImGui::SliderFloat("Damping coefficient [0,1]",
+		&softbody->m_cfg.kDP, 0.0f, 1.0f);
+	ImGui::InputFloat("Lift coefficient [0,+inf]",
+		&softbody->m_cfg.kLF, 1.0f, 100.0f);
+	ImGui::SliderFloat("Pose matching coefficient [0,1]",
+		&softbody->m_cfg.kMT, 0.0f, 1.0f);
+
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+
+	ImGui::InputFloat("Movement force", &speed, 0.1f, 100.0f);
+
+	static float vec3[3] = { 0.f, 0.f, 0.f };
+	if (ImGui::InputFloat3("", vec3))
+		ImGui::SameLine();
+	if (ImGui::SmallButton("Set Position"))
+		softbody->translate(
+			btVector3(vec3[0], vec3[1], vec3[2]) - centroid);
+
+	ImGui::End();
 }

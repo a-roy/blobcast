@@ -7,10 +7,7 @@ BlobDisplay::BlobDisplay(
 {
 	GLfloat *vertex_data = new GLfloat[8] { -1, -1, -1, 1, 1, -1, 1, 1 };
 	VBO.SetData(vertex_data);
-	glBindVertexArray(VAO.Name);
-	VBO.BufferData(0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
+	VBO.VertexAttribPointer(0);
 	MVPMatrix = glm::ortho(
 			-1.25f, ((float)viewportWidth / (float)displaySize) - 1.25f,
 			-1.25f, ((float)viewportHeight / (float)displaySize) - 1.25f);
@@ -33,8 +30,8 @@ void BlobDisplay::Render(const ShaderProgram& program, AggregateInput& inputs)
 	program["uInnerRadius"] = InnerRadius;
 	program["uOuterRadius"] = OuterRadius;
 	program.Use([&](){
-		glBindVertexArray(VAO.Name);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		glBindVertexArray(0);
+		VAO.Bind([](){
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		});
 	});
 }

@@ -46,7 +46,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 		for(int x = -2; x <= 2; x++){
 			vec2 offsets = vec2(x * xOffset, y * yOffset);
 			vec3 UVC = vec3(UVCoords + offsets, z + EPSILON);
-			//factor += texture(depthMap, UVC);
+			factor += texture(depthMap, UVC);
 		}
 	}
 	
@@ -74,8 +74,8 @@ void main()
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	//float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 diffuseColor = (ambient + 1 * (diffuse + specular)) * objectColor;
+	float ShadowFactor = CalcShadowFactor(LightSpacePos);
+    vec3 diffuseColor = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
 	
 	// Reflection + refraction
 	float refractiveIndex = 1.15;

@@ -13,6 +13,10 @@ class StreamWriter
 	public:
 		StreamWriter(int viewportWidth, int viewportHeight);
 		~StreamWriter();
+		StreamWriter(const StreamWriter&) = delete;
+		StreamWriter& operator=(const StreamWriter&) = delete;
+		StreamWriter(StreamWriter&& other) = default;
+		StreamWriter& operator=(StreamWriter&& other) = default;
 		void WriteFrame();
 		void Close();
 		bool IsOpen() const;
