@@ -11,7 +11,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "RigidBody.h"
+#include "Entity.h"
 
 #include <typeinfo>
 #include <set>
@@ -42,7 +42,7 @@ public:
 
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
-	std::set<RigidBody*> selection;
+	std::set<Entity*> selection;
 	bool bLocal = true;
 	bool bCtrl = false;
 

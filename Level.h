@@ -2,16 +2,17 @@
 
 #include <vector>
 #include <string>
-#include "RigidBody.h"
+#include "Entity.h"
 #include "Button.h"
 #include "ParticleSystem.h"
 #include "Profiler.h"
+#include "Platform.h"
 
 class Level
 {
 	public:
-		std::vector<RigidBody *> Objects;
-		std::vector<Button *> Buttons;
+		std::vector<Entity*> Objects;
+		//std::vector<Button *> Buttons;
 		std::vector<ParticleSystem *> ParticleSystems;
 
 		Level() = default;

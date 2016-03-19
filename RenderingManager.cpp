@@ -184,8 +184,8 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 void RenderingManager::drawParticles(Level *level, 
 	glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glEnable(GL_BLEND);
 	(*particleShader)["uProj"] = projMatrix;
 	(*particleShader)["uView"] = viewMatrix;

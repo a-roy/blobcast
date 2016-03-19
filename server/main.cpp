@@ -18,7 +18,7 @@
 
 #include "SoftBody.h"
 #include "Blob.h"
-#include "RigidBody.h"
+#include "Entity.h"
 #include "Light.hpp"
 #include "IOBuffer.h"
 #include "Level.h"
@@ -193,7 +193,7 @@ bool init_physics()
 	btSoftBody *btblob = blob->softbody;
 
 	level = Level::Deserialize(LevelDir "test_level.json");
-	for(RigidBody* r : level->Objects)
+	for(Entity* r : level->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
@@ -271,23 +271,16 @@ void update()
 	Profiler::Start("Physics");
 	if(Physics::bStepPhysics)
 	{
-		for(Button* b : level->Buttons)
+		/*for(Button* b : level->Buttons)
 		{
-			if (Physics::BroadphaseTest(blob->softbody,
+			if (Physics::BroadphaseCheck(blob->softbody,
 				b->button->rigidbody))
-			{
-				if (Physics::NarrowphaseTest(blob->softbody,
+				if (Physics::NarrowphaseCheck(blob->softbody,
 					b->button->rigidbody))
-				{
-					/*b->callback =
-						[&]() { b->button->color
-						= glm::vec4(1, 0, 0, 1); };
-					b->callback();*/
-				}
-			}
-		}
+					b->DoCallbacks();
+		}*/
 
-		for (RigidBody *r : level->Objects)
+		for (Entity *r : level->Objects)
 			r->Update();
 
 		Physics::dynamicsWorld->stepSimulation(deltaTime, 10);

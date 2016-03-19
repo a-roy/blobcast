@@ -23,12 +23,12 @@ void LevelEditor::MainMenuBar()
 				if (lTheOpenFileName != NULL)
 				{
 					selection.clear();
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
+					for (Entity* ent : level->Objects)
+						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
 					delete level;
 					level = Level::Deserialize(lTheOpenFileName);
-					for (RigidBody* rb : level->Objects)
-						Physics::dynamicsWorld->addRigidBody(rb->rigidbody);
+					for (Entity* ent : level->Objects)
+						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);
 					level = level;
 				}
 			}
@@ -87,8 +87,13 @@ void LevelEditor::MainMenuBar()
 				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
-					level->Buttons[level->Buttons.size() - 1]
-					->button->rigidbody);
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+
+				//All buttons have the turn red if pressed callback
+				Button* b = (Button*)level->Objects[level->Objects.size() - 1];
+				b->RegisterCallback(
+					[b]() { b->color = glm::vec4(1, 0, 0, 1); }
+				);
 			}
 
 			ImGui::EndMenu();
@@ -171,7 +176,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 
 		if (selection.size() == 1)
 		{
-			RigidBody *first = *selection.begin();
+			Entity *first = *selection.begin();
 			float mass = first->mass;
 			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
 			{
@@ -229,8 +234,8 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			selection.clear();
 		}
 
-		RigidBody* newSelection = (RigidBody*)
-			RayCallback.m_collisionObject->getUserPointer();
+		Entity* newSelection = 
+			(Entity*)RayCallback.m_collisionObject->getUserPointer();
 		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
 		selection.insert(newSelection);
 	}
@@ -384,20 +389,20 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 {
 	if (selection.size() == 1)
 	{
-		RigidBody *rb = *selection.begin();
-		if (!rb->motion.Points.empty())
+		Entity *ent = *selection.begin();
+		if (!ent->motion.Points.empty())
 		{
-			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3>& p(ent->motion.Points);
 			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
 			std::vector<glm::vec3> l;
 			l.push_back(p.front());
-			for (int i = 0, n = (rb->motion.Loop ? p.size() : p.size() - 1);
+			for (int i = 0, n = (ent->motion.Loop ? p.size() : p.size() - 1);
 					i < n; i++)
 			{
 				float t = (float)i;
 				for (int j = 1; j <= 10; j++)
 				{
-					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+					l.push_back(ent->motion.GetPosition(t + (float)j / 10.f));
 				}
 			}
 			if (c.size() > 1)
@@ -440,13 +445,13 @@ void LevelEditor::Scale()
 
 void LevelEditor::Path()
 {
-	RigidBody *rb = *selection.begin();
-	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
-	ImGui::Checkbox("Loop path", &rb->motion.Loop);
+	Entity *ent = *selection.begin();
+	ImGui::DragFloat("Speed", &ent->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &ent->motion.Loop);
 	ImGui::Spacing();
 	bool path_changed = false;
 	int x = 0;
-	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
+	for (auto i = ent->motion.Points.begin(); i != ent->motion.Points.end(); ++i)
 	{
 		std::string pt_text = ("P" + std::to_string(x));
 		std::string rm_text = ("Rm " + std::to_string(x));
@@ -456,15 +461,15 @@ void LevelEditor::Path()
 		ImGui::SameLine();
 		if (ImGui::Button(rm_text.c_str()))
 		{
-			i = rb->motion.Points.erase(i);
+			i = ent->motion.Points.erase(i);
 			path_changed = true;
-			if (i == rb->motion.Points.end())
+			if (i == ent->motion.Points.end())
 				break;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button(ins_text.c_str()))
 		{
-			i = rb->motion.Points.insert(i, rb->GetTranslation());
+			i = ent->motion.Points.insert(i, ent->GetTranslation());
 			path_changed = true;
 		}
 		ImGui::Spacing();
@@ -472,11 +477,11 @@ void LevelEditor::Path()
 	}
 	if (ImGui::Button("Add new point"))
 	{
-		rb->motion.Points.push_back(rb->GetTranslation());
+		ent->motion.Points.push_back(ent->GetTranslation());
 		path_changed = true;
 	}
 	if (path_changed)
-		rb->motion.Reset();
+		ent->motion.Reset();
 }
 
 void LevelEditor::DeleteSelection()
@@ -494,7 +499,7 @@ void LevelEditor::CloneSelection()
 {
 	for (auto rb : selection)
 	{
-		RigidBody* newRb = new RigidBody(*rb);
+		Platform* newRb = new Platform((Platform&)rb);
 		level->Objects.push_back(newRb);
 		Physics::dynamicsWorld->addRigidBody(newRb->rigidbody);
 	}

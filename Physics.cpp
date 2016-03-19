@@ -49,7 +49,7 @@ void Physics::Cleanup()
 	delete Physics::broadphase;
 }
 
-bool Physics::BroadphaseTest(btCollisionObject* obj1,
+bool Physics::BroadphaseCheck(btCollisionObject* obj1,
 	btCollisionObject* obj2)
 {
 	btBroadphasePair* pair =
@@ -59,7 +59,7 @@ bool Physics::BroadphaseTest(btCollisionObject* obj1,
 	return (pair != NULL);
 }
 
-bool Physics::NarrowphaseTest(btSoftBody* sb,
+bool Physics::NarrowphaseCheck(btSoftBody* sb,
 	btCollisionObject* rb)
 {
 	for (int i = 0; i < sb->m_rcontacts.size(); i++)
@@ -70,9 +70,9 @@ bool Physics::NarrowphaseTest(btSoftBody* sb,
 	//return obj1->checkCollideWith(obj2); //Always returns true..
 }
 
-bool Physics::NarrowphaseTest(btCollisionObject* rb, btSoftBody* sb)
+bool Physics::NarrowphaseCheck(btCollisionObject* rb, btSoftBody* sb)
 {
-	return NarrowphaseTest(sb, rb);
+	return NarrowphaseCheck(sb, rb);
 }
 
 //OnEnter

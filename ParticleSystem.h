@@ -38,7 +38,7 @@ struct Particle
 struct Emitter
 {
 	glm::vec3 centre = glm::vec3(0.0f);
-	int emitRate = 10;
+	int emitRate = PARTICLE_EMIT_RATE;
 	glm::vec3 emitArea = glm::vec3(0.0f);
 	float velYMin = 30.0f;
 	float velYMax = 50.0f;

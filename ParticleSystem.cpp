@@ -86,12 +86,18 @@ void ParticleSystem::Generate()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+#include <iostream>
 void ParticleSystem::Update(double deltaTime)
 {
 	std::vector<BufferData> data;
 
-	for (int i = 0; i < emitter.emitRate; i++)
+	static double timer = 0;
+	timer += deltaTime;
+
+	while (timer >= 1.0f / emitter.emitRate)
 	{
+		timer -= (1.0f / emitter.emitRate);
+
 		if (inactiveParticles.size() > 0)
 		{
 			Particle* p = inactiveParticles.front();

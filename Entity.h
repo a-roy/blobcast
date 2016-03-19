@@ -10,12 +10,13 @@
 
 enum Shape { Box, Cylinder };
 
-class RigidBody
+class Entity
 {
 
 private:
 
 	Mesh* mesh;
+	//const void* userPointer;
 	
 public:
 
@@ -26,16 +27,16 @@ public:
 	Path motion;
 	Shape shapeType;
 
-	RigidBody(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
+	Entity(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
 		float p_mass = 0);
-	RigidBody(RigidBody& rb);
-	~RigidBody();
+	~Entity();
 
 	glm::mat4 GetModelMatrix();
 
 	void Render();
-	void Update();
+	
+	virtual void Update() = 0;
 
 	glm::quat GetOrientation() 
 	{
@@ -49,6 +50,16 @@ public:
 	{
 		return convert(rigidbody->getCollisionShape()->getLocalScaling());
 	}
+
+	/*const void* GetUserPointer()
+	{
+		return userPointer;
+	}
+
+	void SetUserPointer(const void* pointer)
+	{
+		userPointer = pointer;
+	}*/
 
 	//void SetMass(btSoftRigidDynamicsWorld* dynamicsWorld)
 	//{
