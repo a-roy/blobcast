@@ -37,7 +37,7 @@
 #include "Profiler.h"
 
 #include <stdio.h>
-#include "tinyfiledialogs.h"
+#include "Timer.h"
 
 #include "ParticleSystem.h"
 
@@ -81,9 +81,9 @@ Level *level;
 ShaderProgram *displayShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
 
-double currentFrame = glfwGetTime();
-double lastFrame = currentFrame;
-double deltaTime;
+double Timer::currentFrame = glfwGetTime();
+double Timer::lastFrame = Timer::currentFrame;
+double Timer::deltaTime;
 AggregateInput current_inputs;
 
 LevelEditor *levelEditor;
@@ -255,10 +255,10 @@ void update()
 
 	blob->AddForces(current_inputs);
 
-	currentFrame = glfwGetTime();
-	deltaTime = currentFrame - lastFrame;
-	lastFrame = currentFrame;
-	frameCounterTime += deltaTime;
+	Timer::currentFrame = glfwGetTime();
+	Timer::deltaTime = Timer::currentFrame - Timer::lastFrame;
+	Timer::lastFrame = Timer::currentFrame;
+	frameCounterTime += Timer::deltaTime;
 	if (frameCounterTime >= 1.0f)
 	{
 		for (auto itr = Profiler::measurements.begin();
@@ -286,15 +286,15 @@ void update()
 		}
 
 		for (Entity *r : level->Objects)
-			r->Update(deltaTime);
+			r->Update(Timer::deltaTime);
 
-		Physics::dynamicsWorld->stepSimulation(deltaTime, 10);
+		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
 	}
 	Profiler::Finish("Physics");
 
 	Profiler::Start("Particles");
 	for (auto ps : level->ParticleSystems)
-		ps->Update(deltaTime);
+		ps->Update(Timer::deltaTime);
 	Profiler::Finish("Particles", false);
 
 	blobCam->Target = convert(blob->GetCentroid());

@@ -3,6 +3,7 @@
 #include "Line.h"
 #include "Points.h"
 #include <sstream>
+#include "Timer.h"
 
 void LevelEditor::MainMenuBar()
 {
@@ -104,6 +105,8 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("Step Physics", NULL,
 				Physics::bStepPhysics))
 				Physics::bStepPhysics ^= 1;
+			if (ImGui::Button("Magic Fix Editor"))
+				Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
 
 			ImGui::EndMenu();
 		}
@@ -190,6 +193,9 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 
 				first->mass = mass;
 			}
+			float friction = first->rigidbody->getFriction();
+			if (ImGui::InputFloat("Friction", &friction, 1.0f, 10.0f))
+				first->rigidbody->setFriction(friction);
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
 			if (dynamic_cast<Platform*>(first))
