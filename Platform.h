@@ -5,6 +5,8 @@
 class Platform : public Entity
 {
 public:
+	Path motion;
+
 	Platform(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color,
 		float p_mass = 0)

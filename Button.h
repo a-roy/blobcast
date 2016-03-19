@@ -40,6 +40,13 @@ public:
 		//rigidbody->setUserPointer(this);
 	}
 
+	Button(Button& p) :
+		Button(p.GetTranslation(),
+			p.GetOrientation(),
+			p.GetScale(),
+			p.trueColor,
+			p.mass) {}
+
 	~Button()
 	{
 		delete constraint;

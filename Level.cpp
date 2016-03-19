@@ -17,7 +17,12 @@ Level& Level::operator=(const Level& other)
 {
 	Clear();
 	for (Entity *r : Objects)
-		Objects.push_back(new Platform((Platform&)r));
+	{
+		if (dynamic_cast<Button*>(r))
+			Objects.push_back(new Button(*dynamic_cast<Button*>(r)));
+		if (dynamic_cast<Platform*>(r))
+			Objects.push_back(new Platform(*dynamic_cast<Platform*>(r)));
+	}
 	return *this;
 }
 
@@ -141,14 +146,18 @@ void Level::Serialize(std::string file)
 			ent->trueColor.r, ent->trueColor.g, ent->trueColor.b, 
 			ent->trueColor.a };
 		object["mass"] = ent->mass;
-		if (!ent->motion.Points.empty())
+		Platform* plat = dynamic_cast<Platform*>(ent);
+		if (plat)
 		{
-			nlohmann::json path;
-			path["speed"] = ent->motion.Speed;
-			for (auto v = ent->motion.Points.begin();
-					v != ent->motion.Points.end(); ++v)
-				path["points"].push_back({ v->x, v->y, v->z });
-			object["path"] = path;
+			if (!plat->motion.Points.empty())
+			{
+				nlohmann::json path;
+				path["speed"] = plat->motion.Speed;
+				for (auto v = plat->motion.Points.begin();
+				v != plat->motion.Points.end(); ++v)
+					path["points"].push_back({ v->x, v->y, v->z });
+				object["path"] = path;
+			}
 		}
 		objects.push_back(object);
 	}
@@ -188,7 +197,7 @@ Level *Level::Deserialize(std::string file)
 				color, mass);
 		if (!path.is_null())
 		{
-			Entity *ent = level->Objects[i];
+			Platform *ent = (Platform*)level->Objects[i];
 			auto speed = path["speed"];
 			auto points = path["points"];
 			ent->motion.Speed = speed;

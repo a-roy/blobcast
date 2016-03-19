@@ -191,9 +191,13 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				first->mass = mass;
 			}
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
-			if (ImGui::CollapsingHeader("Path"))
+			
+			if (dynamic_cast<Platform*>(first))
 			{
-				Path();
+				if (ImGui::CollapsingHeader("Path"))
+				{
+					Path();
+				}
 			}
 		}
 
@@ -389,7 +393,9 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 {
 	if (selection.size() == 1)
 	{
-		Entity *ent = *selection.begin();
+		Platform* ent = dynamic_cast<Platform*>(*selection.begin());
+		if (!ent)
+			return;
 		if (!ent->motion.Points.empty())
 		{
 			std::vector<glm::vec3>& p(ent->motion.Points);
@@ -445,7 +451,7 @@ void LevelEditor::Scale()
 
 void LevelEditor::Path()
 {
-	Entity *ent = *selection.begin();
+	Platform *ent = (Platform*)*selection.begin();
 	ImGui::DragFloat("Speed", &ent->motion.Speed, 0.01f, 0.0f, 1.0f);
 	ImGui::Checkbox("Loop path", &ent->motion.Loop);
 	ImGui::Spacing();
@@ -497,10 +503,18 @@ void LevelEditor::DeleteSelection()
 
 void LevelEditor::CloneSelection()
 {
-	for (auto rb : selection)
+	for (Entity* rb : selection)
 	{
-		Platform* newRb = new Platform((Platform&)rb);
-		level->Objects.push_back(newRb);
-		Physics::dynamicsWorld->addRigidBody(newRb->rigidbody);
+		Entity* newEnt;
+
+		Button* button = dynamic_cast<Button*>(rb);
+		if(button)
+			newEnt = new Button(*button);
+		Platform* platform = dynamic_cast<Platform*>(rb);
+		if (platform)
+			newEnt = new Platform(*platform);
+
+		level->Objects.push_back(newEnt);
+		Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}
 }

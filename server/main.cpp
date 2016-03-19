@@ -271,14 +271,19 @@ void update()
 	Profiler::Start("Physics");
 	if(Physics::bStepPhysics)
 	{
-		/*for(Button* b : level->Buttons)
+		for(Entity* ent : level->Objects)
 		{
-			if (Physics::BroadphaseCheck(blob->softbody,
-				b->button->rigidbody))
-				if (Physics::NarrowphaseCheck(blob->softbody,
-					b->button->rigidbody))
-					b->DoCallbacks();
-		}*/
+			Button* button = dynamic_cast<Button*>(ent);
+
+			if (button)
+			{
+				if (Physics::BroadphaseCheck(blob->softbody,
+					button->rigidbody))
+					if (Physics::NarrowphaseCheck(blob->softbody,
+						button->rigidbody))
+						button->DoCallbacks();
+			}
+		}
 
 		for (Entity *r : level->Objects)
 			r->Update();

@@ -16,7 +16,6 @@ class Entity
 private:
 
 	Mesh* mesh;
-	//const void* userPointer;
 	
 public:
 
@@ -24,7 +23,6 @@ public:
 	glm::vec4 color;
 	glm::vec4 trueColor;
 	float mass;
-	Path motion;
 	Shape shapeType;
 
 	Entity(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
@@ -50,26 +48,4 @@ public:
 	{
 		return convert(rigidbody->getCollisionShape()->getLocalScaling());
 	}
-
-	/*const void* GetUserPointer()
-	{
-		return userPointer;
-	}
-
-	void SetUserPointer(const void* pointer)
-	{
-		userPointer = pointer;
-	}*/
-
-	//void SetMass(btSoftRigidDynamicsWorld* dynamicsWorld)
-	//{
-	//	//Remove from world to change mass
-	//	dynamicsWorld->removeRigidBody(rigidbody);
-	//	btVector3 inertia;
-	//	first->rigidbody->getCollisionShape()->calculateLocalInertia(mass, inertia);
-	//	first->rigidbody->setMassProps(mass, inertia);
-	//	dynamicsWorld->addRigidBody(first->rigidbody);
-
-	//	first->mass = mass;
-	//}
 };
