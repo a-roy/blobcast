@@ -1,4 +1,5 @@
 #include "ParticleSystem.h"
+#include <algorithm>
 
 Camera* BufferData::cam = NULL;
 
