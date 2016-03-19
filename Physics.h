@@ -6,6 +6,8 @@
 #include <BulletSoftBody/btSoftBodyHelpers.h>
 #include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 
+#include <glm/glm.hpp>
+
 #include <iostream>
 
 class Physics
@@ -48,5 +50,19 @@ public:
 	static bool NarrowphaseCheck(btSoftBody* sb, btCollisionObject* rb);
 	static bool NarrowphaseCheck(btCollisionObject* rb, btSoftBody* sb);
 
-	
+	static glm::vec3 InverseDynamics(glm::vec3 currentPosition, 
+		glm::vec3 desiredPosition, glm::vec3 currentVelocity, float mass,
+		float deltaTime)
+	{
+		//desiredPosition = currentPosition + requiredVelocity * dt
+		glm::vec3 requiredVelocity = 
+			(desiredPosition - currentPosition) / deltaTime; 
+
+		//requiredVelocity = currentVelocity + requiredAccel * dt;																	  
+		glm::vec3 requiredAccel = (requiredVelocity - currentVelocity) 
+			/ deltaTime;
+		
+		//F=ma
+		return mass * requiredAccel;
+	}
 };

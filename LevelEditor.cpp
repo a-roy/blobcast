@@ -71,7 +71,7 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("Box"))
 			{
 				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f));
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 			}
@@ -178,7 +178,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 		{
 			Entity *first = *selection.begin();
 			float mass = first->mass;
-			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
+			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
 			{
 				//Remove from world to change mass
 				Physics::dynamicsWorld->removeRigidBody(first->rigidbody);
@@ -270,7 +270,7 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 				if (!platform->motion.Points.empty())
 				{
 					buttonBeingLinked->RegisterCallback(
-						[platform]() { platform->Update(); }
+						[platform]() { platform->motion.Enabled = 1; }
 					);
 				}
 			}

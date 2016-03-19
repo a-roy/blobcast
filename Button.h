@@ -63,7 +63,7 @@ public:
 			callback();
 	}
 
-	void Update()
+	void Update(float deltaTime)
 	{
 
 	}

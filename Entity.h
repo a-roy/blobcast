@@ -34,7 +34,7 @@ public:
 
 	void Render();
 	
-	virtual void Update() = 0;
+	virtual void Update(float deltaTime) = 0;
 
 	glm::quat GetOrientation() 
 	{

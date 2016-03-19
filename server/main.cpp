@@ -285,8 +285,8 @@ void update()
 			}
 		}
 
-		//for (Entity *r : level->Objects)
-			//r->Update();
+		for (Entity *r : level->Objects)
+			r->Update(deltaTime);
 
 		Physics::dynamicsWorld->stepSimulation(deltaTime, 10);
 	}

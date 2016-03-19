@@ -25,15 +25,24 @@ public:
 			p.trueColor,
 			p.mass) {}
 
-	void Update()
+	void Update(float deltaTime)
 	{
 		if (!motion.Points.empty())
 		{
-			if (motion.Step())
+			if (motion.Enabled)
 			{
-				rigidbody->translate(
-					convert(motion.GetPosition() - GetTranslation()));
-				rigidbody->setLinearVelocity(btVector3(0, 0, 0));
+				if (motion.Step())
+				{
+					/*rigidbody->translate(
+						convert(motion.GetPosition() - GetTranslation()));
+					rigidbody->setLinearVelocity(btVector3(0, 0, 0));*/
+
+					rigidbody->applyCentralForce(convert(
+						Physics::InverseDynamics(GetTranslation(),
+						motion.GetPosition(),
+						convert(rigidbody->getLinearVelocity()),
+						mass, deltaTime)));
+				}
 			}
 		}
 	}
