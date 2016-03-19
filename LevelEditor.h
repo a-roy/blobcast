@@ -46,6 +46,9 @@ public:
 	bool bLocal = true;
 	bool bCtrl = false;
 
+	bool bSetLink = false;
+	Button* buttonBeingLinked = NULL;
+
 	LevelEditor(Level *p_level) :
 		level(p_level){}
 	~LevelEditor(){}

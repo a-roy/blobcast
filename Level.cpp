@@ -19,9 +19,9 @@ Level& Level::operator=(const Level& other)
 	for (Entity *r : Objects)
 	{
 		if (dynamic_cast<Button*>(r))
-			Objects.push_back(new Button(*dynamic_cast<Button*>(r)));
+			Objects.push_back(new Button(*(Button*)r));
 		if (dynamic_cast<Platform*>(r))
-			Objects.push_back(new Platform(*dynamic_cast<Platform*>(r)));
+			Objects.push_back(new Platform(*(Platform*)r));
 	}
 	return *this;
 }

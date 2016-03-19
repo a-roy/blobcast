@@ -199,6 +199,24 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 					Path();
 				}
 			}
+
+			if (dynamic_cast<Button*>(first))
+			{
+				if (ImGui::CollapsingHeader("Connections"))
+				{
+					if (ImGui::Button("Set Pick"))
+					{
+						bSetLink = true;
+						buttonBeingLinked = (Button*)first;
+					}
+				}
+			}
+			else
+			{
+				bSetLink = false;
+			}
+
+			
 		}
 
 		ImGui::End();
@@ -242,6 +260,23 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			(Entity*)RayCallback.m_collisionObject->getUserPointer();
 		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
 		selection.insert(newSelection);
+
+		if (bSetLink)
+		{
+			Entity* first = *selection.begin();
+			Platform* platform = dynamic_cast<Platform*>(first);
+			if (platform)
+			{
+				if (!platform->motion.Points.empty())
+				{
+					buttonBeingLinked->RegisterCallback(
+						[platform]() { platform->Update(); }
+					);
+				}
+			}
+
+			bSetLink = false;
+		}
 	}
 	else
 	{
