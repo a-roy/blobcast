@@ -1,5 +1,5 @@
 #include "Helper.h"
-#include <SOIL\SOIL.h>
+#include <SOIL/SOIL.h>
 #include <iostream>
 
 glm::vec3 convert(const btVector3& v)
