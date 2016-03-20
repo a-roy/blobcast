@@ -69,6 +69,7 @@ private:
 	void LocalRotation(float angle, glm::vec3 axis);
 	void GlobalRotation(float angle, glm::vec3 axis, glm::vec3 axisPosition);
 	void Scale();
+	void ScaleSelection(glm::vec3 relScale);
 	void Path();
 
 	void DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,

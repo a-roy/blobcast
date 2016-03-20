@@ -475,18 +475,30 @@ void LevelEditor::Scale()
 			getLocalScaling());
 	centroid /= selection.size();
 	glm::vec3 before = centroid;
-	if (ImGui::DragFloat3("Scale", glm::value_ptr(centroid)))
+
+	float x = centroid.x;
+	if (ImGui::InputFloat("X", &x, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(x - centroid.x, 0, 0));
+	float y = centroid.y;
+	if (ImGui::InputFloat("Y", &y, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(0, y - centroid.y, 0));
+	float z = centroid.z;
+	if (ImGui::InputFloat("Z", &z, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(0, 0, z - centroid.z));
+}
+
+void LevelEditor::ScaleSelection(glm::vec3 relScale)
+{
+	for (auto rb : selection)
 	{
-		btVector3 relScale = convert(centroid - before);
-		for (auto rb : selection)
-		{
-			rb->rigidbody->
-				getCollisionShape()->setLocalScaling(
-					rb->rigidbody->getCollisionShape()->
-					getLocalScaling()
-					+ relScale);
-			Physics::dynamicsWorld->updateSingleAabb(rb->rigidbody);
-		}
+		btVector3 newScale = rb->rigidbody->getCollisionShape()->
+			getLocalScaling() + convert(relScale);
+		if (newScale.getX() <= 0 
+			|| newScale.getY() <= 0 || newScale.getZ() <= 0)
+			continue;
+		rb->rigidbody->getCollisionShape()->setLocalScaling(
+				newScale);
+		Physics::dynamicsWorld->updateSingleAabb(rb->rigidbody);
 	}
 }
 
