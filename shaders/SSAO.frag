@@ -80,7 +80,7 @@ void main()
 	occlusion /= aoTemp * aoTemp;
 	occlusion = max(0.0, 1.0 - occlusion * (1.0/numSamples));
 
-	FragColor = pow(occlusion, 10.0);
+	FragColor = pow(occlusion, 8.0);
 }
 
 // void main()

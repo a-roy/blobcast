@@ -56,7 +56,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.1f;
+	float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * directionalLight.ambientColor;
 	
 	// Diffuse
@@ -74,7 +74,7 @@ void main()
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	float ShadowFactor = CalcShadowFactor(LightSpacePos);
+	float ShadowFactor = 0; //CalcShadowFactor(LightSpacePos);
     vec3 diffuseColor = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
 	
 	// Reflection + refraction

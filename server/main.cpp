@@ -197,7 +197,7 @@ bool init_physics()
 		btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
-	level = Level::Deserialize(LevelDir "test_level.json");
+	level = Level::Deserialize(LevelDir "window_test.json");
 	for(RigidBody* r : level->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
@@ -306,11 +306,10 @@ void draw()
 	glViewport(0, 0, width, height);
 
 	//renderManager.debugQuadDraw();
-
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
-	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
-
+	
 	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
+
+	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	renderManager.drawSkybox(viewMatrix, projMatrix);

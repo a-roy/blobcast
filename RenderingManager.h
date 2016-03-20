@@ -44,6 +44,7 @@ protected:
 	IOBuffer aoBuffer;
 	std::vector<IOBuffer> pingpongBuffers;
 	IOBuffer depthBuffer;
+	IOBuffer CSMBuffer;
 
 	glm::mat4 lightSpaceMatrix;
 
@@ -63,4 +64,6 @@ protected:
 
 	void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up,
 		GLenum face, glm::mat4 projMatrix, Level *level);
+
+	GLuint wallTexture;
 };
