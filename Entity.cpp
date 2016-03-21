@@ -4,15 +4,19 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+int Entity::nextID = 0;
+
 Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
-	glm::vec4 p_color, GLuint p_texID, float p_mass) 
+	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable) 
 	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
-	mass(p_mass)
+	mass(p_mass), collidable(p_collidable)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 	btCollisionShape* shape;
 	shapeType = p_shapeType;
+
+	ID = nextID++;
 	
 	if(p_shapeType == Shape::Box)
 		shape = new btBoxShape(btVector3(1,1,1));
@@ -32,7 +36,9 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
-	rigidbody->setRestitution(0.0);
+	//rigidbody->setRestitution(0.0);
+
+	SetCollidable(collidable);
 
 	const char* name = shape->getName();
 

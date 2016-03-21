@@ -20,6 +20,8 @@ public:
 	std::vector<CallbackFunc> onStayCallbacks;
 	std::vector<CallbackFunc> onLeaveCallbacks;
 
+	std::vector<int> connectionIDs;
+
 	bool bTriggered = false;
 
 	Trigger(glm::vec3 p_translation, glm::quat p_orientation, 

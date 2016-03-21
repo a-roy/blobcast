@@ -131,9 +131,7 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
 
-		/*if (typeid(r) == typeid(Button))
-			object["type"] = "button";
-		else*/ if(ent->shapeType == Shape::Box)
+		if(ent->shapeType == Shape::Box)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
@@ -149,6 +147,8 @@ void Level::Serialize(std::string file)
 			ent->trueColor.r, ent->trueColor.g, ent->trueColor.b, 
 			ent->trueColor.a };
 		object["mass"] = ent->mass;
+		object["collidable"] = ent->GetCollidable();
+		object["id"] = ent->ID;
 		object["texID"] = ent->textureID;
 		Platform* plat = dynamic_cast<Platform*>(ent);
 		if (plat)
@@ -192,14 +192,33 @@ Level *Level::Deserialize(std::string file)
 		auto j_col = object["color"];
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
-		auto j_tex = object["texID"];
+		GLuint texID;
+		if (!object["texID"].is_null())
+			texID = object["texID"];
+		else
+			texID = 4;
 		auto path = object["path"];
+		int id;
+		if (!object["id"].is_null())
+			id = object["id"];
+		bool collidable;
+		if(!object["collidable"].is_null())
+			collidable = object["collidable"];
 		std::size_t i;
 		if (object["type"] == "box")
-			i = level->AddBox(position, orientation, dimensions, color, mass);
+			i = level->AddBox(position, orientation, dimensions, color, 
+				texID, mass);
 		else if (object["type"] == "cylinder")
 			i = level->AddCylinder(position, orientation, dimensions, 
-				color, mass);
+				color, texID, mass);
+		if (!object["collidable"].is_null())
+			level->Objects[i]->SetCollidable(collidable);
+		if (!object["id"].is_null())
+		{
+			level->Objects[i]->ID = id;
+			if (id >= Entity::nextID)
+				Entity::nextID = id + 1;
+		}
 		if (!path.is_null())
 		{
 			Platform *ent = (Platform*)level->Objects[i];
