@@ -47,7 +47,7 @@ public:
 	bool bCtrl = false;
 
 	bool bSetLink = false;
-	Button* buttonBeingLinked = NULL;
+	Trigger* triggerBeingLinked = NULL;
 
 	LevelEditor(Level *p_level) :
 		level(p_level){}

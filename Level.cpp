@@ -1,7 +1,7 @@
 #include "Level.h"
 #include <json.hpp>
 #include <fstream>
-#include "Button.h"
+#include "Trigger.h"
 
 Level::~Level()
 {
@@ -18,8 +18,8 @@ Level& Level::operator=(const Level& other)
 	Clear();
 	for (Entity *r : Objects)
 	{
-		if (dynamic_cast<Button*>(r))
-			Objects.push_back(new Button(*(Button*)r));
+		if (dynamic_cast<Trigger*>(r))
+			Objects.push_back(new Trigger(*(Trigger*)r));
 		if (dynamic_cast<Platform*>(r))
 			Objects.push_back(new Platform(*(Platform*)r));
 	}
@@ -73,15 +73,12 @@ std::size_t Level::AddCylinder(
 	return Objects.size() - 1;
 }
 
-std::size_t Level::AddButton(
+std::size_t Level::AddTrigger(
 	glm::vec3 position,
 	glm::quat orientation,
-	glm::vec3 dimensions,
-	glm::vec4 color,
-	float mass)
+	glm::vec3 dimensions)
 {
-	Button *b = new Button(position, orientation, dimensions,
-		color, 1.0f);
+	Trigger *b = new Trigger(position, orientation, dimensions);
 	Objects.push_back(b);
 	return Objects.size() - 1;
 }

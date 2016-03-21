@@ -33,7 +33,7 @@ public:
 
 	glm::mat4 GetModelMatrix();
 
-	void Render();
+	virtual void Render();
 	
 	virtual void Update(float deltaTime) = 0;
 

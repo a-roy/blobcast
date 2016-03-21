@@ -31,20 +31,13 @@ public:
 		if (!motion.Points.empty())
 		{
 			if (motion.Enabled)
-			{
-				if (motion.Step())
-				{
-					/*rigidbody->translate(
-						convert(motion.GetPosition() - GetTranslation()));
-					rigidbody->setLinearVelocity(btVector3(0, 0, 0));*/
+				motion.Step();
 
-					rigidbody->applyCentralForce(convert(
-						Physics::InverseDynamics(GetTranslation(),
-						motion.GetPosition(),
-						convert(rigidbody->getLinearVelocity()),
-						mass, deltaTime)));
-				}
-			}
+			rigidbody->applyCentralForce(convert(
+				Physics::InverseDynamics(GetTranslation(),
+					motion.GetPosition(),
+					convert(rigidbody->getLinearVelocity()),
+					mass, deltaTime)));
 		}
 	}
 };
