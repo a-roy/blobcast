@@ -45,7 +45,7 @@
 //#include <SPK_GL.h>
 
 #include "Physics.h"
-#include "Button.h"
+#include "Trigger.h"
 
 bool init();
 bool init_physics();
@@ -273,15 +273,15 @@ void update()
 	{
 		for(Entity* ent : level->Objects)
 		{
-			Button* button = dynamic_cast<Button*>(ent);
+			Trigger* trigger = dynamic_cast<Trigger*>(ent);
 
-			if (button)
+			if (trigger)
 			{
 				if (Physics::BroadphaseCheck(blob->softbody,
-					button->rigidbody))
+					trigger->rigidbody))
 					if (Physics::NarrowphaseCheck(blob->softbody,
-						button->rigidbody))
-						button->DoCallbacks();
+						trigger->rigidbody))
+						trigger->OnEnter();
 			}
 		}
 

@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 #include "Entity.h"
-#include "Button.h"
+#include "Trigger.h"
 #include "ParticleSystem.h"
 #include "Profiler.h"
 #include "Platform.h"
@@ -33,12 +33,10 @@ class Level
 				glm::vec3 dimensions,
 				glm::vec4 color,
 				float mass = 0.f);
-		std::size_t AddButton(
+		std::size_t AddTrigger(
 				glm::vec3 position,
 				glm::quat orientation,
-				glm::vec3 dimensions,
-				glm::vec4 color,
-				float mass = 0.f);
+				glm::vec3 dimensions);
 		void Delete(std::size_t index);
 		void Clear();
 		int Find(btRigidBody *r);

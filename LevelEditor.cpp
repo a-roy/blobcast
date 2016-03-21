@@ -83,17 +83,17 @@ void LevelEditor::MainMenuBar()
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 			}
-			if (ImGui::MenuItem("Button"))
+			if (ImGui::MenuItem("Trigger"))
 			{
-				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				level->AddTrigger(glm::vec3(0), glm::quat(), glm::vec3(1));
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 
 				//All buttons have the turn red if pressed callback
-				Button* b = (Button*)level->Objects[level->Objects.size() - 1];
-				b->RegisterCallback(
-					[b]() { b->color = glm::vec4(1, 0, 0, 1); }
+				Trigger* t = (Trigger*)level->Objects[level->Objects.size() - 1];
+				t->RegisterCallback(
+					[t]() { /*t->color = glm::vec4(1, 0, 0, 1);*/ }, 
+					CallbackType::Enter
 				);
 			}
 
@@ -206,14 +206,14 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				}
 			}
 
-			if (dynamic_cast<Button*>(first))
+			if (dynamic_cast<Trigger*>(first))
 			{
 				if (ImGui::CollapsingHeader("Connections"))
 				{
 					if (ImGui::Button("Set Pick"))
 					{
 						bSetLink = true;
-						buttonBeingLinked = (Button*)first;
+						triggerBeingLinked = (Trigger*)first;
 					}
 				}
 			}
@@ -275,8 +275,9 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			{
 				if (!platform->motion.Points.empty())
 				{
-					buttonBeingLinked->RegisterCallback(
-						[platform]() { platform->motion.Enabled = 1; }
+					triggerBeingLinked->RegisterCallback(
+						[platform]() { platform->motion.Enabled = 1; },
+						CallbackType::Enter
 					);
 				}
 			}
@@ -560,9 +561,9 @@ void LevelEditor::CloneSelection()
 	{
 		Entity* newEnt;
 
-		Button* button = dynamic_cast<Button*>(rb);
-		if(button)
-			newEnt = new Button(*button);
+		Trigger* trigger = dynamic_cast<Trigger*>(rb);
+		if(trigger)
+			newEnt = new Trigger(*trigger);
 		Platform* platform = dynamic_cast<Platform*>(rb);
 		if (platform)
 			newEnt = new Platform(*platform);
