@@ -76,7 +76,6 @@ RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 BlobDisplay *blobDisplay;
 Blob *blob;
-Level *level;
 
 ShaderProgram *displayShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
@@ -87,6 +86,7 @@ double Timer::deltaTime;
 AggregateInput current_inputs;
 
 LevelEditor *levelEditor;
+Level* Level::currentLevel;
 
 double xcursor, ycursor;
 bool bGui = true;
@@ -99,6 +99,8 @@ BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 
 double frameCounterTime = 0.0f;
 std::map<std::string, Measurement> Profiler::measurements;
+
+
 
 #pragma warning(disable:4996)
 
@@ -120,7 +122,7 @@ int main(int argc, char *argv[])
 	if (!init())
 		return 1;
 
-	levelEditor = new LevelEditor(level);
+	levelEditor = new LevelEditor();
 
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
 
@@ -192,13 +194,13 @@ bool init_physics()
 		btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
-	level = Level::Deserialize(LevelDir "test_level.json");
-	for(Entity* r : level->Objects)
+	Level::currentLevel = Level::Deserialize(LevelDir "test_level.json");
+	for(Entity* r : Level::currentLevel->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
-	level->AddParticleSystem(glm::vec3(0));
+	Level::currentLevel->AddParticleSystem(glm::vec3(0));
 
 	return true;
 }
@@ -271,7 +273,7 @@ void update()
 	Profiler::Start("Physics");
 	if(Physics::bStepPhysics)
 	{
-		for(Entity* ent : level->Objects)
+		for(Entity* ent : Level::currentLevel->Objects)
 		{
 			Trigger* trigger = dynamic_cast<Trigger*>(ent);
 
@@ -296,7 +298,7 @@ void update()
 			}
 		}
 
-		for (Entity *r : level->Objects)
+		for (Entity *r : Level::currentLevel->Objects)
 			r->Update(Timer::deltaTime);
 
 		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
@@ -304,8 +306,8 @@ void update()
 	Profiler::Finish("Physics");
 
 	Profiler::Start("Particles");
-	for (auto ps : level->ParticleSystems)
-		ps->Update(Timer::deltaTime);
+	/*for (auto ps : level->ParticleSystems)
+		ps->Update(Timer::deltaTime);*/
 	Profiler::Finish("Particles", false);
 
 	blobCam->Target = convert(blob->GetCentroid());
@@ -318,15 +320,15 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	renderManager.depthPass(blob, level);
-	renderManager.dynamicCubeMapPass(blob, level);
+	renderManager.depthPass(blob, Level::currentLevel);
+	renderManager.dynamicCubeMapPass(blob, Level::currentLevel);
 
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
 
-	renderManager.geometryPass(level, viewMatrix, projMatrix);
+	renderManager.geometryPass(Level::currentLevel, viewMatrix, projMatrix);
 	renderManager.SSAOPass(projMatrix, activeCam->Position);
 	renderManager.blurPass();
 
@@ -337,14 +339,14 @@ void draw()
 	//renderManager.debugQuadDraw();
 
 	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
-	renderManager.drawLevel(level, activeCam->Position, viewMatrix, projMatrix);
+	renderManager.drawLevel(Level::currentLevel, activeCam->Position, viewMatrix, projMatrix);
 	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	renderManager.drawSkybox(viewMatrix, projMatrix);
 	viewMatrix = activeCam->GetMatrix();
 
-	renderManager.drawParticles(level, viewMatrix, projMatrix);
+	renderManager.drawParticles(Level::currentLevel, viewMatrix, projMatrix);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

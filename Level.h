@@ -11,6 +11,8 @@
 class Level
 {
 	public:
+		static Level* currentLevel;
+
 		std::vector<Entity*> Objects;
 		//std::vector<Button *> Buttons;
 		std::vector<ParticleSystem *> ParticleSystems;

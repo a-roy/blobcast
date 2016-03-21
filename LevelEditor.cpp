@@ -24,13 +24,12 @@ void LevelEditor::MainMenuBar()
 				if (lTheOpenFileName != NULL)
 				{
 					selection.clear();
-					for (Entity* ent : level->Objects)
+					for (Entity* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
-					delete level;
-					level = Level::Deserialize(lTheOpenFileName);
-					for (Entity* ent : level->Objects)
+					delete Level::currentLevel;
+					Level::currentLevel = Level::Deserialize(lTheOpenFileName);
+					for (Entity* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);
-					level = level;
 				}
 			}
 
@@ -46,7 +45,7 @@ void LevelEditor::MainMenuBar()
 					NULL);
 
 				if (lTheSaveFileName != NULL)
-					level->Serialize(lTheSaveFileName);
+					Level::currentLevel->Serialize(lTheSaveFileName);
 			}
 
 			ImGui::EndMenu();
@@ -69,6 +68,7 @@ void LevelEditor::MainMenuBar()
 
 		if (ImGui::BeginMenu("Create"))
 		{
+			Level* level = Level::currentLevel;
 			if (ImGui::MenuItem("Box"))
 			{
 				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
@@ -186,6 +186,11 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 		if (selection.size() == 1)
 		{
 			Entity *first = *selection.begin();
+
+			bool collidable = first->GetCollidable();
+			if (ImGui::Checkbox("Collidable", &collidable))
+				first->SetCollidable(collidable);
+
 			float mass = first->mass;
 			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
 			{
@@ -204,27 +209,21 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				first->rigidbody->setFriction(friction);
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
-			if (dynamic_cast<Platform*>(first))
-			{
-				if (ImGui::CollapsingHeader("Path"))
-				{
+			if (dynamic_cast<Platform*>(first)) {
+				if (ImGui::CollapsingHeader("Path")) {
 					Path();
 				}
 			}
 
-			if (dynamic_cast<Trigger*>(first))
-			{
-				if (ImGui::CollapsingHeader("Connections"))
-				{
-					if (ImGui::Button("Set Link"))
-					{
+			if (dynamic_cast<Trigger*>(first)) {
+				if (ImGui::CollapsingHeader("Connections")) {
+					if (ImGui::Button("Set Link")) {
 						bSetLink = true;
 						triggerBeingLinked = (Trigger*)first;
 					}
 				}
 			}
-			else
-			{
+			else {
 				bSetLink = false;
 			}
 
@@ -559,7 +558,7 @@ void LevelEditor::DeleteSelection()
 	for (auto rb : selection)
 	{
 		Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
-		level->Delete(level->Find(rb->rigidbody));
+		Level::currentLevel->Delete(Level::currentLevel->Find(rb->rigidbody));
 		delete rb;
 	}
 	selection.clear();
@@ -578,7 +577,7 @@ void LevelEditor::CloneSelection()
 		if (platform)
 			newEnt = new Platform(*platform);
 
-		level->Objects.push_back(newEnt);
+		Level::currentLevel->Objects.push_back(newEnt);
 		Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}
 }

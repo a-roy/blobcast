@@ -6,7 +6,7 @@
 
 Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, 
-	glm::vec4 p_color, float p_mass) 
+	glm::vec4 p_color, float p_mass, bool bCollidable)
 	: mesh(p_mesh), color(p_color), trueColor(p_color), 
 	mass(p_mass)
 {
@@ -32,7 +32,9 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
-	rigidbody->setRestitution(0.0);
+	//rigidbody->setRestitution(0.0);
+
+	SetCollidable(bCollidable);
 
 	const char* name = shape->getName();
 

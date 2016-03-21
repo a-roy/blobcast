@@ -16,6 +16,7 @@ class Entity
 private:
 
 	Mesh* mesh;
+	bool collidable;
 	
 public:
 
@@ -27,7 +28,7 @@ public:
 
 	Entity(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
-		float p_mass = 0);
+		float p_mass = 0, bool bCollidable = true);
 	~Entity();
 
 	glm::mat4 GetModelMatrix();
@@ -48,4 +49,21 @@ public:
 	{
 		return convert(rigidbody->getCollisionShape()->getLocalScaling());
 	}
+
+	void SetCollidable(bool set)
+	{
+		collidable = set;
+		if (collidable)
+			rigidbody->setCollisionFlags(rigidbody->CF_STATIC_OBJECT);
+		else
+			rigidbody->setCollisionFlags(rigidbody->CF_NO_CONTACT_RESPONSE);
+	}
+
+	bool GetCollidable()
+	{
+		return collidable;
+	}
 };
+
+
+

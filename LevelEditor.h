@@ -38,8 +38,6 @@ public:
 	bool bShowImguiDemo = false;
 	bool bShowCameraSettings = true;
 
-	Level* level;
-
 	glm::vec3 out_origin = glm::vec3(0);
 	glm::vec3 out_end = glm::vec3(0);
 	std::set<Entity*> selection;
@@ -49,8 +47,7 @@ public:
 	bool bSetLink = false;
 	Trigger* triggerBeingLinked = NULL;
 
-	LevelEditor(Level *p_level) :
-		level(p_level){}
+	LevelEditor(){}
 	~LevelEditor(){}
 
 	void MainMenuBar();
