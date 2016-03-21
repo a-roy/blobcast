@@ -5,9 +5,9 @@
 #include <glm/gtx/quaternion.hpp>
 
 Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
-	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, 
-	glm::vec4 p_color, float p_mass) 
-	: mesh(p_mesh), color(p_color), trueColor(p_color), 
+	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
+	glm::vec4 p_color, GLuint p_texID, float p_mass) 
+	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
 	mass(p_mass)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes

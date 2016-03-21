@@ -26,12 +26,14 @@ class Level
 				glm::quat orientation,
 				glm::vec3 dimensions,
 				glm::vec4 color,
+				GLuint texID,
 				float mass = 0.f);
 		std::size_t AddCylinder(
 				glm::vec3 position,
 				glm::quat orientation,
 				glm::vec3 dimensions,
 				glm::vec4 color,
+				GLuint texID,
 				float mass = 0.f);
 		std::size_t AddButton(
 				glm::vec3 position,

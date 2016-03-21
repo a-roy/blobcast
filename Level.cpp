@@ -46,12 +46,13 @@ std::size_t Level::AddBox(
 		glm::quat orientation,
 		glm::vec3 dimensions,
 		glm::vec4 color,
+		GLuint texID,
 		float mass)
 {
 	Mesh *box(Mesh::CreateCubeWithNormals());
 	Platform *p =
 		new Platform(box, Shape::Box, position,
-			orientation, dimensions, color, mass);
+			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
 }
@@ -61,12 +62,13 @@ std::size_t Level::AddCylinder(
 	glm::quat orientation,
 	glm::vec3 dimensions,
 	glm::vec4 color,
+	GLuint texID,
 	float mass)
 {
 	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
 	Platform *p =
 		new Platform(cylinder, Shape::Cylinder, position,
-			orientation, dimensions, color, mass);
+			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
 }
@@ -110,9 +112,9 @@ void Level::Render(GLuint uMMatrix, GLuint uColor)
 {
 	for (Entity *ent : Objects)
 	{
-		//GLuint textureID = ent->color.a;
-		//glActiveTexture(GL_TEXTURE2);
-		//glBindTexture(GL_TEXTURE_2D, 4);
+		GLuint textureID = ent->textureID;
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, textureID);
 		
 		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &ent->GetModelMatrix()[0][0]);
 		glUniform4fv(uColor, 1, &ent->color.r);
@@ -150,6 +152,7 @@ void Level::Serialize(std::string file)
 			ent->trueColor.r, ent->trueColor.g, ent->trueColor.b, 
 			ent->trueColor.a };
 		object["mass"] = ent->mass;
+		object["texID"] = ent->textureID;
 		Platform* plat = dynamic_cast<Platform*>(ent);
 		if (plat)
 		{
@@ -192,6 +195,7 @@ Level *Level::Deserialize(std::string file)
 		auto j_col = object["color"];
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
+		auto j_tex = object["texID"];
 		auto path = object["path"];
 		std::size_t i;
 		if (object["type"] == "box")

@@ -9,9 +9,9 @@ public:
 
 	Platform(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color,
-		float p_mass = 0)
+		GLuint p_texID, float p_mass = 0)
 		: Entity(p_mesh, p_shapeType, p_translation, p_orientation,
-			p_scale, p_color, p_mass)
+			p_scale, p_color, p_texID, p_mass)
 	{
 
 	}
@@ -23,6 +23,7 @@ public:
 			p.GetOrientation(),
 			p.GetScale(),
 			p.trueColor,
+			p.textureID,
 			p.mass) {}
 
 	void Update(float deltaTime)
