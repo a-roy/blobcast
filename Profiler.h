@@ -2,6 +2,7 @@
 
 #include <map>
 #include <GLFW/glfw3.h>
+#include <imgui.h>
 
 struct Measurement
 {
@@ -50,5 +51,16 @@ public:
 		}
 
 		measurements[measurementName].avg = averaging;
+	}
+
+	static void Gui(std::string measurementName)
+	{
+		//const char* s = measurementName.c_str;
+		ImGui::Text("%s average %.3f ms/frame | %.1f percent | %.1f FPS",
+			measurementName.c_str(),
+			Profiler::measurements[measurementName].result * 1000,
+			(Profiler::measurements[measurementName].result
+				/ Profiler::measurements["Frame"].result) * 100.0f,
+			1.0f / Profiler::measurements[measurementName].result);
 	}
 };

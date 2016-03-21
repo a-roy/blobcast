@@ -3,9 +3,136 @@
 #include "Line.h"
 #include "Points.h"
 #include <sstream>
+#include "Timer.h"
 
-void LevelEditor::Gui(ShaderProgram *shaderProgram)
+void LevelEditor::MainMenuBar()
 {
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Load"))
+			{
+				char const *lTheOpenFileName = NULL;
+				lTheOpenFileName = tinyfd_openFileDialog(
+					"Load level",
+					"",
+					0,
+					NULL,
+					NULL,
+					0);
+				if (lTheOpenFileName != NULL)
+				{
+					selection.clear();
+					for (Entity* ent : level->Objects)
+						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
+					delete level;
+					level = Level::Deserialize(lTheOpenFileName);
+					for (Entity* ent : level->Objects)
+						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);
+					level = level;
+				}
+			}
+
+			if (ImGui::MenuItem("Save as.."))
+			{
+				char const *lTheSaveFileName = NULL;
+
+				lTheSaveFileName = tinyfd_saveFileDialog(
+					"Save Level",
+					"level.json",
+					/*1*/0,
+					/*&jsonExtension*/NULL,
+					NULL);
+
+				if (lTheSaveFileName != NULL)
+					level->Serialize(lTheSaveFileName);
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View"))
+		{
+			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
+				bShowBlobCfg ^= 1;
+			if (ImGui::MenuItem("Bullet Debug", NULL, 
+				Physics::bShowBulletDebug))
+				Physics::bShowBulletDebug ^= 1;
+			if (ImGui::MenuItem("ImGui Demo", NULL, bShowImguiDemo))
+				bShowImguiDemo ^= 1;
+			if (ImGui::MenuItem("Camera Settings", NULL, bShowCameraSettings))
+				bShowCameraSettings ^= 1;
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Create"))
+		{
+			if (ImGui::MenuItem("Box"))
+			{
+				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				Physics::dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Cylinder"))
+			{
+				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				Physics::dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+			}
+			if (ImGui::MenuItem("Button"))
+			{
+				level->AddButton(glm::vec3(0), glm::quat(), glm::vec3(1),
+					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+				Physics::dynamicsWorld->addRigidBody(
+					level->Objects[level->Objects.size() - 1]->rigidbody);
+
+				//All buttons have the turn red if pressed callback
+				Button* b = (Button*)level->Objects[level->Objects.size() - 1];
+				b->RegisterCallback(
+					[b]() { b->color = glm::vec4(1, 0, 0, 1); }
+				);
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Settings"))
+		{
+			if (ImGui::MenuItem("Step Physics", NULL,
+				Physics::bStepPhysics))
+				Physics::bStepPhysics ^= 1;
+			if (ImGui::Button("Magic Fix Editor"))
+				Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+}
+
+void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
+{
+	(*shaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
+	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
+	shaderProgram->Use([&]() {
+		x.Render();
+	});
+	(*shaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
+	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	shaderProgram->Use([&]() {
+		y.Render();
+	});
+	(*shaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
+	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
+	shaderProgram->Use([&]() {
+		z.Render();
+	});
+
 	if (selection.size() > 0)
 	{
 		ImGui::SetNextWindowSize(ImVec2(300, 400),
@@ -52,25 +179,50 @@ void LevelEditor::Gui(ShaderProgram *shaderProgram)
 
 		if (selection.size() == 1)
 		{
-			RigidBody *first = *selection.begin();
+			Entity *first = *selection.begin();
 			float mass = first->mass;
-			if (ImGui::SliderFloat("Mass", &mass, 0, 1000.0f))
+			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
 			{
 				//Remove from world to change mass
-				dynamicsWorld->removeRigidBody(first->rigidbody);
+				Physics::dynamicsWorld->removeRigidBody(first->rigidbody);
 				btVector3 inertia;
 				first->rigidbody->getCollisionShape()->
 					calculateLocalInertia(mass, inertia);
 				first->rigidbody->setMassProps(mass, inertia);
-				dynamicsWorld->addRigidBody(first->rigidbody);
+				Physics::dynamicsWorld->addRigidBody(first->rigidbody);
 
 				first->mass = mass;
 			}
+			float friction = first->rigidbody->getFriction();
+			if (ImGui::InputFloat("Friction", &friction, 1.0f, 10.0f))
+				first->rigidbody->setFriction(friction);
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
-			if (ImGui::CollapsingHeader("Path"))
+			
+			if (dynamic_cast<Platform*>(first))
 			{
-				Path();
+				if (ImGui::CollapsingHeader("Path"))
+				{
+					Path();
+				}
 			}
+
+			if (dynamic_cast<Button*>(first))
+			{
+				if (ImGui::CollapsingHeader("Connections"))
+				{
+					if (ImGui::Button("Set Pick"))
+					{
+						bSetLink = true;
+						buttonBeingLinked = (Button*)first;
+					}
+				}
+			}
+			else
+			{
+				bSetLink = false;
+			}
+
+			
 		}
 
 		ImGui::End();
@@ -92,7 +244,7 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 		RayCallback(btVector3(out_origin.x, out_origin.y, out_origin.z),
 			btVector3(out_end.x, out_end.y, out_end.z));
 
-	dynamicsWorld->rayTest(
+	Physics::dynamicsWorld->rayTest(
 		btVector3(out_origin.x, out_origin.y, out_origin.z),
 		btVector3(out_end.x, out_end.y, out_end.z), RayCallback);
 
@@ -110,10 +262,27 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			selection.clear();
 		}
 
-		RigidBody* newSelection = (RigidBody*)
-			RayCallback.m_collisionObject->getUserPointer();
+		Entity* newSelection = 
+			(Entity*)RayCallback.m_collisionObject->getUserPointer();
 		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
 		selection.insert(newSelection);
+
+		if (bSetLink)
+		{
+			Entity* first = *selection.begin();
+			Platform* platform = dynamic_cast<Platform*>(first);
+			if (platform)
+			{
+				if (!platform->motion.Points.empty())
+				{
+					buttonBeingLinked->RegisterCallback(
+						[platform]() { platform->motion.Enabled = 1; }
+					);
+				}
+			}
+
+			bSetLink = false;
+		}
 	}
 	else
 	{
@@ -251,7 +420,6 @@ void LevelEditor::GlobalRotation(float angle, glm::vec3 axis,
 	}
 }
 
-//TODO - Scale it
 void LevelEditor::DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 	glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color)
 {
@@ -266,20 +434,22 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 {
 	if (selection.size() == 1)
 	{
-		RigidBody *rb = *selection.begin();
-		if (!rb->motion.Points.empty())
+		Platform* ent = dynamic_cast<Platform*>(*selection.begin());
+		if (!ent)
+			return;
+		if (!ent->motion.Points.empty())
 		{
-			std::vector<glm::vec3>& p(rb->motion.Points);
+			std::vector<glm::vec3>& p(ent->motion.Points);
 			std::vector<glm::vec3> c(p.size(), glm::vec3(0, 0, 1));
 			std::vector<glm::vec3> l;
 			l.push_back(p.front());
-			for (int i = 0, n = (rb->motion.Loop ? p.size() : p.size() - 1);
+			for (int i = 0, n = (ent->motion.Loop ? p.size() : p.size() - 1);
 					i < n; i++)
 			{
 				float t = (float)i;
 				for (int j = 1; j <= 10; j++)
 				{
-					l.push_back(rb->motion.GetPosition(t + (float)j / 10.f));
+					l.push_back(ent->motion.GetPosition(t + (float)j / 10.f));
 				}
 			}
 			if (c.size() > 1)
@@ -305,30 +475,42 @@ void LevelEditor::Scale()
 			getLocalScaling());
 	centroid /= selection.size();
 	glm::vec3 before = centroid;
-	if (ImGui::DragFloat3("Scale", glm::value_ptr(centroid)))
+
+	float x = centroid.x;
+	if (ImGui::InputFloat("X", &x, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(x - centroid.x, 0, 0));
+	float y = centroid.y;
+	if (ImGui::InputFloat("Y", &y, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(0, y - centroid.y, 0));
+	float z = centroid.z;
+	if (ImGui::InputFloat("Z", &z, 0.5f, 2.0f))
+		ScaleSelection(glm::vec3(0, 0, z - centroid.z));
+}
+
+void LevelEditor::ScaleSelection(glm::vec3 relScale)
+{
+	for (auto rb : selection)
 	{
-		btVector3 relScale = convert(centroid - before);
-		for (auto rb : selection)
-		{
-			rb->rigidbody->
-				getCollisionShape()->setLocalScaling(
-					rb->rigidbody->getCollisionShape()->
-					getLocalScaling()
-					+ relScale);
-			dynamicsWorld->updateSingleAabb(rb->rigidbody);
-		}
+		btVector3 newScale = rb->rigidbody->getCollisionShape()->
+			getLocalScaling() + convert(relScale);
+		if (newScale.getX() <= 0 
+			|| newScale.getY() <= 0 || newScale.getZ() <= 0)
+			continue;
+		rb->rigidbody->getCollisionShape()->setLocalScaling(
+				newScale);
+		Physics::dynamicsWorld->updateSingleAabb(rb->rigidbody);
 	}
 }
 
 void LevelEditor::Path()
 {
-	RigidBody *rb = *selection.begin();
-	ImGui::DragFloat("Speed", &rb->motion.Speed, 0.01f, 0.0f, 1.0f);
-	ImGui::Checkbox("Loop path", &rb->motion.Loop);
+	Platform *ent = (Platform*)*selection.begin();
+	ImGui::DragFloat("Speed", &ent->motion.Speed, 0.01f, 0.0f, 1.0f);
+	ImGui::Checkbox("Loop path", &ent->motion.Loop);
 	ImGui::Spacing();
 	bool path_changed = false;
 	int x = 0;
-	for (auto i = rb->motion.Points.begin(); i != rb->motion.Points.end(); ++i)
+	for (auto i = ent->motion.Points.begin(); i != ent->motion.Points.end(); ++i)
 	{
 		std::string pt_text = ("P" + std::to_string(x));
 		std::string rm_text = ("Rm " + std::to_string(x));
@@ -338,15 +520,15 @@ void LevelEditor::Path()
 		ImGui::SameLine();
 		if (ImGui::Button(rm_text.c_str()))
 		{
-			i = rb->motion.Points.erase(i);
+			i = ent->motion.Points.erase(i);
 			path_changed = true;
-			if (i == rb->motion.Points.end())
+			if (i == ent->motion.Points.end())
 				break;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button(ins_text.c_str()))
 		{
-			i = rb->motion.Points.insert(i, rb->GetTranslation());
+			i = ent->motion.Points.insert(i, ent->GetTranslation());
 			path_changed = true;
 		}
 		ImGui::Spacing();
@@ -354,18 +536,18 @@ void LevelEditor::Path()
 	}
 	if (ImGui::Button("Add new point"))
 	{
-		rb->motion.Points.push_back(rb->GetTranslation());
+		ent->motion.Points.push_back(ent->GetTranslation());
 		path_changed = true;
 	}
 	if (path_changed)
-		rb->motion.Reset();
+		ent->motion.Reset();
 }
 
 void LevelEditor::DeleteSelection()
 {
 	for (auto rb : selection)
 	{
-		dynamicsWorld->removeRigidBody(rb->rigidbody);
+		Physics::dynamicsWorld->removeRigidBody(rb->rigidbody);
 		level->Delete(level->Find(rb->rigidbody));
 		delete rb;
 	}
@@ -374,64 +556,18 @@ void LevelEditor::DeleteSelection()
 
 void LevelEditor::CloneSelection()
 {
-	for (auto rb : selection)
+	for (Entity* rb : selection)
 	{
-		RigidBody* newRb = new RigidBody(*rb);
-		level->Objects.push_back(newRb);
-		dynamicsWorld->addRigidBody(newRb->rigidbody);
+		Entity* newEnt;
+
+		Button* button = dynamic_cast<Button*>(rb);
+		if(button)
+			newEnt = new Button(*button);
+		Platform* platform = dynamic_cast<Platform*>(rb);
+		if (platform)
+			newEnt = new Platform(*platform);
+
+		level->Objects.push_back(newEnt);
+		Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}
-}
-
-//https://github.com/opengl-tutorials/ogl/blob/master/misc05_picking/misc05_picking_BulletPhysics.cpp
-void LevelEditor::ScreenPosToWorldRay(
-	int mouseX, int mouseY,             // Mouse position, in pixels, from bottom-left corner of the window
-	int screenWidth, int screenHeight,  // Window size, in pixels
-	glm::mat4 ViewMatrix,               // Camera position and orientation
-	glm::mat4 ProjectionMatrix,         // Camera parameters (ratio, field of view, near and far planes)
-	glm::vec3& out_origin,              // Ouput : Origin of the ray. /!\ Starts at the near plane, so if you want the ray to start at the camera's position instead, ignore this.
-	glm::vec3& out_direction            // Ouput : Direction, in world space, of the ray that goes "through" the mouse.
-	)
-{
-
-	// The ray Start and End positions, in Normalized Device Coordinates (Have you read Tutorial 4 ?)
-	glm::vec4 lRayStart_NDC(
-		((float)mouseX / (float)screenWidth - 0.5f) * 2.0f, // [0,1024] -> [-1,1]
-		((float)mouseY / (float)screenHeight - 0.5f) * 2.0f, // [0, 768] -> [-1,1]
-		-1.0, // The near plane maps to Z=-1 in Normalized Device Coordinates
-		1.0f
-		);
-	glm::vec4 lRayEnd_NDC(
-		((float)mouseX / (float)screenWidth - 0.5f) * 2.0f,
-		((float)mouseY / (float)screenHeight - 0.5f) * 2.0f,
-		0.0,
-		1.0f
-		);
-
-
-	// The Projection matrix goes from Camera Space to NDC.
-	// So inverse(ProjectionMatrix) goes from NDC to Camera Space.
-	glm::mat4 InverseProjectionMatrix = glm::inverse(ProjectionMatrix);
-
-	// The View Matrix goes from World Space to Camera Space.
-	// So inverse(ViewMatrix) goes from Camera Space to World Space.
-	glm::mat4 InverseViewMatrix = glm::inverse(ViewMatrix);
-
-	glm::vec4 lRayStart_camera = InverseProjectionMatrix * lRayStart_NDC;    lRayStart_camera /= lRayStart_camera.w;
-	glm::vec4 lRayStart_world = InverseViewMatrix       * lRayStart_camera; lRayStart_world /= lRayStart_world.w;
-	glm::vec4 lRayEnd_camera = InverseProjectionMatrix * lRayEnd_NDC;      lRayEnd_camera /= lRayEnd_camera.w;
-	glm::vec4 lRayEnd_world = InverseViewMatrix       * lRayEnd_camera;   lRayEnd_world /= lRayEnd_world.w;
-
-
-	// Faster way (just one inverse)
-	//glm::mat4 M = glm::inverse(ProjectionMatrix * ViewMatrix);
-	//glm::vec4 lRayStart_world = M * lRayStart_NDC; lRayStart_world/=lRayStart_world.w;
-	//glm::vec4 lRayEnd_world   = M * lRayEnd_NDC  ; lRayEnd_world  /=lRayEnd_world.w;
-
-
-	glm::vec3 lRayDir_world(lRayEnd_world - lRayStart_world);
-	lRayDir_world = glm::normalize(lRayDir_world);
-
-
-	out_origin = glm::vec3(lRayStart_world);
-	out_direction = glm::normalize(lRayDir_world);
 }

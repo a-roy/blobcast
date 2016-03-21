@@ -19,85 +19,57 @@ uniform vec3 viewPos;
 uniform vec2 screenSize;
 uniform vec4 objectColor;
 
-layout (binding = 0) uniform sampler2DArray shadowMap;
+layout (binding = 0) uniform sampler2DShadow shadowMap;
 layout (binding = 1) uniform sampler2D aoMap;
 layout (binding = 2) uniform sampler2D wallTex;
 
-const vec2 mapSize = vec2(1024, 1024);
+const vec2 mapSize = vec2(2048, 2048);
 
-#define EPSILON 0.00001
+// Returns a random number based on a vec3 and an int.
+float random(vec3 seed, int i){
+	vec4 seed4 = vec4(seed,i);
+	float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
+	return fract(sin(dot_product) * 43758.5453);
+}
 
 vec2 CalcScreenTexCoord()
 {
     return gl_FragCoord.xy / screenSize;
 }
 
-float ShadowCalculation(vec4 fragPosLightSpace)
+float CalcShadowFactor(vec4 LightSpacePos)
 {
-    // Perform perspective divide
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // Transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-    // Get closest depth value from light's perspective
-    float closestDepth = texture(shadowMap, vec3(projCoords.xy, 0)).r; 
-    // Get depth of current fragment from light's perspective
-    float currentDepth = projCoords.z;
-    
-    float bias = 0.00001;
-    
-    // PCF
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0).xy;
-    for(int x = -2; x <= 2; ++x)
-    {
-        for(int y = -2; y <= 2; ++y)
-        {
-            float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize, 0)).r; 
-            shadow += currentDepth + bias > pcfDepth  ? 0.0 : 1.0;        
-        }    
+    vec3 ProjCoords = LightSpacePos.xyz / LightSpacePos.w;
+    vec2 UVCoords;
+    UVCoords.x = 0.5 * ProjCoords.x + 0.5;
+    UVCoords.y = 0.5 * ProjCoords.y + 0.5;
+    float z = 0.5 * ProjCoords.z + 0.5;
+
+    float xOffset = 1.0/mapSize.x;
+    float yOffset = 1.0/mapSize.y;
+
+    float Factor = 0.0;
+	float bias = 0.000001;
+
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            vec2 Offsets = vec2(x * xOffset, y * yOffset);
+            vec3 UVC = vec3(UVCoords + Offsets, z + bias);
+            Factor += texture(shadowMap, UVC);
+        }
     }
-    shadow = (0.5 + (shadow / 16.0));
-    
-    // // Keep the shadow at 0.0 when outside the far plane region of the light's frustum.
-    if(projCoords.z > 1.0)
-        shadow = 1.0;
-        
-    return shadow;
+
+    return (0.5 + (Factor / 36.0));
 }
 
-// float ShadowCalculation2(vec4 LightSpacePos)
-// {
-    // vec3 projCoords = LightSpacePos.xyz / LightSpacePos.w;
-    // vec2 UVCoords;
-    // UVCoords.x = 0.5 * projCoords.x + 0.5;
-    // UVCoords.y = 0.5 * projCoords.y + 0.5;
-    // float z = 0.5 * projCoords.z + 0.5;
-	
-	// if(projCoords.z > 1.0)
-		// return 0.0;
-	
-	// float xOffset = 1.0/mapSize.x;
-	// float yOffset = 1.0/mapSize.y;
-	
-	// float factor = 0.0;
-	
-	// for(int y = -2; y <= 2; y++){
-		// for(int x = -2; x <= 2; x++){
-			// vec2 offsets = vec2(x * xOffset, y * yOffset);
-			// vec4 UVC = vec4(UVCoords + offsets, 0, z + EPSILON);
-			// factor += texture(shadowMap, UVC);
-		// }
-	// }
-	
-	// return (0.5 + (factor / 18.0));
-// }
 
 
 void main()
 {   
 	// Ambient
     vec3 ambient = 0.5 * directionalLight.ambientColor;
-	ambient *= texture(aoMap, CalcScreenTexCoord()).r;
+	float occlusion = texture(aoMap, CalcScreenTexCoord()).r;
+	ambient *= occlusion;
 	
 	// Diffuse
 	vec3 normal = normalize(Normal);
@@ -114,8 +86,8 @@ void main()
 	
 	vec3 tex = texture(wallTex, TexCoords).rgb;
 	
-	float shadow = ShadowCalculation(LightSpacePos);
-    vec3 lighting = (ambient + shadow * (diffuse + specular)) * vec3(objectColor);
+	float shadow = CalcShadowFactor(LightSpacePos);
+    vec3 lighting = (ambient + shadow * (diffuse + specular)) * vec3(objectColor) * tex;
 	
     FragColor = vec4(lighting, objectColor.a);
 }

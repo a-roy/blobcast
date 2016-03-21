@@ -37,6 +37,10 @@ bool RenderingManager::init()
 		ShaderDir "Blur.vert",
 		ShaderDir "Blur.frag" });
 
+	particleShader = new ShaderProgram({
+		ShaderDir "Particle.vert",
+		ShaderDir "Particle.frag" });
+
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
 	dirLight.direction = glm::vec3(-0.2f, -0.3f, -0.2f);
 
@@ -46,11 +50,6 @@ bool RenderingManager::init()
 	quad = Mesh::CreateQuad();
 
 	initSkybox();
-
-	// For shadows
-	glm::mat4 lightProjection = glm::ortho(50.0f, -100.0f, 50.0f, -100.0f, -50.0f, 100.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
-	lightSpaceMatrix = lightProjection * lightView;
 
 	// For blurring
 	pingpongBuffers = std::vector<IOBuffer>(2);
@@ -104,9 +103,6 @@ bool RenderingManager::initFrameBuffers()
 	if (!depthBuffer.Init(SHADOW_DIM, SHADOW_DIM, false, GL_DEPTH_COMPONENT))
 		return false;
 
-	if (!CSMBuffer.Init(SHADOW_DIM, SHADOW_DIM, false, GL_DEPTH_COMPONENT16))
-		return false;
-
 	return true;
 }
 
@@ -147,7 +143,7 @@ void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatr
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapBuffer.texture0);
 
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, CSMBuffer.texture0);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
 	blobShader->Use([&]() {
 		blob->RenderPatches();
@@ -156,6 +152,9 @@ void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatr
 
 void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	(*platformShader)["directionalLight.color"] = dirLight.color;
 	(*platformShader)["directionalLight.ambientColor"] = dirLight.ambientColor;
 	(*platformShader)["directionalLight.direction"] = dirLight.direction;
@@ -167,13 +166,13 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 	(*platformShader)["lightSpaceMat"] = lightSpaceMatrix;
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, CSMBuffer.texture0);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
 
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, wallTexture);
+	//glActiveTexture(GL_TEXTURE2);
+	//glBindTexture(GL_TEXTURE_2D, wallTexture);
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
@@ -183,16 +182,37 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 		level->Render(uMMatrix, uColor);
 	});
 	glDisable(GL_CULL_FACE);
+
+	glDisable(GL_BLEND);
 }
 
-void RenderingManager::depthPass(Blob *blob, Level *level)
+void RenderingManager::drawParticles(Level *level, 
+	glm::mat4 viewMatrix, glm::mat4 projMatrix)
+{
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glEnable(GL_BLEND);
+	(*particleShader)["uProj"] = projMatrix;
+	(*particleShader)["uView"] = viewMatrix;
+	GLuint uSize = particleShader->GetUniformLocation("uSize");
+	particleShader->Use([&]() {
+		level->RenderParticles(uSize);
+	});
+	glDisable(GL_BLEND);
+}
+
+void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 {
 	glViewport(0, 0, SHADOW_DIM, SHADOW_DIM);
-	glBindFramebuffer(GL_FRAMEBUFFER, CSMBuffer.FBO);
-	glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, CSMBuffer.texture0, 0, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.FBO);
+	glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthBuffer.texture0, 0, 0);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glm::mat4 lightProjection = glm::ortho(100.0f + camPos.z/2, -200.0f + camPos.z/2, 100.0f + camPos.z/2, -200.0f + camPos.z/2, -100.0f, 200.0f);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
+	lightSpaceMatrix = lightProjection * lightView;
 	
 	(*depthShader)["lightSpaceMat"] = lightSpaceMatrix;
 	(*depthShader)["model"] = glm::mat4();
@@ -366,7 +386,7 @@ void RenderingManager::drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix)
 void RenderingManager::debugQuadDraw()
 {
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, CSMBuffer.texture0);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 	quadShader->Use([&]() {
 		quad->Draw();
 	});

@@ -2,11 +2,11 @@
 in vec2 TexCoords;
 out vec4 color;
 
-uniform sampler2DArray tex;
+uniform sampler2D tex;
 
 void main()
 { 
-	float value =  texture(tex, vec3(TexCoords, 0)).r;
+	float value =  texture(tex, TexCoords).r;
     color = vec4(value);
 }
 

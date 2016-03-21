@@ -10,7 +10,7 @@
 
 enum Shape { Box, Cylinder };
 
-class RigidBody
+class Entity
 {
 
 private:
@@ -23,19 +23,18 @@ public:
 	glm::vec4 color;
 	glm::vec4 trueColor;
 	float mass;
-	Path motion;
 	Shape shapeType;
 
-	RigidBody(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
+	Entity(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
 		float p_mass = 0);
-	RigidBody(RigidBody& rb);
-	~RigidBody();
+	~Entity();
 
 	glm::mat4 GetModelMatrix();
 
 	void Render();
-	void Update();
+	
+	virtual void Update(float deltaTime) = 0;
 
 	glm::quat GetOrientation() 
 	{
@@ -49,16 +48,4 @@ public:
 	{
 		return convert(rigidbody->getCollisionShape()->getLocalScaling());
 	}
-
-	//void SetMass(btSoftRigidDynamicsWorld* dynamicsWorld)
-	//{
-	//	//Remove from world to change mass
-	//	dynamicsWorld->removeRigidBody(rigidbody);
-	//	btVector3 inertia;
-	//	first->rigidbody->getCollisionShape()->calculateLocalInertia(mass, inertia);
-	//	first->rigidbody->setMassProps(mass, inertia);
-	//	dynamicsWorld->addRigidBody(first->rigidbody);
-
-	//	first->mass = mass;
-	//}
 };

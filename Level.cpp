@@ -16,8 +16,13 @@ Level::Level(const Level& other)
 Level& Level::operator=(const Level& other)
 {
 	Clear();
-	for (RigidBody *r : Objects)
-		Objects.push_back(new RigidBody(*r));
+	for (Entity *r : Objects)
+	{
+		if (dynamic_cast<Button*>(r))
+			Objects.push_back(new Button(*(Button*)r));
+		if (dynamic_cast<Platform*>(r))
+			Objects.push_back(new Platform(*(Platform*)r));
+	}
 	return *this;
 }
 
@@ -44,10 +49,10 @@ std::size_t Level::AddBox(
 		float mass)
 {
 	Mesh *box(Mesh::CreateCubeWithNormals());
-	RigidBody *r =
-		new RigidBody(box, Shape::Box, position,
+	Platform *p =
+		new Platform(box, Shape::Box, position,
 			orientation, dimensions, color, mass);
-	Objects.push_back(r);
+	Objects.push_back(p);
 	return Objects.size() - 1;
 }
 
@@ -59,10 +64,10 @@ std::size_t Level::AddCylinder(
 	float mass)
 {
 	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
-	RigidBody *r =
-		new RigidBody(cylinder, Shape::Cylinder, position,
+	Platform *p =
+		new Platform(cylinder, Shape::Cylinder, position,
 			orientation, dimensions, color, mass);
-	Objects.push_back(r);
+	Objects.push_back(p);
 	return Objects.size() - 1;
 }
 
@@ -75,7 +80,7 @@ std::size_t Level::AddButton(
 {
 	Button *b = new Button(position, orientation, dimensions,
 		color, 1.0f);
-	Objects.push_back(b->button);
+	Objects.push_back(b);
 	return Objects.size() - 1;
 }
 
@@ -86,8 +91,8 @@ void Level::Delete(std::size_t index)
 
 void Level::Clear()
 {
-	for (RigidBody *r : Objects)
-		delete r;
+	for (Entity *ent : Objects)
+		delete ent;
 	Objects.clear();
 }
 
@@ -103,11 +108,15 @@ int Level::Find(btRigidBody *r)
 
 void Level::Render(GLuint uMMatrix, GLuint uColor)
 {
-	for (RigidBody *r : Objects)
+	for (Entity *ent : Objects)
 	{
-		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &r->GetModelMatrix()[0][0]);
-		glUniform4fv(uColor, 1, &r->color.r);
-		r->Render();
+		//GLuint textureID = ent->color.a;
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, 4);
+		
+		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &ent->GetModelMatrix()[0][0]);
+		glUniform4fv(uColor, 1, &ent->color.r);
+		ent->Render();
 	}
 }
 
@@ -115,17 +124,17 @@ void Level::Serialize(std::string file)
 {
 	std::ofstream f(file);
 	nlohmann::json objects;
-	for (RigidBody *r : Objects)
+	for (Entity *ent : Objects)
 	{
 		nlohmann::json object;
 
-		glm::vec3 translation = r->GetTranslation();
-		glm::quat orientation = r->GetOrientation();
-		glm::vec3 scale = r->GetScale();
+		glm::vec3 translation = ent->GetTranslation();
+		glm::quat orientation = ent->GetOrientation();
+		glm::vec3 scale = ent->GetScale();
 
 		/*if (typeid(r) == typeid(Button))
 			object["type"] = "button";
-		else*/ if(r->shapeType == Shape::Box)
+		else*/ if(ent->shapeType == Shape::Box)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
@@ -138,16 +147,21 @@ void Level::Serialize(std::string file)
 		object["dimensions"] = {
 			scale.x, scale.y, scale.z };
 		object["color"] = {
-			r->trueColor.r, r->trueColor.g, r->trueColor.b, r->trueColor.a };
-		object["mass"] = r->mass;
-		if (!r->motion.Points.empty())
+			ent->trueColor.r, ent->trueColor.g, ent->trueColor.b, 
+			ent->trueColor.a };
+		object["mass"] = ent->mass;
+		Platform* plat = dynamic_cast<Platform*>(ent);
+		if (plat)
 		{
-			nlohmann::json path;
-			path["speed"] = r->motion.Speed;
-			for (auto v = r->motion.Points.begin();
-					v != r->motion.Points.end(); ++v)
-				path["points"].push_back({ v->x, v->y, v->z });
-			object["path"] = path;
+			if (!plat->motion.Points.empty())
+			{
+				nlohmann::json path;
+				path["speed"] = plat->motion.Speed;
+				for (auto v = plat->motion.Points.begin();
+				v != plat->motion.Points.end(); ++v)
+					path["points"].push_back({ v->x, v->y, v->z });
+				object["path"] = path;
+			}
 		}
 		objects.push_back(object);
 	}
@@ -187,13 +201,13 @@ Level *Level::Deserialize(std::string file)
 				color, mass);
 		if (!path.is_null())
 		{
-			RigidBody *r = level->Objects[i];
+			Platform *ent = (Platform*)level->Objects[i];
 			auto speed = path["speed"];
 			auto points = path["points"];
-			r->motion.Speed = speed;
+			ent->motion.Speed = speed;
 			for (auto point : points)
-				r->motion.Points.insert(
-						r->motion.Points.end(),
+				ent->motion.Points.insert(
+					ent->motion.Points.end(),
 						glm::vec3(point[0], point[1], point[2]));
 		}
 	}
