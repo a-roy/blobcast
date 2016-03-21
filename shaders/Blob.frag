@@ -18,45 +18,39 @@ uniform vec3 objectColor;
 uniform DirectionalLight directionalLight;
 
 layout (binding = 0) uniform samplerCube cubeMap;
-layout (binding = 1) uniform sampler2DShadow depthMap;
+layout (binding = 1) uniform sampler2DShadow shadowMap;
 
 const vec2 mapSize = vec2(2048, 2048);
-const float FresnelPower = 7.0;
-
-#define EPSILON 0.00001
-
 
 float CalcShadowFactor(vec4 LightSpacePos)
 {
-    vec3 projCoords = LightSpacePos.xyz / LightSpacePos.w;
+    vec3 ProjCoords = LightSpacePos.xyz / LightSpacePos.w;
     vec2 UVCoords;
-    UVCoords.x = 0.5 * projCoords.x + 0.5;
-    UVCoords.y = 0.5 * projCoords.y + 0.5;
-    float z = 0.5 * projCoords.z + 0.5;
-	
-	if(projCoords.z > 1.0)
-		return 0.0;
-	
-	float xOffset = 1.0/mapSize.x;
-	float yOffset = 1.0/mapSize.y;
-	
-	float factor = 0.0;
-	
-	for(int y = -2; y <= 2; y++){
-		for(int x = -2; x <= 2; x++){
-			vec2 offsets = vec2(x * xOffset, y * yOffset);
-			vec3 UVC = vec3(UVCoords + offsets, z + EPSILON);
-			factor += texture(depthMap, UVC);
-		}
-	}
-	
-	return (0.5 + (factor / 18.0));
+    UVCoords.x = 0.5 * ProjCoords.x + 0.5;
+    UVCoords.y = 0.5 * ProjCoords.y + 0.5;
+    float z = 0.5 * ProjCoords.z + 0.5;
+
+    float xOffset = 1.0/mapSize.x;
+    float yOffset = 1.0/mapSize.y;
+
+    float Factor = 0.0;
+	float bias = 0.000001;
+
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            vec2 Offsets = vec2(x * xOffset, y * yOffset);
+            vec3 UVC = vec3(UVCoords + Offsets, z + bias);
+            Factor += texture(shadowMap, UVC);
+        }
+    }
+
+    return (0.5 + (Factor / 36.0));
 }
 
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.1f;
+	float ambientStrength = 0.5f;
     vec3 ambient = ambientStrength * directionalLight.ambientColor;
 	
 	// Diffuse
@@ -74,8 +68,8 @@ void main()
 	float spec = pow(max(dot(normal, halfwayDir), 0.0), 32);
     vec3 specular = specularStrength * spec * directionalLight.color;
 	
-	float ShadowFactor = CalcShadowFactor(LightSpacePos);
-    vec3 diffuseColor = (ambient + ShadowFactor * (diffuse + specular)) * objectColor;
+	float shadow = CalcShadowFactor(LightSpacePos);
+    vec3 diffuseColor = (ambient + shadow * (diffuse + specular)) * objectColor;
 	
 	// Reflection + refraction
 	float refractiveIndex = 1.15;

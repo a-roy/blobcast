@@ -42,7 +42,7 @@ bool RenderingManager::init()
 		ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.2f, -0.4f, -0.2f);
+	dirLight.direction = glm::vec3(-0.2f, -0.3f, -0.2f);
 
 	width = RENDER_WIDTH;
 	height = RENDER_HEIGHT;
@@ -50,11 +50,6 @@ bool RenderingManager::init()
 	quad = Mesh::CreateQuad();
 
 	initSkybox();
-
-	// For shadows
-	glm::mat4 lightProjection = glm::ortho(300.0f, -300.0f, 300.0f, -300.0f, -300.0f, 300.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
-	lightSpaceMatrix = lightProjection * lightView;
 
 	// For blurring
 	pingpongBuffers = std::vector<IOBuffer>(2);
@@ -80,6 +75,8 @@ bool RenderingManager::init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
+	wallTexture = loadTexture(TextureDir "metal.png", true);
+
 	if (!initFrameBuffers())
 		return false;
 
@@ -91,19 +88,19 @@ bool RenderingManager::initFrameBuffers()
 	if (!gBuffer.Init(width, height, true, GL_RGBA32F))
 		return false;
 
-	if (!aoBuffer.Init(width/2, height/2, false, GL_RED))
+	if (!aoBuffer.Init(AO_DIM, AO_DIM, false, GL_RED))
 		return false;
 
-	if (!pingpongBuffers[0].Init(width/2, height/2, false, GL_RGB16F))
+	if (!pingpongBuffers[0].Init(AO_DIM, AO_DIM, false, GL_RGB16F))
 		return false;
 
-	if (!pingpongBuffers[1].Init(width/2, height/2, false, GL_RGB16F))
+	if (!pingpongBuffers[1].Init(AO_DIM, AO_DIM, false, GL_RGB16F))
 		return false;
 
 	if (!cubeMapBuffer.Init(TEX_WIDTH, TEX_HEIGHT, true, GL_RGB))
 		return false;
 
-	if (!depthBuffer.Init(SHADOW_WIDTH, SHADOW_HEIGHT, false, GL_DEPTH_COMPONENT))
+	if (!depthBuffer.Init(SHADOW_DIM, SHADOW_DIM, false, GL_DEPTH_COMPONENT))
 		return false;
 
 	return true;
@@ -155,6 +152,9 @@ void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatr
 
 void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	(*platformShader)["directionalLight.color"] = dirLight.color;
 	(*platformShader)["directionalLight.ambientColor"] = dirLight.ambientColor;
 	(*platformShader)["directionalLight.direction"] = dirLight.direction;
@@ -171,6 +171,9 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
 
+	//glActiveTexture(GL_TEXTURE2);
+	//glBindTexture(GL_TEXTURE_2D, wallTexture);
+
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 	GLuint uMMatrix = platformShader->GetUniformLocation("model");
@@ -179,6 +182,8 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 		level->Render(uMMatrix, uColor);
 	});
 	glDisable(GL_CULL_FACE);
+
+	glDisable(GL_BLEND);
 }
 
 void RenderingManager::drawParticles(Level *level, 
@@ -196,24 +201,31 @@ void RenderingManager::drawParticles(Level *level,
 	glDisable(GL_BLEND);
 }
 
-void RenderingManager::depthPass(Blob *blob, Level *level)
+void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 {
+	glViewport(0, 0, SHADOW_DIM, SHADOW_DIM);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.FBO);
+	glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthBuffer.texture0, 0, 0);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	glBindFramebuffer(GL_FRAMEBUFFER, depthBuffer.FBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
-	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 
+	glm::mat4 lightProjection = glm::ortho(100.0f + camPos.z/2, -200.0f + camPos.z/2, 100.0f + camPos.z/2, -200.0f + camPos.z/2, -100.0f, 200.0f);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
+	lightSpaceMatrix = lightProjection * lightView;
+	
 	(*depthShader)["lightSpaceMat"] = lightSpaceMatrix;
 	(*depthShader)["model"] = glm::mat4();
 	depthShader->Use([&]() {
 		blob->Render();
+	});
+	depthShader->Use([&]() {
 		GLuint uMMatrix = depthShader->GetUniformLocation("model");
 		level->Render(uMMatrix, -1);
 	});
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_CULL_FACE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void RenderingManager::geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat4 projMatrix)
@@ -234,7 +246,7 @@ void RenderingManager::geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat
 
 void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 {
-	glViewport(0, 0, width / 2, height / 2);
+	glViewport(0, 0, AO_DIM, AO_DIM);
 	glBindFramebuffer(GL_FRAMEBUFFER, aoBuffer.FBO);
 	glClear(GL_COLOR_BUFFER_BIT);
 
@@ -245,7 +257,7 @@ void RenderingManager::SSAOPass(glm::mat4 projMatrix, glm::vec3 camPos)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, noiseTexture);
 
-	(*SSAOShader)["screenSize"] = glm::vec2(width/2, height/2);
+	(*SSAOShader)["screenSize"] = glm::vec2(AO_DIM, AO_DIM);
 	SSAOShader->Use([&]() {
 		quad->Draw();
 	});
@@ -374,7 +386,7 @@ void RenderingManager::drawSkybox(glm::mat4 viewMatrix, glm::mat4 projMatrix)
 void RenderingManager::debugQuadDraw()
 {
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
+	glBindTexture(GL_TEXTURE_2D, depthBuffer.texture0);
 	quadShader->Use([&]() {
 		quad->Draw();
 	});

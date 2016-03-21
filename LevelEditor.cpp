@@ -72,7 +72,7 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("Box"))
 			{
 				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+					glm::vec4(.5f, .5f, .5f, 1.f), 4, 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 				selection.clear();
@@ -81,7 +81,7 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("Cylinder"))
 			{
 				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
+					glm::vec4(.5f, .5f, .5f, 1.f), 4, 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 				selection.clear();
@@ -188,6 +188,10 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			Entity *first = *selection.begin();
 
 			ImGui::Text("ID: %i", first->ID);
+
+			int tex = first->textureID;
+			ImGui::InputInt("Texture ID", &tex, 1, 1);
+			first->textureID = tex;
 
 			bool collidable = first->GetCollidable();
 			if (ImGui::Checkbox("Collidable", &collidable))

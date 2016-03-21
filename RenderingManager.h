@@ -21,7 +21,7 @@ public:
 	void drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewMatrix, 
 		glm::mat4 projMatrix);
 
-	void depthPass(Blob *blob, Level *level);
+	void depthPass(Blob *blob, Level *level, glm::vec3 camPos);
 	void dynamicCubeMapPass(Blob *blob, Level *level);
 
 	void geometryPass(Level *level, glm::mat4 viewMatrix, glm::mat4 projMatrix);
@@ -51,6 +51,7 @@ protected:
 	IOBuffer aoBuffer;
 	std::vector<IOBuffer> pingpongBuffers;
 	IOBuffer depthBuffer;
+	IOBuffer CSMBuffer;
 
 	glm::mat4 lightSpaceMatrix;
 
@@ -70,4 +71,6 @@ protected:
 
 	void drawCubeFace(glm::vec3 position, glm::vec3 direction, glm::vec3 up,
 		GLenum face, glm::mat4 projMatrix, Level *level);
+
+	GLuint wallTexture;
 };

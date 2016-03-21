@@ -7,10 +7,10 @@
 int Entity::nextID = 0;
 
 Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
-	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale, 
-	glm::vec4 p_color, float p_mass, bool bCollidable)
-	: mesh(p_mesh), color(p_color), trueColor(p_color),
-	mass(p_mass)
+	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
+	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable) 
+	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
+	mass(p_mass), collidable(p_collidable)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
 	btCollisionShape* shape;
@@ -38,7 +38,7 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 
 	//rigidbody->setRestitution(0.0);
 
-	SetCollidable(bCollidable);
+	SetCollidable(collidable);
 
 	const char* name = shape->getName();
 

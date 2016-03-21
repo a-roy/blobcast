@@ -194,7 +194,7 @@ bool init_physics()
 		btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
-	Level::currentLevel = Level::Deserialize(LevelDir "test_level.json");
+	Level::currentLevel = Level::Deserialize(LevelDir "level1.json");
 	for(Entity* r : Level::currentLevel->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
@@ -320,13 +320,14 @@ void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	renderManager.depthPass(blob, Level::currentLevel);
+	renderManager.depthPass(blob, Level::currentLevel, activeCam->Position);
 	renderManager.dynamicCubeMapPass(blob, Level::currentLevel);
 
 	glViewport(0, 0, width, height);
 
 	viewMatrix = activeCam->GetMatrix();
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
+	projMatrix = glm::perspective(glm::radians(60.0f), 
+		(float)width / (float)height, 0.1f, 400.0f);
 
 	renderManager.geometryPass(Level::currentLevel, viewMatrix, projMatrix);
 	renderManager.SSAOPass(projMatrix, activeCam->Position);
@@ -334,19 +335,21 @@ void draw()
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glViewport(0, 0, width, height);
-
+	//glViewport(0, 0, 200, 200);
 	//renderManager.debugQuadDraw();
-
-	projMatrix = glm::perspective(glm::radians(60.0f), (float)width / (float)height, 0.1f, 400.0f);
-	renderManager.drawLevel(Level::currentLevel, activeCam->Position, viewMatrix, projMatrix);
+	
+	glViewport(0, 0, width, height);
+	
 	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
+
+	renderManager.drawLevel(Level::currentLevel, activeCam->Position, 
+		viewMatrix, projMatrix);
 
 	viewMatrix = glm::mat4(glm::mat3(viewMatrix));
 	renderManager.drawSkybox(viewMatrix, projMatrix);
 	viewMatrix = activeCam->GetMatrix();
 
-	renderManager.drawParticles(Level::currentLevel, viewMatrix, projMatrix);
+	//renderManager.drawParticles(Level::currentLevel, viewMatrix, projMatrix);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

@@ -46,12 +46,13 @@ std::size_t Level::AddBox(
 		glm::quat orientation,
 		glm::vec3 dimensions,
 		glm::vec4 color,
+		GLuint texID,
 		float mass)
 {
 	Mesh *box(Mesh::CreateCubeWithNormals());
 	Platform *p =
 		new Platform(box, Shape::Box, position,
-			orientation, dimensions, color, mass);
+			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
 }
@@ -61,12 +62,13 @@ std::size_t Level::AddCylinder(
 	glm::quat orientation,
 	glm::vec3 dimensions,
 	glm::vec4 color,
+	GLuint texID,
 	float mass)
 {
 	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
 	Platform *p =
 		new Platform(cylinder, Shape::Cylinder, position,
-			orientation, dimensions, color, mass);
+			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
 }
@@ -107,6 +109,10 @@ void Level::Render(GLuint uMMatrix, GLuint uColor)
 {
 	for (Entity *ent : Objects)
 	{
+		GLuint textureID = ent->textureID;
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		
 		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &ent->GetModelMatrix()[0][0]);
 		glUniform4fv(uColor, 1, &ent->color.r);
 		ent->Render();
@@ -125,9 +131,7 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
 
-		/*if (typeid(r) == typeid(Button))
-			object["type"] = "button";
-		else*/ if(ent->shapeType == Shape::Box)
+		if(ent->shapeType == Shape::Box)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
@@ -145,6 +149,7 @@ void Level::Serialize(std::string file)
 		object["mass"] = ent->mass;
 		object["collidable"] = ent->GetCollidable();
 		object["id"] = ent->ID;
+		object["texID"] = ent->textureID;
 		Platform* plat = dynamic_cast<Platform*>(ent);
 		if (plat)
 		{
@@ -187,6 +192,11 @@ Level *Level::Deserialize(std::string file)
 		auto j_col = object["color"];
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
+		GLuint texID;
+		if (!object["texID"].is_null())
+			texID = object["texID"];
+		else
+			texID = 4;
 		auto path = object["path"];
 		int id;
 		if (!object["id"].is_null())
@@ -196,10 +206,11 @@ Level *Level::Deserialize(std::string file)
 			collidable = object["collidable"];
 		std::size_t i;
 		if (object["type"] == "box")
-			i = level->AddBox(position, orientation, dimensions, color, mass);
+			i = level->AddBox(position, orientation, dimensions, color, 
+				texID, mass);
 		else if (object["type"] == "cylinder")
 			i = level->AddCylinder(position, orientation, dimensions, 
-				color, mass);
+				color, texID, mass);
 		if (!object["collidable"].is_null())
 			level->Objects[i]->SetCollidable(collidable);
 		if (!object["id"].is_null())
