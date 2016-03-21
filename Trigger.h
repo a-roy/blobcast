@@ -20,6 +20,8 @@ public:
 	std::vector<CallbackFunc> onStayCallbacks;
 	std::vector<CallbackFunc> onLeaveCallbacks;
 
+	bool bTriggered = false;
+
 	Trigger(glm::vec3 p_translation, glm::quat p_orientation, 
 		glm::vec3 p_scale) :
 		Entity(NULL, Shape::Cylinder,
@@ -71,6 +73,7 @@ public:
 	{
 		for (auto callback : onEnterCallbacks)
 			callback();
+		bTriggered = true;
 	}
 
 	void OnStay()
@@ -83,6 +86,7 @@ public:
 	{
 		for (auto callback : onLeaveCallbacks)
 			callback();
+		bTriggered = false;
 	}
 
 	void Update(float deltaTime)

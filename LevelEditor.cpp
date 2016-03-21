@@ -75,6 +75,8 @@ void LevelEditor::MainMenuBar()
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
+				selection.clear();
+				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
 			if (ImGui::MenuItem("Cylinder"))
 			{
@@ -82,6 +84,8 @@ void LevelEditor::MainMenuBar()
 					glm::vec4(.5f, .5f, .5f, 1.f), 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
+				selection.clear();
+				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
 			if (ImGui::MenuItem("Trigger"))
 			{
@@ -95,6 +99,8 @@ void LevelEditor::MainMenuBar()
 					[t]() { /*t->color = glm::vec4(1, 0, 0, 1);*/ }, 
 					CallbackType::Enter
 				);
+				selection.clear();
+				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
 
 			ImGui::EndMenu();
@@ -210,7 +216,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			{
 				if (ImGui::CollapsingHeader("Connections"))
 				{
-					if (ImGui::Button("Set Pick"))
+					if (ImGui::Button("Set Link"))
 					{
 						bSetLink = true;
 						triggerBeingLinked = (Trigger*)first;
@@ -276,8 +282,12 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 				if (!platform->motion.Points.empty())
 				{
 					triggerBeingLinked->RegisterCallback(
-						[platform]() { platform->motion.Enabled = 1; },
+						[platform]() { platform->motion.Enabled = true; },
 						CallbackType::Enter
+					);
+					triggerBeingLinked->RegisterCallback(
+						[platform]() { platform->motion.Enabled = false; },
+						CallbackType::Leave
 					);
 				}
 			}

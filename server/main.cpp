@@ -277,11 +277,22 @@ void update()
 
 			if (trigger)
 			{
+				bool collides = false;
 				if (Physics::BroadphaseCheck(blob->softbody,
 					trigger->rigidbody))
 					if (Physics::NarrowphaseCheck(blob->softbody,
 						trigger->rigidbody))
+						collides = true;
+				
+				if (collides)
+					if (!trigger->bTriggered) 
 						trigger->OnEnter();
+					else 
+						trigger->OnStay();
+				else 
+					if (trigger->bTriggered) 
+						trigger->OnLeave();
+				
 			}
 		}
 
