@@ -45,7 +45,7 @@ public:
 	bool bCtrl = false;
 
 	bool bSetLink = false;
-	Trigger* triggerBeingLinked = NULL;
+	Trigger* selectedTrigger = NULL;
 
 	LevelEditor(){}
 	~LevelEditor(){}

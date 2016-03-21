@@ -187,6 +187,8 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 		{
 			Entity *first = *selection.begin();
 
+			ImGui::Text("ID: %i", first->ID);
+
 			bool collidable = first->GetCollidable();
 			if (ImGui::Checkbox("Collidable", &collidable))
 				first->SetCollidable(collidable);
@@ -219,7 +221,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				if (ImGui::CollapsingHeader("Connections")) {
 					if (ImGui::Button("Set Link")) {
 						bSetLink = true;
-						triggerBeingLinked = (Trigger*)first;
+						selectedTrigger = (Trigger*)first;
 					}
 				}
 			}
@@ -280,14 +282,16 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 			{
 				if (!platform->motion.Points.empty())
 				{
-					triggerBeingLinked->RegisterCallback(
+					selectedTrigger->RegisterCallback(
 						[platform]() { platform->motion.Enabled = true; },
 						CallbackType::Enter
 					);
-					triggerBeingLinked->RegisterCallback(
+					selectedTrigger->RegisterCallback(
 						[platform]() { platform->motion.Enabled = false; },
 						CallbackType::Leave
 					);
+
+					selectedTrigger->connectionIDs.push_back(platform->ID);
 				}
 			}
 

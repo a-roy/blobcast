@@ -144,6 +144,7 @@ void Level::Serialize(std::string file)
 			ent->trueColor.a };
 		object["mass"] = ent->mass;
 		object["collidable"] = ent->GetCollidable();
+		object["id"] = ent->ID;
 		Platform* plat = dynamic_cast<Platform*>(ent);
 		if (plat)
 		{
@@ -187,6 +188,9 @@ Level *Level::Deserialize(std::string file)
 		glm::vec4 color(j_col[0], j_col[1], j_col[2], j_col[3]);
 		auto mass = object["mass"];
 		auto path = object["path"];
+		int id;
+		if (!object["id"].is_null())
+			id = object["id"];
 		bool collidable;
 		if(!object["collidable"].is_null())
 			collidable = object["collidable"];
@@ -198,6 +202,12 @@ Level *Level::Deserialize(std::string file)
 				color, mass);
 		if (!object["collidable"].is_null())
 			level->Objects[i]->SetCollidable(collidable);
+		if (!object["id"].is_null())
+		{
+			level->Objects[i]->ID = id;
+			if (id >= Entity::nextID)
+				Entity::nextID = id + 1;
+		}
 		if (!path.is_null())
 		{
 			Platform *ent = (Platform*)level->Objects[i];
