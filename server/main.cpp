@@ -192,7 +192,7 @@ bool init_physics()
 		btVector3(0, 100, 0), 3.0f, 512);
 	btSoftBody *btblob = blob->softbody;
 
-	level = Level::Deserialize(LevelDir "window_test.json");
+	level = Level::Deserialize(LevelDir "level1.json");
 	for(Entity* r : level->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->addSoftBody(blob->softbody);
@@ -321,8 +321,8 @@ void draw()
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glViewport(0, 0, 200, 200);
-	renderManager.debugQuadDraw();
+	//glViewport(0, 0, 200, 200);
+	//renderManager.debugQuadDraw();
 
 	glViewport(0, 0, width, height);
 	

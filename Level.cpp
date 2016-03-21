@@ -111,8 +111,8 @@ void Level::Render(GLuint uMMatrix, GLuint uColor)
 	for (Entity *ent : Objects)
 	{
 		//GLuint textureID = ent->color.a;
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, 4);
+		//glActiveTexture(GL_TEXTURE2);
+		//glBindTexture(GL_TEXTURE_2D, 4);
 		
 		glUniformMatrix4fv(uMMatrix, 1, GL_FALSE, &ent->GetModelMatrix()[0][0]);
 		glUniform4fv(uColor, 1, &ent->color.r);

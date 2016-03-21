@@ -59,7 +59,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
         }
     }
 
-    return (0.5 + (Factor / 36.0));
+    return (0.5 + (Factor / 24.0));
 }
 
 
@@ -87,7 +87,7 @@ void main()
 	vec3 tex = texture(wallTex, TexCoords).rgb;
 	
 	float shadow = CalcShadowFactor(LightSpacePos);
-    vec3 lighting = (ambient + shadow * (diffuse + specular)) * vec3(objectColor) * tex;
+    vec3 lighting = (ambient + shadow * (diffuse + specular)) * vec3(objectColor);
 	
     FragColor = vec4(lighting, objectColor.a);
 }
