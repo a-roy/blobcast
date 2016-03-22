@@ -105,6 +105,16 @@ int Level::Find(btRigidBody *r)
 	return -1;
 }
 
+Entity* Level::Find(int id)
+{
+	for (std::size_t i = 0, n = Objects.size(); i < n; i++)
+	{
+		if (Objects[i]->ID == id)
+			return Objects[i];
+	}
+	return NULL;
+}
+
 void Level::Render(GLuint uMMatrix, GLuint uColor)
 {
 	for (Entity *ent : Objects)
@@ -131,10 +141,18 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
 
-		if(ent->shapeType == Shape::Box)
-			object["type"] = "box";
+		Platform* plat = dynamic_cast<Platform*>(ent);
+		if (plat) 
+		{
+			if (ent->shapeType == Shape::Box)
+				object["type"] = "box";
+			else
+				object["type"] = "cylinder";
+		}
 		else
-			object["type"] = "cylinder";
+		{
+			object["type"] = "trigger";
+		}
 		object["position"] = {
 			translation.x, translation.y,
 			translation.z };
@@ -150,7 +168,6 @@ void Level::Serialize(std::string file)
 		object["collidable"] = ent->GetCollidable();
 		object["id"] = ent->ID;
 		object["texID"] = ent->textureID;
-		Platform* plat = dynamic_cast<Platform*>(ent);
 		if (plat)
 		{
 			if (!plat->motion.Points.empty())
@@ -161,6 +178,17 @@ void Level::Serialize(std::string file)
 				v != plat->motion.Points.end(); ++v)
 					path["points"].push_back({ v->x, v->y, v->z });
 				object["path"] = path;
+			}
+		}
+		else //trigger
+		{
+			Trigger* t = (Trigger*)ent;
+			if (t->connectionIDs.size() > 1)
+			{
+				//nlohmann::json conns;
+				for (auto c : t->connectionIDs)
+					object["conns"].push_back(c);
+				//object["conns"] = conns;
 			}
 		}
 		objects.push_back(object);
@@ -211,6 +239,8 @@ Level *Level::Deserialize(std::string file)
 		else if (object["type"] == "cylinder")
 			i = level->AddCylinder(position, orientation, dimensions, 
 				color, texID, mass);
+		else
+			i = level->AddTrigger(position, orientation, dimensions);
 		if (!object["collidable"].is_null())
 			level->Objects[i]->SetCollidable(collidable);
 		if (!object["id"].is_null())

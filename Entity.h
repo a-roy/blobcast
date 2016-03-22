@@ -56,10 +56,10 @@ public:
 	void SetCollidable(bool set)
 	{
 		collidable = set;
-		if (collidable)
-			rigidbody->setCollisionFlags(rigidbody->CF_STATIC_OBJECT);
+		/*if (collidable)
+			rigidbody->setCollisionFlags(rigidbody->CF_KINEMATIC_OBJECT);
 		else
-			rigidbody->setCollisionFlags(rigidbody->CF_NO_CONTACT_RESPONSE);
+			rigidbody->setCollisionFlags(rigidbody->CF_NO_CONTACT_RESPONSE);*/
 	}
 
 	bool GetCollidable()

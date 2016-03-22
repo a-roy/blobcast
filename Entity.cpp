@@ -38,7 +38,8 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 
 	//rigidbody->setRestitution(0.0);
 
-	SetCollidable(collidable);
+	if(p_collidable)
+		SetCollidable(collidable);
 
 	const char* name = shape->getName();
 

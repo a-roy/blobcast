@@ -38,8 +38,6 @@ public:
 	bool bShowImguiDemo = false;
 	bool bShowCameraSettings = true;
 
-	glm::vec3 out_origin = glm::vec3(0);
-	glm::vec3 out_end = glm::vec3(0);
 	std::set<Entity*> selection;
 	bool bLocal = true;
 	bool bCtrl = false;
@@ -68,7 +66,8 @@ private:
 	void Scale();
 	void ScaleSelection(glm::vec3 relScale);
 	void Path();
-
+	void NewSelection(Entity* newSelection);
 	void DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 		glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color);
+	void ClearSelection();
 };

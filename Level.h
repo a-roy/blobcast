@@ -44,6 +44,7 @@ class Level
 		void Delete(std::size_t index);
 		void Clear();
 		int Find(btRigidBody *r);
+		Entity* Find(int id);
 		void Render(GLuint uMMatrix, GLuint uColor);
 		void Serialize(std::string file);
 		static Level *Deserialize(std::string file);

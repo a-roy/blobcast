@@ -457,6 +457,8 @@ void key_callback(
 
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 		bGui ^= 1;
+	if (key == GLFW_KEY_M && action == GLFW_PRESS)
+		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
 
 	if (key == GLFW_KEY_DELETE && action == GLFW_PRESS)
 		levelEditor->DeleteSelection();

@@ -93,12 +93,12 @@ void LevelEditor::MainMenuBar()
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
 
-				//All buttons have the turn red if pressed callback
-				Trigger* t = (Trigger*)level->Objects[level->Objects.size() - 1];
-				t->RegisterCallback(
-					[t]() { /*t->color = glm::vec4(1, 0, 0, 1);*/ }, 
-					CallbackType::Enter
-				);
+				Trigger* t = 
+					(Trigger*)level->Objects[level->Objects.size() - 1];
+				//t->RegisterCallback(
+				//	[t]() { /*t->color = glm::vec4(1, 0, 0, 1);*/ }, 
+				//	CallbackType::Enter
+				//);
 				selection.clear();
 				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
@@ -111,7 +111,7 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("Step Physics", NULL,
 				Physics::bStepPhysics))
 				Physics::bStepPhysics ^= 1;
-			if (ImGui::Button("Magic Fix Editor"))
+			if (ImGui::Button("Step Once"))
 				Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
 
 			ImGui::EndMenu();
@@ -222,10 +222,27 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			}
 
 			if (dynamic_cast<Trigger*>(first)) {
+				selectedTrigger = (Trigger*)first;
 				if (ImGui::CollapsingHeader("Connections")) {
-					if (ImGui::Button("Set Link")) {
-						bSetLink = true;
-						selectedTrigger = (Trigger*)first;
+					if (!bSetLink) {
+						if (ImGui::Button("Set Link")) {
+							bSetLink = true;
+						}
+					}
+					else {
+						ImGui::Text("Click on the path object now");
+					}
+					for (int id : selectedTrigger->connectionIDs) {
+						std::stringstream ss;
+						ss << "Platform - " << id;
+						if (ImGui::Button(ss.str().c_str()))
+						{
+							ClearSelection();
+							Entity* e = Level::currentLevel->Find(id);
+							selection.insert(e);
+							e->color =
+								glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+						}
 					}
 				}
 			}
@@ -243,13 +260,13 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 	glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
 {
-	//glm::vec3 out_origin;
+	glm::vec3 out_origin;
 	glm::vec3 out_direction;
 
 	ScreenPosToWorldRay((int)xcursor, (int)ycursor, width, height,
 		viewMatrix, projectionMatrix, out_origin, out_direction);
 
-	/*glm::vec3*/ out_end = out_origin + out_direction * 1000.0f;
+	glm::vec3 out_end = out_origin + out_direction * 1000.0f;
 
 	btCollisionWorld::ClosestRayResultCallback
 		RayCallback(btVector3(out_origin.x, out_origin.y, out_origin.z),
@@ -261,53 +278,54 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 
 	if (RayCallback.hasHit())
 	{
-		//TODO - Use Bullet collision masks
 		if (typeid(*RayCallback.m_collisionObject) != typeid(btRigidBody))
 			return;
-		//if(RayCallback.m_collisionObject->ma)
-
-		if (!bCtrl)
-		{
-			for (auto s : selection)
-				s->color = s->trueColor;
-			selection.clear();
-		}
-
-		Entity* newSelection = 
-			(Entity*)RayCallback.m_collisionObject->getUserPointer();
-		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-		selection.insert(newSelection);
-
-		if (bSetLink)
-		{
-			Entity* first = *selection.begin();
-			Platform* platform = dynamic_cast<Platform*>(first);
-			if (platform)
-			{
-				if (!platform->motion.Points.empty())
-				{
-					selectedTrigger->RegisterCallback(
-						[platform]() { platform->motion.Enabled = true; },
-						CallbackType::Enter
-					);
-					selectedTrigger->RegisterCallback(
-						[platform]() { platform->motion.Enabled = false; },
-						CallbackType::Leave
-					);
-
-					selectedTrigger->connectionIDs.push_back(platform->ID);
-				}
-			}
-
-			bSetLink = false;
-		}
+		NewSelection((Entity*)RayCallback.m_collisionObject->getUserPointer());
 	}
 	else
 	{
-		for (auto s : selection)
-			s->color = s->trueColor;
-		selection.clear();
+		ClearSelection();
 	}
+}
+
+void LevelEditor::NewSelection(Entity* newSelection)
+{
+	if (bSetLink)
+	{
+		Platform* platform = dynamic_cast<Platform*>(newSelection);
+		if (platform)
+		{
+			if (!platform->motion.Points.empty())
+			{
+				selectedTrigger->RegisterCallback(
+					[platform]() { platform->motion.Enabled = true; },
+					CallbackType::Enter
+					);
+				selectedTrigger->RegisterCallback(
+					[platform]() { platform->motion.Enabled = false; },
+					CallbackType::Leave
+					);
+
+				selectedTrigger->connectionIDs.push_back(platform->ID);
+			}
+		}
+
+		bSetLink = false;
+	}
+	else
+	{
+		if (!bCtrl)
+			ClearSelection();
+		newSelection->color = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+		selection.insert(newSelection);
+	}
+}
+
+void LevelEditor::ClearSelection()
+{
+	for (auto s : selection)
+		s->color = s->trueColor;
+	selection.clear();
 }
 
 void LevelEditor::Translation()
