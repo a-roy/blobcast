@@ -17,6 +17,7 @@ private:
 
 	Mesh* mesh;
 	bool collidable;
+	int collisionFlagsDefault;
 
 public:
 
@@ -56,10 +57,11 @@ public:
 	void SetCollidable(bool set)
 	{
 		collidable = set;
-		/*if (collidable)
-			rigidbody->setCollisionFlags(rigidbody->CF_KINEMATIC_OBJECT);
+		if (collidable)
+			rigidbody->setCollisionFlags(collisionFlagsDefault);
 		else
-			rigidbody->setCollisionFlags(rigidbody->CF_NO_CONTACT_RESPONSE);*/
+			rigidbody->setCollisionFlags(collisionFlagsDefault
+				| rigidbody->CF_NO_CONTACT_RESPONSE);
 	}
 
 	bool GetCollidable()

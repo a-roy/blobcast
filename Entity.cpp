@@ -37,9 +37,8 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 
 	//rigidbody->setRestitution(0.0);
-
-	if(p_collidable)
-		SetCollidable(collidable);
+	collisionFlagsDefault = rigidbody->getCollisionFlags();
+	SetCollidable(collidable);
 
 	const char* name = shape->getName();
 
