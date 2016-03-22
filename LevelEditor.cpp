@@ -224,12 +224,11 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			if (dynamic_cast<Trigger*>(first)) {
 				selectedTrigger = (Trigger*)first;
 				if (ImGui::CollapsingHeader("Connections")) {
-					if (!bSetLink) {
-						if (ImGui::Button("Set Link")) {
-							bSetLink = true;
-						}
+					if (ImGui::Button("Set Link")) {
+						bSetLink = true;
 					}
-					else {
+					if(bSetLink) {
+						ImGui::SameLine();
 						ImGui::Text("Click on the path object now");
 					}
 					for (int id : selectedTrigger->connectionIDs) {
@@ -306,7 +305,10 @@ void LevelEditor::NewSelection(Entity* newSelection)
 					CallbackType::Leave
 					);
 
-				selectedTrigger->connectionIDs.push_back(platform->ID);
+				auto ids = selectedTrigger->connectionIDs;
+				if(!std::binary_search(ids.begin(), ids.end(), 
+					platform->ID))
+					selectedTrigger->connectionIDs.push_back(platform->ID);	
 			}
 		}
 
