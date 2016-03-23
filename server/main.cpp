@@ -226,7 +226,7 @@ bool init_graphics()
 
 bool init_stream()
 {
-	stream = new StreamWriter(width, height);
+	stream = new StreamWriter(width, height, 1);
 
 	RakNet::SocketDescriptor sd(REMOTE_GAME_PORT, 0);
 	rakPeer->Startup(100, &sd, 1);

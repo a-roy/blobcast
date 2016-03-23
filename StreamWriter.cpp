@@ -4,11 +4,12 @@
 #include <string>
 #include <exception>
 
-StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
-	width(viewportWidth), height(viewportHeight)
+StreamWriter::StreamWriter(
+		int viewportWidth, int viewportHeight, int num_buffers) :
+	width(viewportWidth), height(viewportHeight), numPBOs(num_buffers)
 {
-	glGenBuffers(1, &pbo);
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+	pbo = new GLuint[num_buffers];
+	glGenBuffers(num_buffers, pbo);
 	avcodec_register_all();
 	AVDictionary *opts = nullptr;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
@@ -44,8 +45,16 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
-	glBufferData(
-			GL_PIXEL_PACK_BUFFER, width * height * 3, nullptr, GL_STREAM_READ);
+	for (int i = 0; i < numPBOs; i++)
+	{
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[i]);
+		glBufferData(
+				GL_PIXEL_PACK_BUFFER,
+				width * height * 4,
+				nullptr,
+				GL_STREAM_READ);
+	}
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
 	av_register_all();
 	avformat_network_init();
@@ -70,7 +79,7 @@ StreamWriter::StreamWriter(int viewportWidth, int viewportHeight) :
 		throw std::exception();
 
 	swctx = sws_getContext(
-			width, height, AV_PIX_FMT_RGB24,
+			width, height, AV_PIX_FMT_BGRA,
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
 			SWS_BICUBIC, nullptr, nullptr, nullptr);
 	if (swctx == nullptr)
@@ -85,32 +94,41 @@ StreamWriter::~StreamWriter()
 	avformat_network_deinit();
 	//avcodec_free_context(&avctx);
 	av_frame_free(&avframe);
+	delete[] pbo;
 }
 
 void StreamWriter::WriteFrame()
 {
-	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	uint8_t *data =
-		(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-	uint8_t *const srcSlice[] = { data };
-	int srcStride[] = { width * 3 };
-	if (data != nullptr)
-		sws_scale(
-				swctx,
-				srcSlice, srcStride,
-				0, height,
-				avframe->data, avframe->linesize);
-	avframe->pts += 1500;
-	glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, 0);
+	int buf_index = frame % numPBOs;
+	glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo[buf_index]);
+	if (frame >= numPBOs)
+	{
+		uint8_t *data =
+			(uint8_t *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+		uint8_t *const srcSlice[] = { data };
+		int srcStride[] = { width * 4 };
+		if (data != nullptr)
+			sws_scale(
+					swctx,
+					srcSlice, srcStride,
+					0, height,
+					avframe->data, avframe->linesize);
+		avframe->pts += 1500;
+		glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+	}
+	glReadPixels(0, 0, width, height, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
 	glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-	AVPacket *avpkt = av_packet_alloc();
-	int got_packet;
-	if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
-		exit(1);
-	if (got_packet == 1)
-		av_interleaved_write_frame(avfmt, avpkt);
-	av_packet_free(&avpkt);
+	if (frame >= numPBOs)
+	{
+		AVPacket *avpkt = av_packet_alloc();
+		int got_packet;
+		if (avcodec_encode_video2(avctx, avpkt, avframe, &got_packet) < 0)
+			exit(1);
+		if (got_packet == 1)
+			av_interleaved_write_frame(avfmt, avpkt);
+		av_packet_free(&avpkt);
+	}
+	frame++;
 }
 
 void StreamWriter::Close()
