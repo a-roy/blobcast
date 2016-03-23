@@ -75,10 +75,6 @@ StreamWriter *stream;
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 BlobDisplay *blobDisplay;
-Blob *blob;
-btVector3 spawn(0, 100, 0);
-btScalar radius(3.0f);
-int blob_res = 512;
 float death_plane_y = -100.f;
 
 ShaderProgram *displayShaderProgram;
@@ -171,7 +167,6 @@ int main(int argc, char *argv[])
 
 	Physics::Cleanup();
 
-	delete blob;
 	delete levelEditor;
 	delete flyCam;
 	delete blobCam;
@@ -192,13 +187,11 @@ bool init_physics()
 {
 	Physics::Init();
 	
-	blob = new Blob(Physics::softBodyWorldInfo, spawn, radius, blob_res);
-	btSoftBody *btblob = blob->softbody;
+	Physics::CreateBlob();
 
 	Level::currentLevel = Level::Deserialize(LevelDir "level1.json");
 	for(Entity* r : Level::currentLevel->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
-	Physics::dynamicsWorld->addSoftBody(blob->softbody);
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	Level::currentLevel->AddParticleSystem(glm::vec3(0));
@@ -256,7 +249,7 @@ void update()
 		}
 	}
 
-	blob->AddForces(current_inputs);
+	Physics::blob->AddForces(current_inputs);
 
 	Timer::currentFrame = glfwGetTime();
 	Timer::deltaTime = Timer::currentFrame - Timer::lastFrame;
@@ -281,9 +274,9 @@ void update()
 			if (trigger)
 			{
 				bool collides = false;
-				if (Physics::BroadphaseCheck(blob->softbody,
+				if (Physics::BroadphaseCheck(Physics::blob->softbody,
 					trigger->rigidbody))
-					if (Physics::NarrowphaseCheck(blob->softbody,
+					if (Physics::NarrowphaseCheck(Physics::blob->softbody,
 						trigger->rigidbody))
 						collides = true;
 				
@@ -303,14 +296,8 @@ void update()
 			r->Update(Timer::deltaTime);
 
 		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
-		if (blob->GetCentroid().getY() < death_plane_y)
-		{
-			Physics::dynamicsWorld->removeSoftBody(blob->softbody);
-			delete blob;
-			blob = new Blob(Physics::softBodyWorldInfo,
-				spawn, radius, blob_res);
-			Physics::dynamicsWorld->addSoftBody(blob->softbody);
-		}
+		if (Physics::blob->GetCentroid().getY() < death_plane_y)
+			Physics::CreateBlob();
 	}
 	Profiler::Finish("Physics");
 
@@ -319,18 +306,18 @@ void update()
 		ps->Update(Timer::deltaTime);*/
 	Profiler::Finish("Particles", false);
 
-	blobCam->Target = convert(blob->GetCentroid());
+	blobCam->Target = convert(Physics::blob->GetCentroid());
 	activeCam->Update();
 
-	blob->Update();
+	Physics::blob->Update();
 }
 
 void draw()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	renderManager.depthPass(blob, Level::currentLevel, activeCam->Position);
-	renderManager.dynamicCubeMapPass(blob, Level::currentLevel);
+	renderManager.depthPass(Physics::blob, Level::currentLevel, activeCam->Position);
+	renderManager.dynamicCubeMapPass(Physics::blob, Level::currentLevel);
 
 	glViewport(0, 0, width, height);
 
@@ -349,7 +336,7 @@ void draw()
 	
 	glViewport(0, 0, width, height);
 	
-	renderManager.drawBlob(blob, activeCam->Position, viewMatrix, projMatrix);
+	renderManager.drawBlob(Physics::blob, activeCam->Position, viewMatrix, projMatrix);
 
 	renderManager.drawLevel(Level::currentLevel, activeCam->Position, 
 		viewMatrix, projMatrix);
@@ -382,7 +369,7 @@ void gui()
 	if (levelEditor->bShowImguiDemo)
 		ImGui::ShowTestWindow();
 	if (levelEditor->bShowBlobCfg)
-		blob->Gui();
+		Physics::blob->Gui();
 	
 	if (levelEditor->bShowCameraSettings)
 	{
@@ -477,7 +464,7 @@ void key_callback(
 	else if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE)
 		levelEditor->bCtrl = false;
 
-	blob->Move(key, action);
+	Physics::blob->Move(key, action);
 
 	GLFWProject::WASDStrafe(activeCam, window, key, scancode, action, mods);
 }

@@ -1,6 +1,7 @@
 #include "Physics.h"
 #include "config.h"
 
+Blob *Physics::blob;
 btSoftRigidDynamicsWorld *Physics::dynamicsWorld;
 btCollisionDispatcher *Physics::dispatcher;
 btBroadphaseInterface *Physics::broadphase;
@@ -38,6 +39,8 @@ void Physics::Init()
 	softBodyWorldInfo.water_offset = 0;
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
 	softBodyWorldInfo.m_sparsesdf.Initialize();
+
+	blob = nullptr;
 }
 
 void Physics::Cleanup()
@@ -47,6 +50,19 @@ void Physics::Cleanup()
 	delete Physics::collisionConfiguration;
 	delete Physics::dispatcher;
 	delete Physics::broadphase;
+	delete Physics::blob;
+}
+
+void Physics::CreateBlob()
+{
+	if (blob)
+	{
+		dynamicsWorld->removeSoftBody(blob->softbody);
+		delete blob;
+	}
+	blob = new Blob(Physics::softBodyWorldInfo,
+		btVector3(0, 100, 0), 3.0f, 512);
+	dynamicsWorld->addSoftBody(blob->softbody);
 }
 
 bool Physics::BroadphaseCheck(btCollisionObject* obj1,

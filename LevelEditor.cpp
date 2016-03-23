@@ -223,12 +223,16 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			if (dynamic_cast<Trigger*>(first)) {
 				selectedTrigger = (Trigger*)first;
 				if (ImGui::CollapsingHeader("Connections")) {
-					if (ImGui::Button("Set Link")) {
+					if (ImGui::Button("Set Path Link")) {
 						bSetLink = true;
 					}
 					if(bSetLink) {
 						ImGui::SameLine();
 						ImGui::Text("Click on the path object now");
+					}
+					if (ImGui::Button("Set Deadly")) {
+						selectedTrigger->bDeadly = true;
+						selectedTrigger->RegisterCallback(Physics::CreateBlob, Enter);
 					}
 					for (int id : selectedTrigger->connectionIDs) {
 						std::stringstream ss;

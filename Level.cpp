@@ -188,6 +188,10 @@ void Level::Serialize(std::string file)
 				for (auto c : t->connectionIDs)
 					object["conns"].push_back(c);
 			}
+			if (t->bDeadly)
+			{
+				object["deadly"] = true;
+			}
 		}
 		objects.push_back(object);
 	}
@@ -265,6 +269,11 @@ Level *Level::Deserialize(std::string file)
 			for (auto conn : conns)
 				trigger->connectionIDs.push_back(conn);
 		}
+		if (object["deadly"].is_boolean() && object["deadly"])
+		{
+			Trigger *trigger = (Trigger*)level->Objects[i];
+			trigger->bDeadly = true;
+		}
 	}
 	f.close();
 
@@ -281,7 +290,9 @@ Level *Level::Deserialize(std::string file)
 				if (!plat->motion.Points.empty())
 					trigger->LinkToPlatform(plat);
 			}
-			
+
+			if (trigger->bDeadly)
+				trigger->RegisterCallback(Physics::CreateBlob, Enter);
 		}
 	}
 
