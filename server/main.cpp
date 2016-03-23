@@ -76,6 +76,10 @@ RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 
 BlobDisplay *blobDisplay;
 Blob *blob;
+btVector3 spawn(0, 100, 0);
+btScalar radius(3.0f);
+int blob_res = 512;
+float death_plane_y = -100.f;
 
 ShaderProgram *displayShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
@@ -99,8 +103,6 @@ BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 
 double frameCounterTime = 0.0f;
 std::map<std::string, Measurement> Profiler::measurements;
-
-
 
 #pragma warning(disable:4996)
 
@@ -190,8 +192,7 @@ bool init_physics()
 {
 	Physics::Init();
 	
-	blob = new Blob(Physics::softBodyWorldInfo, 
-		btVector3(0, 100, 0), 3.0f, 512);
+	blob = new Blob(Physics::softBodyWorldInfo, spawn, radius, blob_res);
 	btSoftBody *btblob = blob->softbody;
 
 	Level::currentLevel = Level::Deserialize(LevelDir "level1.json");
@@ -302,6 +303,14 @@ void update()
 			r->Update(Timer::deltaTime);
 
 		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);
+		if (blob->GetCentroid().getY() < death_plane_y)
+		{
+			Physics::dynamicsWorld->removeSoftBody(blob->softbody);
+			delete blob;
+			blob = new Blob(Physics::softBodyWorldInfo,
+				spawn, radius, blob_res);
+			Physics::dynamicsWorld->addSoftBody(blob->softbody);
+		}
 	}
 	Profiler::Finish("Physics");
 
