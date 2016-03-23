@@ -11,6 +11,7 @@ class Path
 		std::vector<glm::vec3> Points;
 		float Speed = 0.0f;
 		bool Loop = true;
+		bool Curved = true;
 		bool Enabled = false;
 
 		Path() = default;

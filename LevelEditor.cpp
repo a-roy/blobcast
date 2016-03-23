@@ -528,6 +528,11 @@ void LevelEditor::Path()
 	Platform *ent = (Platform*)*selection.begin();
 	ImGui::DragFloat("Speed", &ent->motion.Speed, 0.01f, 0.0f, 1.0f);
 	ImGui::Checkbox("Loop path", &ent->motion.Loop);
+	static int e = ent->motion.Curved;
+	ImGui::RadioButton("Straight", &e, 0);
+	ImGui::SameLine();
+	ImGui::RadioButton("Curved", &e, 1);
+	ent->motion.Curved = e;
 	ImGui::Spacing();
 	bool path_changed = false;
 	int x = 0;

@@ -41,8 +41,9 @@ glm::vec3 Path::GetPosition(float time)
 		i1 = 0;
 	glm::vec3 p0 = Points[i0];
 	glm::vec3 p1 = Points[i1];
-	glm::vec3 m0 = CatmullRomTangent(i0);
-	glm::vec3 m1 = CatmullRomTangent(i1);
+	glm::vec3 m_lin = p1 - p0;
+	glm::vec3 m0 = Curved ? CatmullRomTangent(i0): m_lin;
+	glm::vec3 m1 = Curved ? CatmullRomTangent(i1): m_lin;
 	float t = glm::fract(time);
 	float t2 = t * t;
 	float t3 = t2 * t;
