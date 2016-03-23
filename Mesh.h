@@ -34,4 +34,6 @@ class Mesh : public Drawable
 		static Mesh *CreateCubeWithNormals();
 		static Mesh *CreateQuad();
 		static Mesh *CreateCylinderWithNormals(int segments = 30);
+
+		static void Mesh::computeTangentBasis(float* vbo, float* texCoords, std::vector<glm::vec3> & tangents, std::vector<glm::vec3> & bitangents);
 };

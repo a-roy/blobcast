@@ -75,7 +75,8 @@ bool RenderingManager::init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	wallTexture = loadTexture(TextureDir "metal.png", true);
+	loadTexture(TextureDir "metal.png", true);
+	loadTexture(TextureDir "water.jpg", false);
 
 	if (!initFrameBuffers())
 		return false;
@@ -170,9 +171,6 @@ void RenderingManager::drawLevel(Level *level, glm::vec3 camPos, glm::mat4 viewM
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, pingpongBuffers[0].texture0);
-
-	//glActiveTexture(GL_TEXTURE2);
-	//glBindTexture(GL_TEXTURE_2D, wallTexture);
 
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
