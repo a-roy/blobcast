@@ -21,54 +21,22 @@ class Buffer
 				GLenum target,
 				GLenum usage,
 				unsigned int itemSize,
-				unsigned int numItems) :
-			VAO(vao),
-			Target(target),
-			Usage(usage),
-			ItemSize(itemSize),
-			NumItems(numItems),
-			Data(NULL)
-		{
-			glGenBuffers(1, &Name);
-		}
+				unsigned int numItems);
+		~Buffer();
+		Buffer(const Buffer<T>&) = delete;
+		Buffer<T>& operator=(const Buffer<T>&) = delete;
+		Buffer(Buffer<T>&& other);
+		Buffer<T>& operator=(Buffer<T>&& other);
 
-		~Buffer()
-		{
-			glDeleteBuffers(1, &Name);
-			if (managed_data)
-				delete[] Data;
-		}
-
-		virtual void SetData(T *data, bool copy = true)
-		{
-			if (managed_data)
-			{
-				managed_data = false;
-				delete[] Data;
-				Data = nullptr;
-			}
-			if (copy && data != nullptr)
-			{
-				Data = new T[NumItems * ItemSize];
-				memcpy(Data, data, sizeof(T) * ItemSize * NumItems);
-				managed_data = true;
-			}
-			VAO->SetBufferData(
-					Name,
-					Target,
-					sizeof(T) * ItemSize * NumItems,
-					Data,
-					Usage);
-		}
-
-		virtual void BufferData(GLuint attribute, size_t stride = 0)
-		{
-			glBindBuffer(Target, Name);
-		}
+		virtual void SetData(T *data, bool copy = true);
+		virtual void BindBuffer();
+		virtual void VertexAttribPointer(GLuint attribute, size_t stride = 0)
+		{ }
 
 	private:
 		bool managed_data = false;
 };
+#include "Buffer.inl"
 
 class FloatBuffer : public Buffer<GLfloat>
 {
@@ -78,7 +46,7 @@ class FloatBuffer : public Buffer<GLfloat>
 				unsigned int itemSize,
 				unsigned int numItems);
 
-		void BufferData(GLuint attribute, size_t stride = 0);
+		void VertexAttribPointer(GLuint attribute, size_t stride = 0);
 };
 
 class ElementBuffer : public Buffer<unsigned int>

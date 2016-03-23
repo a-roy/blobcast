@@ -4,19 +4,20 @@
 #include <sstream>
 #include <iostream>
 #include <GL/glew.h>
-#include <glm\glm.hpp>
+#include <glm/glm.hpp>
 
 
-class Skybox {
-protected:
-	GLuint textureID;
-	GLuint VAO, VBO;
-
+class Skybox
+{
 public:
 	Skybox();
 	void buildCubeMesh();
-	void loadCubeMap(std::vector<const GLchar*> faces);
+	bool loadCubeMap(std::vector<const GLchar*> faces);
 	GLuint getID();
 	void render();
 	glm::mat4 modelMat;
+
+protected:
+	GLuint textureID;
+	GLuint VAO, VBO;
 };

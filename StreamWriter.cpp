@@ -21,7 +21,7 @@ StreamWriter::StreamWriter(
 	AVIOContext *ioctx;
 	AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
 	if (!codec)
-		throw new std::exception();
+		throw std::exception();
 	avctx = avcodec_alloc_context3(codec);
 	avctx->pix_fmt = AV_PIX_FMT_YUV420P;
 	avctx->width = STREAM_WIDTH;
@@ -31,7 +31,7 @@ StreamWriter::StreamWriter(
 	avctx->gop_size = 0;
 #endif // UDP_STREAM
 	if (avcodec_open2(avctx, codec, &opts) < 0)
-		throw new std::exception();
+		throw std::exception();
 
 	avframe = av_frame_alloc();
 	avframe->format = AV_PIX_FMT_YUV420P;
@@ -41,7 +41,7 @@ StreamWriter::StreamWriter(
 	avframe->linesize[1] = STREAM_WIDTH / 2;
 	avframe->linesize[2] = STREAM_WIDTH / 2;
 	if (av_frame_get_buffer(avframe, 0) != 0)
-		throw new std::exception();
+		throw std::exception();
 
 	int linesize_align[AV_NUM_DATA_POINTERS];
 	avcodec_align_dimensions2(avctx, &avframe->width, &avframe->height, linesize_align);
@@ -67,7 +67,7 @@ StreamWriter::StreamWriter(
 	AVStream *s = avformat_new_stream(avfmt, codec);
 	s->time_base = { 1, 60 };
 	if (s == nullptr)
-		throw new std::exception();
+		throw std::exception();
 	s->codec = avctx;
 	int io_result =
 		avio_open2(&ioctx, filename.c_str(), AVIO_FLAG_WRITE, nullptr, &opts);
@@ -76,14 +76,14 @@ StreamWriter::StreamWriter(
 		return;
 	avfmt->pb = ioctx;
 	if (avformat_write_header(avfmt, &opts) != 0)
-		throw new std::exception();
+		throw std::exception();
 
 	swctx = sws_getContext(
 			width, height, AV_PIX_FMT_BGRA,
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
 			SWS_BICUBIC, nullptr, nullptr, nullptr);
 	if (swctx == nullptr)
-		throw new std::exception();
+		throw std::exception();
 }
 
 StreamWriter::~StreamWriter()

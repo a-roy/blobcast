@@ -6,7 +6,7 @@ uniform sampler2D tex;
 
 void main()
 { 
-	vec3 value = texture(tex, TexCoords).rgb;
-    color = vec4(value, 1.0);
+	float value =  texture(tex, TexCoords).r;
+    color = vec4(value);
 }
 

@@ -16,6 +16,7 @@ class ShaderProgram
 		{
 			const ShaderProgram *program;
 			GLint Location;
+			std::string Name;
 			Uniform& operator=(glm::vec2 value);
 			Uniform& operator=(glm::vec3 value);
 			Uniform& operator=(glm::vec4 value);
@@ -28,9 +29,9 @@ class ShaderProgram
 			Uniform& operator=(const std::vector<glm::mat4>& values);
 			Uniform& operator=(GLfloat value);
 			Uniform& operator=(GLint value);
+			void warn(GLenum sym, std::string keyword, int num = 1);
 		};
 		GLuint program;
-		std::map<std::string, GLint> uniforms;
 
 		ShaderProgram();
 		ShaderProgram(std::initializer_list<std::string> paths);
@@ -44,12 +45,13 @@ class ShaderProgram
 		GLint GetUniformLocation(std::string name) const;
 		void DrawFrame(Frame *frame, glm::mat4 mvMatrix) const;
 		Uniform operator[](std::string name) const;
-		Uniform operator[](GLint location) const;
 		template<class Fn>
 		void Use(Fn func) const
 		{
+			GLint name;
+			glGetIntegerv(GL_CURRENT_PROGRAM, &name);
 			glUseProgram(program);
 			func();
-			glUseProgram(0);
+			glUseProgram(name);
 		}
 };

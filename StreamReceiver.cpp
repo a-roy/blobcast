@@ -6,7 +6,7 @@ StreamReceiver::StreamReceiver(
 		const char *address, int viewportWidth, int viewportHeight) :
 			width(viewportWidth), height(viewportHeight)
 {
-	AVDictionary *opts = NULL;
+	AVDictionary *opts = nullptr;
 	av_dict_set(&opts, "tune", "zerolatency", 0);
 	av_dict_set(&opts, "preset", "ultrafast", 0);
 	av_dict_set(&opts, "rtmp_live", "live", 0);
@@ -16,24 +16,24 @@ StreamReceiver::StreamReceiver(
 	if (avformat_open_input(
 				&avfmt,
 				address,
-				NULL,
+				nullptr,
 				&opts
 				) < 0)
-		throw new std::exception();
+		throw std::exception();
 	if (avfmt->streams[0]->codec->codec_id == AV_CODEC_ID_NONE)
 		avfmt->streams[0]->codec->codec_id = AV_CODEC_ID_H264;
 	AVCodec *codec = avcodec_find_decoder(avfmt->streams[0]->codec->codec_id);
-	if (codec == NULL)
-		throw new std::exception();
+	if (codec == nullptr)
+		throw std::exception();
 	
 	avctx = avcodec_alloc_context3(codec);
-	if (avcodec_open2(avctx, NULL, &opts) < 0)
-		throw new std::exception();
+	if (avcodec_open2(avctx, nullptr, &opts) < 0)
+		throw std::exception();
 	
 	swctx = sws_getContext(
 			STREAM_WIDTH, STREAM_HEIGHT, AV_PIX_FMT_YUV420P,
 			width, height, AV_PIX_FMT_BGRA,
-			SWS_LANCZOS, NULL, NULL, NULL);
+			SWS_LANCZOS, nullptr, nullptr, nullptr);
 	
 	avframe = av_frame_alloc();
 }
@@ -66,7 +66,7 @@ void StreamReceiver::ReceiveFrame(uint8_t *data)
 
 	uint8_t *const dstSlice[] = { data };
 	int dstStride[] = { width * 4 };
-	if (data != NULL)
+	if (data != nullptr)
 		sws_scale(
 				swctx,
 				avframe->data, avframe->linesize,

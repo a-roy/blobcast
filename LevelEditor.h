@@ -11,7 +11,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "RigidBody.h"
+#include "Entity.h"
 
 #include <typeinfo>
 #include <set>
@@ -23,50 +23,51 @@
 #include "ShaderProgram.h"
 
 #include "Level.h"
+#include "Physics.h"
+#include <stdio.h>
+#include "tinyfiledialogs.h"
 
 class LevelEditor
 {
 
 private:
-	btSoftRigidDynamicsWorld *dynamicsWorld;
-	
+
 public:
 
-	Level* level;
+	bool bShowBlobCfg = false;
+	bool bShowImguiDemo = false;
+	bool bShowCameraSettings = true;
 
-	glm::vec3 out_origin = glm::vec3(0);
-	glm::vec3 out_end = glm::vec3(0);
-	std::set<RigidBody*> selection;
+	std::set<Entity*> selection;
 	bool bLocal = true;
 	bool bCtrl = false;
 
-	LevelEditor(btSoftRigidDynamicsWorld *p_dynamicsWorld,
-		Level *p_level) :
-		level(p_level), dynamicsWorld(p_dynamicsWorld){}
+	bool bSetLink = false;
+	Trigger* selectedTrigger = NULL;
+
+	LevelEditor(){}
 	~LevelEditor(){}
 
-	void Gui(ShaderProgram *shaderProgram);                                                                             
+	void MainMenuBar();
+	void SelectionWindow(ShaderProgram *shaderProgram);
 	void Mouse(double xcursor, double ycursor, int width, int height,
 		glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
-	static void ScreenPosToWorldRay(
-		int mouseX, int mouseY,             
-		int screenWidth, int screenHeight, 
-		glm::mat4 ViewMatrix,               
-		glm::mat4 ProjectionMatrix,         
-		glm::vec3& out_origin,              
-		glm::vec3& out_direction            
-		);
 
 	void DeleteSelection(); 
 	void CloneSelection();
+	void DrawPath(const ShaderProgram& program);
 
 private:
 	void Translation();
+	void TranslateSelection(glm::vec3 translate);
 	void Rotation(ShaderProgram *shaderProgram);
 	void LocalRotation(float angle, glm::vec3 axis);
 	void GlobalRotation(float angle, glm::vec3 axis, glm::vec3 axisPosition);
 	void Scale();
-
+	void ScaleSelection(glm::vec3 relScale);
+	void Path();
+	void NewSelection(Entity* newSelection);
 	void DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 		glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color);
+	void ClearSelection();
 };
