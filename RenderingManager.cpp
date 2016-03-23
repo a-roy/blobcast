@@ -76,7 +76,7 @@ bool RenderingManager::init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	loadTexture(TextureDir "metal.png", true);
-	loadTexture(TextureDir "water.jpg", false);
+	loadTexture(TextureDir "sunny_skybox/posy.png", true);
 
 	if (!initFrameBuffers())
 		return false;
