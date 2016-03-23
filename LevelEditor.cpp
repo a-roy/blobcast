@@ -9,9 +9,9 @@ void LevelEditor::MainMenuBar()
 {
 	if (ImGui::BeginMainMenuBar())
 	{
-		if (ImGui::BeginMenu("File"))
+		if (ImGui::BeginMenu("File")) 
 		{
-			if (ImGui::MenuItem("Load"))
+			if (ImGui::MenuItem("Load")) 
 			{
 				char const *lTheOpenFileName = NULL;
 				lTheOpenFileName = tinyfd_openFileDialog(
@@ -21,8 +21,7 @@ void LevelEditor::MainMenuBar()
 					NULL,
 					NULL,
 					0);
-				if (lTheOpenFileName != NULL)
-				{
+				if (lTheOpenFileName != NULL) {
 					selection.clear();
 					for (Entity* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
@@ -33,8 +32,7 @@ void LevelEditor::MainMenuBar()
 				}
 			}
 
-			if (ImGui::MenuItem("Save as.."))
-			{
+			if (ImGui::MenuItem("Save as..")) {
 				char const *lTheSaveFileName = NULL;
 
 				lTheSaveFileName = tinyfd_saveFileDialog(
@@ -51,8 +49,7 @@ void LevelEditor::MainMenuBar()
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("View"))
-		{
+		if (ImGui::BeginMenu("View")) {
 			if (ImGui::MenuItem("Blob Editor", NULL, bShowBlobCfg))
 				bShowBlobCfg ^= 1;
 			if (ImGui::MenuItem("Bullet Debug", NULL, 
@@ -215,9 +212,11 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				first->rigidbody->setFriction(friction);
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
-			if (dynamic_cast<Platform*>(first)) {
-				if (ImGui::CollapsingHeader("Path")) {
-					Path();
+			if (first->mass) {
+				if (dynamic_cast<Platform*>(first)) {
+					if (ImGui::CollapsingHeader("Path")) {
+						Path();
+					}
 				}
 			}
 
@@ -293,24 +292,8 @@ void LevelEditor::NewSelection(Entity* newSelection)
 	{
 		Platform* platform = dynamic_cast<Platform*>(newSelection);
 		if (platform)
-		{
 			if (!platform->motion.Points.empty())
-			{
-				selectedTrigger->RegisterCallback(
-					[platform]() { platform->motion.Enabled = true; },
-					CallbackType::Enter
-					);
-				selectedTrigger->RegisterCallback(
-					[platform]() { platform->motion.Enabled = false; },
-					CallbackType::Leave
-					);
-
-				auto ids = selectedTrigger->connectionIDs;
-				if(!std::binary_search(ids.begin(), ids.end(), 
-					platform->ID))
-					selectedTrigger->connectionIDs.push_back(platform->ID);	
-			}
-		}
+				selectedTrigger->LinkToPlatform(platform);
 
 		bSetLink = false;
 	}

@@ -183,12 +183,10 @@ void Level::Serialize(std::string file)
 		else //trigger
 		{
 			Trigger* t = (Trigger*)ent;
-			if (t->connectionIDs.size() > 1)
+			if (t->connectionIDs.size() > 0)
 			{
-				//nlohmann::json conns;
 				for (auto c : t->connectionIDs)
 					object["conns"].push_back(c);
-				//object["conns"] = conns;
 			}
 		}
 		objects.push_back(object);
@@ -260,7 +258,32 @@ Level *Level::Deserialize(std::string file)
 					ent->motion.Points.end(),
 						glm::vec3(point[0], point[1], point[2]));
 		}
+		auto conns = object["conns"];
+		if (!conns.is_null())
+		{
+			Trigger *trigger = (Trigger*)level->Objects[i];
+			for (auto conn : conns)
+				trigger->connectionIDs.push_back(conn);
+		}
 	}
 	f.close();
+
+	//Set links
+	for (Entity* entity : level->Objects)
+	{
+		Trigger* trigger = dynamic_cast<Trigger*>(entity);
+		if (trigger)
+		{
+			for (auto id : trigger->connectionIDs)
+			{
+				Platform* plat = (Platform*)level->Find(id);
+
+				if (!plat->motion.Points.empty())
+					trigger->LinkToPlatform(plat);
+			}
+			
+		}
+	}
+
 	return level;
 }

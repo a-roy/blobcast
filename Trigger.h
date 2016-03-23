@@ -4,6 +4,8 @@
 #include "Mesh.h"
 #include "Physics.h"
 #include <functional>
+#include "Platform.h"
+#include <algorithm>
 
 typedef std::function<void(void)> CallbackFunc;
 
@@ -89,6 +91,23 @@ public:
 		for (auto callback : onLeaveCallbacks)
 			callback();
 		bTriggered = false;
+	}
+
+	void LinkToPlatform(Platform* platform)
+	{
+		RegisterCallback(
+			[platform]() { platform->motion.Enabled = true; },
+			CallbackType::Enter
+			);
+		RegisterCallback(
+			[platform]() { platform->motion.Enabled = false; },
+			CallbackType::Leave
+			);
+
+		auto ids = connectionIDs;
+		if (!std::binary_search(ids.begin(), ids.end(),
+			platform->ID))
+			connectionIDs.push_back(platform->ID);
 	}
 
 	void Update(float deltaTime)
