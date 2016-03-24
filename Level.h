@@ -2,18 +2,16 @@
 
 #include <vector>
 #include <string>
-#include "Entity.h"
-#include "Trigger.h"
+#include "GameObject.h"
 #include "ParticleSystem.h"
 #include "Profiler.h"
-#include "Platform.h"
 
 class Level
 {
 	public:
 		static Level* currentLevel;
 
-		std::vector<Entity*> Objects;
+		std::vector<GameObject*> Objects;
 		//std::vector<Button *> Buttons;
 		std::vector<ParticleSystem *> ParticleSystems;
 
@@ -23,28 +21,17 @@ class Level
 		Level& operator=(const Level& other);
 		Level(Level&& other);
 		Level& operator=(Level&& other);
-		std::size_t AddBox(
+		std::size_t AddGameObject(
 				glm::vec3 position,
 				glm::quat orientation,
 				glm::vec3 dimensions,
 				glm::vec4 color,
 				GLuint texID,
 				float mass = 0.f);
-		std::size_t AddCylinder(
-				glm::vec3 position,
-				glm::quat orientation,
-				glm::vec3 dimensions,
-				glm::vec4 color,
-				GLuint texID,
-				float mass = 0.f);
-		std::size_t AddTrigger(
-				glm::vec3 position,
-				glm::quat orientation,
-				glm::vec3 dimensions);
 		void Delete(std::size_t index);
 		void Clear();
 		int Find(btRigidBody *r);
-		Entity* Find(int id);
+		GameObject* Find(int id);
 		void Render(GLuint uMMatrix, GLuint uColor);
 		void Serialize(std::string file);
 		static Level *Deserialize(std::string file);

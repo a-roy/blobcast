@@ -1,12 +1,12 @@
-#include "Entity.h"
+#include "GameObject.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-int Entity::nextID = 0;
+int GameObject::nextID = 0;
 
-Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
+GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
 	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable) 
 	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
@@ -49,20 +49,35 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 	rigidbody->setUserPointer(this);
 }
 
-Entity::~Entity()
+GameObject::~GameObject()
 {
 	delete rigidbody;
 	delete mesh;
 }
 
-glm::mat4 Entity::GetModelMatrix()
+glm::mat4 GameObject::GetModelMatrix()
 {
 	return glm::translate(glm::mat4(1), GetTranslation())
 		* glm::toMat4(GetOrientation())
 		* glm::scale(glm::mat4(1), GetScale());
 }
 
-void Entity::Render()
+void GameObject::Render()
 {
 	mesh->Draw();
+}
+
+void GameObject::Update(float deltaTime)
+{
+	if (!motion.Points.empty())
+	{
+		if (motion.Enabled)
+			motion.Step();
+
+		rigidbody->applyCentralForce(convert(
+			Physics::InverseDynamics(GetTranslation(),
+				motion.GetPosition(),
+				convert(rigidbody->getLinearVelocity()),
+				mass, deltaTime)));
+	}
 }

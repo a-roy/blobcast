@@ -16,13 +16,8 @@ Level::Level(const Level& other)
 Level& Level::operator=(const Level& other)
 {
 	Clear();
-	for (Entity *r : Objects)
-	{
-		if (dynamic_cast<Trigger*>(r))
-			Objects.push_back(new Trigger(*(Trigger*)r));
-		if (dynamic_cast<Platform*>(r))
-			Objects.push_back(new Platform(*(Platform*)r));
-	}
+	for (GameObject *r : Objects)
+		Objects.push_back(new GameObject(*r));
 	return *this;
 }
 
@@ -41,7 +36,7 @@ Level& Level::operator=(Level&& other)
 	return *this;
 }
 
-std::size_t Level::AddBox(
+std::size_t Level::AddGameObject(
 		glm::vec3 position,
 		glm::quat orientation,
 		glm::vec3 dimensions,
@@ -50,36 +45,10 @@ std::size_t Level::AddBox(
 		float mass)
 {
 	Mesh *box(Mesh::CreateCubeWithNormals());
-	Platform *p =
-		new Platform(box, Shape::Box, position,
+	GameObject *p =
+		new GameObject(box, Shape::Box, position,
 			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
-	return Objects.size() - 1;
-}
-
-std::size_t Level::AddCylinder(
-	glm::vec3 position,
-	glm::quat orientation,
-	glm::vec3 dimensions,
-	glm::vec4 color,
-	GLuint texID,
-	float mass)
-{
-	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
-	Platform *p =
-		new Platform(cylinder, Shape::Cylinder, position,
-			orientation, dimensions, color, texID, mass);
-	Objects.push_back(p);
-	return Objects.size() - 1;
-}
-
-std::size_t Level::AddTrigger(
-	glm::vec3 position,
-	glm::quat orientation,
-	glm::vec3 dimensions)
-{
-	Trigger *b = new Trigger(position, orientation, dimensions);
-	Objects.push_back(b);
 	return Objects.size() - 1;
 }
 
@@ -90,7 +59,7 @@ void Level::Delete(std::size_t index)
 
 void Level::Clear()
 {
-	for (Entity *ent : Objects)
+	for (GameObject *ent : Objects)
 		delete ent;
 	Objects.clear();
 }
@@ -105,7 +74,7 @@ int Level::Find(btRigidBody *r)
 	return -1;
 }
 
-Entity* Level::Find(int id)
+GameObject* Level::Find(int id)
 {
 	for (std::size_t i = 0, n = Objects.size(); i < n; i++)
 	{
@@ -117,7 +86,7 @@ Entity* Level::Find(int id)
 
 void Level::Render(GLuint uMMatrix, GLuint uColor)
 {
-	for (Entity *ent : Objects)
+	for (GameObject *ent : Objects)
 	{
 		GLuint textureID = ent->textureID;
 		glActiveTexture(GL_TEXTURE2);
@@ -133,7 +102,7 @@ void Level::Serialize(std::string file)
 {
 	std::ofstream f(file);
 	nlohmann::json objects;
-	for (Entity *ent : Objects)
+	for (GameObject *ent : Objects)
 	{
 		nlohmann::json object;
 
@@ -141,18 +110,11 @@ void Level::Serialize(std::string file)
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
 
-		Platform* plat = dynamic_cast<Platform*>(ent);
-		if (plat) 
-		{
-			if (ent->shapeType == Shape::Box)
-				object["type"] = "box";
-			else
-				object["type"] = "cylinder";
-		}
+		
+		if (ent->shapeType == Shape::Box)
+			object["type"] = "box";
 		else
-		{
-			object["type"] = "trigger";
-		}
+			object["type"] = "cylinder";
 		object["position"] = {
 			translation.x, translation.y,
 			translation.z };
@@ -168,32 +130,29 @@ void Level::Serialize(std::string file)
 		object["collidable"] = ent->GetCollidable();
 		object["id"] = ent->ID;
 		object["texID"] = ent->textureID;
-		if (plat)
+
+		if (!ent->motion.Points.empty())
 		{
-			if (!plat->motion.Points.empty())
-			{
-				nlohmann::json path;
-				path["speed"] = plat->motion.Speed;
-				path["enabled"] = plat->motion.Enabled;
-				for (auto v = plat->motion.Points.begin();
-				v != plat->motion.Points.end(); ++v)
-					path["points"].push_back({ v->x, v->y, v->z });
-				object["path"] = path;
-			}
+			nlohmann::json path;
+			path["speed"] = ent->motion.Speed;
+			path["enabled"] = ent->motion.Enabled;
+			for (auto v = ent->motion.Points.begin();
+			v != ent->motion.Points.end(); ++v)
+				path["points"].push_back({ v->x, v->y, v->z });
+			object["path"] = path;
 		}
-		else //trigger
+		
+		
+		if (ent->trigger.connectionIDs.size() > 0)
 		{
-			Trigger* t = (Trigger*)ent;
-			if (t->connectionIDs.size() > 0)
-			{
-				for (auto c : t->connectionIDs)
-					object["conns"].push_back(c);
-			}
-			if (t->bDeadly)
-			{
-				object["deadly"] = true;
-			}
+			for (auto c : ent->trigger.connectionIDs)
+				object["conns"].push_back(c);
 		}
+		if (ent->trigger.bDeadly)
+		{
+			object["deadly"] = true;
+		}
+		
 		objects.push_back(object);
 	}
 	nlohmann::json level;
@@ -227,7 +186,7 @@ Level *Level::Deserialize(std::string file)
 		if (!object["texID"].is_null())
 			texID = object["texID"];
 		else
-			texID = 4;
+			texID = 3;
 		auto path = object["path"];
 		int id;
 		if (!object["id"].is_null())
@@ -235,26 +194,19 @@ Level *Level::Deserialize(std::string file)
 		bool collidable;
 		if(!object["collidable"].is_null())
 			collidable = object["collidable"];
-		std::size_t i;
-		if (object["type"] == "box")
-			i = level->AddBox(position, orientation, dimensions, color, 
-				texID, mass);
-		else if (object["type"] == "cylinder")
-			i = level->AddCylinder(position, orientation, dimensions, 
-				color, texID, mass);
-		else
-			i = level->AddTrigger(position, orientation, dimensions);
+		std::size_t i = level->AddGameObject(position, orientation, 
+			dimensions, color, texID, mass);
 		if (!object["collidable"].is_null())
 			level->Objects[i]->SetCollidable(collidable);
 		if (!object["id"].is_null())
 		{
 			level->Objects[i]->ID = id;
-			if (id >= Entity::nextID)
-				Entity::nextID = id + 1;
+			if (id >= GameObject::nextID)
+				GameObject::nextID = id + 1;
 		}
 		if (!path.is_null())
 		{
-			Platform *ent = (Platform*)level->Objects[i];
+			GameObject *ent = level->Objects[i];
 			auto speed = path["speed"];
 			auto points = path["points"];
 			if (!path["enabled"].is_null())
@@ -268,35 +220,27 @@ Level *Level::Deserialize(std::string file)
 		auto conns = object["conns"];
 		if (!conns.is_null())
 		{
-			Trigger *trigger = (Trigger*)level->Objects[i];
 			for (auto conn : conns)
-				trigger->connectionIDs.push_back(conn);
+				level->Objects[i]->trigger.connectionIDs.push_back(conn);
 		}
 		if (object["deadly"].is_boolean() && object["deadly"])
-		{
-			Trigger *trigger = (Trigger*)level->Objects[i];
-			trigger->bDeadly = true;
-		}
+			level->Objects[i]->trigger.bDeadly = true;
 	}
 	f.close();
 
 	//Set links
-	for (Entity* entity : level->Objects)
+	for (GameObject* entity : level->Objects)
 	{
-		Trigger* trigger = dynamic_cast<Trigger*>(entity);
-		if (trigger)
+		for (auto id : entity->trigger.connectionIDs)
 		{
-			for (auto id : trigger->connectionIDs)
-			{
-				Platform* plat = (Platform*)level->Find(id);
+			GameObject* plat = level->Find(id);
 
-				if (!plat->motion.Points.empty())
-					trigger->LinkToPlatform(plat);
-			}
-
-			if (trigger->bDeadly)
-				trigger->RegisterCallback(Physics::CreateBlob, Enter);
+			if (!plat->motion.Points.empty())
+				entity->trigger.LinkToPlatform(plat);
 		}
+
+		if (entity->trigger.bDeadly)
+			entity->trigger.RegisterCallback(Physics::CreateBlob, Enter);
 	}
 
 	return level;

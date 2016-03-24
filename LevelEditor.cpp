@@ -23,11 +23,11 @@ void LevelEditor::MainMenuBar()
 					0);
 				if (lTheOpenFileName != NULL) {
 					selection.clear();
-					for (Entity* ent : Level::currentLevel->Objects)
+					for (GameObject* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
 					delete Level::currentLevel;
 					Level::currentLevel = Level::Deserialize(lTheOpenFileName);
-					for (Entity* ent : Level::currentLevel->Objects)
+					for (GameObject* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);
 				}
 			}
@@ -66,36 +66,12 @@ void LevelEditor::MainMenuBar()
 		if (ImGui::BeginMenu("Create"))
 		{
 			Level* level = Level::currentLevel;
-			if (ImGui::MenuItem("Box"))
+			if (ImGui::MenuItem("GameObject"))
 			{
-				level->AddBox(glm::vec3(0), glm::quat(), glm::vec3(1),
+				level->AddGameObject(glm::vec3(0), glm::quat(), glm::vec3(1),
 					glm::vec4(.5f, .5f, .5f, 1.f), 4, 1.0f);
 				Physics::dynamicsWorld->addRigidBody(
 					level->Objects[level->Objects.size() - 1]->rigidbody);
-				selection.clear();
-				selection.insert(level->Objects[level->Objects.size() - 1]);
-			}
-			if (ImGui::MenuItem("Cylinder"))
-			{
-				level->AddCylinder(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 4, 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-				selection.clear();
-				selection.insert(level->Objects[level->Objects.size() - 1]);
-			}
-			if (ImGui::MenuItem("Trigger"))
-			{
-				level->AddTrigger(glm::vec3(0), glm::quat(), glm::vec3(1));
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
-
-				Trigger* t = 
-					(Trigger*)level->Objects[level->Objects.size() - 1];
-				//t->RegisterCallback(
-				//	[t]() { /*t->color = glm::vec4(1, 0, 0, 1);*/ }, 
-				//	CallbackType::Enter
-				//);
 				selection.clear();
 				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
@@ -182,7 +158,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 
 		if (selection.size() == 1)
 		{
-			Entity *first = *selection.begin();
+			GameObject *first = *selection.begin();
 
 			ImGui::Text("ID: %i", first->ID);
 
@@ -213,46 +189,36 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
 			if (first->mass) {
-				if (dynamic_cast<Platform*>(first)) {
-					if (ImGui::CollapsingHeader("Path")) {
-						Path();
-					}
+				if (ImGui::CollapsingHeader("Path")) {
+					Path();
 				}
 			}
-
-			if (dynamic_cast<Trigger*>(first)) {
-				selectedTrigger = (Trigger*)first;
-				if (ImGui::CollapsingHeader("Connections")) {
-					if (ImGui::Button("Set Path Link")) {
-						bSetLink = true;
-					}
-					if(bSetLink) {
-						ImGui::SameLine();
-						ImGui::Text("Click on the path object now");
-					}
-					if (ImGui::Button("Set Deadly")) {
-						selectedTrigger->bDeadly = true;
-						selectedTrigger->RegisterCallback(Physics::CreateBlob, Enter);
-					}
-					for (int id : selectedTrigger->connectionIDs) {
-						std::stringstream ss;
-						ss << "Platform - " << id;
-						if (ImGui::Button(ss.str().c_str()))
-						{
-							ClearSelection();
-							Entity* e = Level::currentLevel->Find(id);
-							selection.insert(e);
-							e->color =
-								glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
-						}
-					}
-				}
-			}
-			else {
-				bSetLink = false;
-			}
-
 			
+			if (ImGui::CollapsingHeader("Connections")) {
+				if (ImGui::Button("Set Path Link")) {
+					bSetLink = true;
+				}
+				if (bSetLink) {
+					ImGui::SameLine();
+					ImGui::Text("Click on the path object now");
+				}
+				if (ImGui::Button("Set Deadly")) {
+					first->trigger.bDeadly = true;
+					first->trigger.RegisterCallback(Physics::CreateBlob, Enter);
+				}
+				for (int id : first->trigger.connectionIDs) {
+					std::stringstream ss;
+					ss << "Platform - " << id;
+					if (ImGui::Button(ss.str().c_str()))
+					{
+						ClearSelection();
+						GameObject* e = Level::currentLevel->Find(id);
+						selection.insert(e);
+						e->color =
+							glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
+					}
+				}
+			}
 		}
 
 		ImGui::End();
@@ -282,23 +248,22 @@ void LevelEditor::Mouse(double xcursor, double ycursor, int width, int height,
 	{
 		if (typeid(*RayCallback.m_collisionObject) != typeid(btRigidBody))
 			return;
-		NewSelection((Entity*)RayCallback.m_collisionObject->getUserPointer());
+		NewSelection((GameObject*)RayCallback.m_collisionObject->
+			getUserPointer());
 	}
 	else
 	{
 		ClearSelection();
+		bSetLink = false;
 	}
 }
 
-void LevelEditor::NewSelection(Entity* newSelection)
+void LevelEditor::NewSelection(GameObject* newSelection)
 {
 	if (bSetLink)
 	{
-		Platform* platform = dynamic_cast<Platform*>(newSelection);
-		if (platform)
-			if (!platform->motion.Points.empty())
-				selectedTrigger->LinkToPlatform(platform);
-
+		if (!newSelection->motion.Points.empty())
+			(*selection.begin())->trigger.LinkToPlatform(newSelection);
 		bSetLink = false;
 	}
 	else
@@ -459,9 +424,7 @@ void LevelEditor::DrawPath(const ShaderProgram& program)
 {
 	if (selection.size() == 1)
 	{
-		Platform* ent = dynamic_cast<Platform*>(*selection.begin());
-		if (!ent)
-			return;
+		GameObject* ent = *selection.begin();
 		if (!ent->motion.Points.empty())
 		{
 			std::vector<glm::vec3>& p(ent->motion.Points);
@@ -529,7 +492,7 @@ void LevelEditor::ScaleSelection(glm::vec3 relScale)
 
 void LevelEditor::Path()
 {
-	Platform *ent = (Platform*)*selection.begin();
+	GameObject *ent = *selection.begin();
 	ImGui::DragFloat("Speed", &ent->motion.Speed, 0.01f, 0.0f, 1.0f);
 	ImGui::Checkbox("Loop path", &ent->motion.Loop);
 	ImGui::Checkbox("Enabled", &ent->motion.Enabled);
@@ -587,17 +550,9 @@ void LevelEditor::DeleteSelection()
 
 void LevelEditor::CloneSelection()
 {
-	for (Entity* rb : selection)
+	for (GameObject* rb : selection)
 	{
-		Entity* newEnt;
-
-		Trigger* trigger = dynamic_cast<Trigger*>(rb);
-		if(trigger)
-			newEnt = new Trigger(*trigger);
-		Platform* platform = dynamic_cast<Platform*>(rb);
-		if (platform)
-			newEnt = new Platform(*platform);
-
+		GameObject* newEnt = new GameObject(*rb);
 		Level::currentLevel->Objects.push_back(newEnt);
 		Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}

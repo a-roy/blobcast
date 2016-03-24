@@ -18,7 +18,7 @@
 
 #include "SoftBody.h"
 #include "Blob.h"
-#include "Entity.h"
+#include "GameObject.h"
 #include "Light.hpp"
 #include "IOBuffer.h"
 #include "Level.h"
@@ -146,10 +146,12 @@ int main(int argc, char *argv[])
 			stream->WriteFrame();
 		Profiler::Finish("Streaming");
 
-		if (Physics::bShowBulletDebug)
-			drawBulletDebug();
-		if(bGui)
+		if (bGui)
+		{
+			if (Physics::bShowBulletDebug)
+				drawBulletDebug();
 			gui();
+		}
 
 		Profiler::Start("Rendering");
 		glfwSwapBuffers(window);
@@ -190,11 +192,11 @@ bool init_physics()
 	Physics::CreateBlob();
 
 	Level::currentLevel = Level::Deserialize(LevelDir "level1.json");
-	for(Entity* r : Level::currentLevel->Objects)
+	for(GameObject* r : Level::currentLevel->Objects)
 		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
-	Level::currentLevel->AddParticleSystem(glm::vec3(0));
+	//Level::currentLevel->AddParticleSystem(glm::vec3(0));
 
 	return true;
 }
@@ -267,32 +269,29 @@ void update()
 	Profiler::Start("Physics");
 	if(Physics::bStepPhysics)
 	{
-		for(Entity* ent : Level::currentLevel->Objects)
+		for(GameObject* ent : Level::currentLevel->Objects)
 		{
-			Trigger* trigger = dynamic_cast<Trigger*>(ent);
-
-			if (trigger)
+			if (ent->trigger.bEnabled)
 			{
 				bool collides = false;
 				if (Physics::BroadphaseCheck(Physics::blob->softbody,
-					trigger->rigidbody))
+					ent->rigidbody))
 					if (Physics::NarrowphaseCheck(Physics::blob->softbody,
-						trigger->rigidbody))
+						ent->rigidbody))
 						collides = true;
-				
+
 				if (collides)
-					if (!trigger->bTriggered) 
-						trigger->OnEnter();
-					else 
-						trigger->OnStay();
-				else 
-					if (trigger->bTriggered) 
-						trigger->OnLeave();
-				
+					if (!ent->trigger.bTriggered)
+						ent->trigger.OnEnter();
+					else
+						ent->trigger.OnStay();
+				else
+					if (ent->trigger.bTriggered)
+						ent->trigger.OnLeave();
 			}
 		}
 
-		for (Entity *r : Level::currentLevel->Objects)
+		for (GameObject *r : Level::currentLevel->Objects)
 			r->Update(Timer::deltaTime);
 
 		Physics::dynamicsWorld->stepSimulation(Timer::deltaTime, 10);

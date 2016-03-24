@@ -11,7 +11,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "Entity.h"
+#include "GameObject.h"
 
 #include <typeinfo>
 #include <set>
@@ -38,12 +38,10 @@ public:
 	bool bShowImguiDemo = false;
 	bool bShowCameraSettings = true;
 
-	std::set<Entity*> selection;
+	std::set<GameObject*> selection;
 	bool bLocal = true;
 	bool bCtrl = false;
-
 	bool bSetLink = false;
-	Trigger* selectedTrigger = NULL;
 
 	LevelEditor(){}
 	~LevelEditor(){}
@@ -66,7 +64,7 @@ private:
 	void Scale();
 	void ScaleSelection(glm::vec3 relScale);
 	void Path();
-	void NewSelection(Entity* newSelection);
+	void NewSelection(GameObject* newSelection);
 	void DrawRotationGizmo(glm::vec3 axis, glm::quat orientation,
 		glm::vec3 translation, ShaderProgram *shaderProgram, glm::vec4 color);
 	void ClearSelection();
