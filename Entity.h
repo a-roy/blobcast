@@ -8,7 +8,7 @@
 
 #include <glm/gtc/matrix_transform.hpp> 
 
-enum Shape { Box, Cylinder };
+enum Shape { None, Box, Cylinder, SHAPE_NUMITEMS };
 
 class Entity
 {

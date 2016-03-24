@@ -3,12 +3,21 @@
 #include <fstream>
 #include "Trigger.h"
 
+Level::Level()
+{
+	Meshes[(size_t)None] = nullptr;
+	Meshes[(size_t)Box] = Mesh::CreateCubeWithNormals();
+	Meshes[(size_t)Cylinder] = Mesh::CreateCylinderWithNormals();
+}
+
 Level::~Level()
 {
 	Clear();
+	for (int i = 0; i < SHAPE_NUMITEMS; i++)
+		delete Meshes[i];
 }
 
-Level::Level(const Level& other)
+Level::Level(const Level& other) : Level()
 {
 	*this = other;
 }
@@ -23,10 +32,14 @@ Level& Level::operator=(const Level& other)
 		if (dynamic_cast<Platform*>(r))
 			Objects.push_back(new Platform(*(Platform*)r));
 	}
+	for (ParticleSystem *s : ParticleSystems)
+	{
+		ParticleSystems.push_back(new ParticleSystem(*s));
+	}
 	return *this;
 }
 
-Level::Level(Level&& other)
+Level::Level(Level&& other) : Level()
 {
 	*this = std::move(other);
 }
@@ -37,6 +50,8 @@ Level& Level::operator=(Level&& other)
 	{
 		Clear();
 		Objects = std::move(other.Objects);
+		ParticleSystems = std::move(other.ParticleSystems);
+		Meshes = std::move(other.Meshes);
 	}
 	return *this;
 }
@@ -49,9 +64,8 @@ std::size_t Level::AddBox(
 		GLuint texID,
 		float mass)
 {
-	Mesh *box(Mesh::CreateCubeWithNormals());
 	Platform *p =
-		new Platform(box, Shape::Box, position,
+		new Platform(Meshes[(size_t)Box], Shape::Box, position,
 			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
@@ -65,9 +79,8 @@ std::size_t Level::AddCylinder(
 	GLuint texID,
 	float mass)
 {
-	Mesh *cylinder(Mesh::CreateCylinderWithNormals());
 	Platform *p =
-		new Platform(cylinder, Shape::Cylinder, position,
+		new Platform(Meshes[(size_t)Cylinder], Shape::Cylinder, position,
 			orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
