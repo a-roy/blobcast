@@ -52,7 +52,6 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 GameObject::~GameObject()
 {
 	delete rigidbody;
-	delete mesh;
 }
 
 glm::mat4 GameObject::GetModelMatrix()

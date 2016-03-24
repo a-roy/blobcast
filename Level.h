@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include "GameObject.h"
+#include <array>
 #include "ParticleSystem.h"
 #include "Profiler.h"
 
@@ -14,8 +15,9 @@ class Level
 		std::vector<GameObject*> Objects;
 		//std::vector<Button *> Buttons;
 		std::vector<ParticleSystem *> ParticleSystems;
+		std::array<Mesh *, SHAPE_NUMITEMS> Meshes;
 
-		Level() = default;
+		Level();
 		~Level();
 		Level(const Level& other);
 		Level& operator=(const Level& other);
