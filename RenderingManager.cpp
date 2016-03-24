@@ -42,7 +42,7 @@ bool RenderingManager::init()
 		ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.2f, -0.3f, -0.2f);
+	dirLight.direction = glm::vec3(-0.3f, -0.3f, -0.1f);
 
 	width = RENDER_WIDTH;
 	height = RENDER_HEIGHT;
@@ -209,11 +209,11 @@ void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glm::mat4 lightProjection = glm::ortho(
-		camPos.z/2 + 50.0f,
-		camPos.z/2 - 300.0f,
-		camPos.z/2 + 50.0f,
-		camPos.z/2 - 300.0f,
-		camPos.z - 50.0f,
+		-camPos.x/2 + 150.0f,
+		-camPos.x/2 - 150.0f,
+		camPos.z + 100.0f,
+		camPos.z - 200.0f,
+		camPos.z -50.0f,
 		glm::abs(camPos.z) + 300.0f
 	);
 	glm::mat4 lightView = glm::lookAt(glm::vec3(0), dirLight.direction, glm::vec3(1.0f));
