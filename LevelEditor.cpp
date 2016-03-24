@@ -230,9 +230,16 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 						ImGui::SameLine();
 						ImGui::Text("Click on the path object now");
 					}
-					if (ImGui::Button("Set Deadly")) {
-						selectedTrigger->bDeadly = true;
-						selectedTrigger->RegisterCallback(Physics::CreateBlob, Enter);
+					if (!selectedTrigger->bDeadly)
+					{
+						if (ImGui::Button("Set Deadly")) {
+							selectedTrigger->bDeadly = true;
+							selectedTrigger->RegisterCallback(Physics::CreateBlob, Enter);
+						}
+					}
+					else
+					{
+						ImGui::Text("Deadly!");
 					}
 					for (int id : selectedTrigger->connectionIDs) {
 						std::stringstream ss;
