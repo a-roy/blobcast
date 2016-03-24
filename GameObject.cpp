@@ -93,6 +93,7 @@ void GameObject::SetShape(glm::vec3 translation, glm::quat orientation,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 	Physics::dynamicsWorld->addRigidBody(rigidbody);
+	rigidbody->setUserPointer(this);
 
 	shapeType = p_shapeType;
 }
