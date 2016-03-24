@@ -1,6 +1,7 @@
 #include "Blob.h"
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
+#include "Timer.h"
 
 Blob::Blob(
 		btSoftBodyWorldInfo& softBodyWorldInfo,
@@ -124,7 +125,9 @@ void Blob::AddForces(const AggregateInput& inputs)
 		AddForce(force, i);
 	}
 
-	AddForce(btVector3(0, 1, 0) * inputs.JCount / total);
+	btScalar amplitude(0.1);
+	btScalar bounce = btSin(Timer::currentFrame) * amplitude;
+	AddForce(btVector3(0, bounce, 0));
 }
 
 void Blob::ComputeCentroid()
