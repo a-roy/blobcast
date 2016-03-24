@@ -52,7 +52,6 @@ Entity::Entity(Mesh* p_mesh, Shape p_shapeType,
 Entity::~Entity()
 {
 	delete rigidbody;
-	delete mesh;
 }
 
 glm::mat4 Entity::GetModelMatrix()

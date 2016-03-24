@@ -25,6 +25,7 @@ public:
 	std::vector<int> connectionIDs;
 
 	bool bTriggered = false;
+	bool bDeadly = false;
 
 	Trigger(glm::vec3 p_translation, glm::quat p_orientation, 
 		glm::vec3 p_scale) :
