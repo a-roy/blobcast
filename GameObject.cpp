@@ -10,41 +10,22 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
 	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable) 
 	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
-	mass(p_mass), collidable(p_collidable)
+	mass(p_mass)
 {
 	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
-	btCollisionShape* shape;
-	shapeType = p_shapeType;
-
-	ID = nextID++;
 	
-	if(p_shapeType == Shape::Box)
-		shape = new btBoxShape(btVector3(1,1,1));
-	else 
-		shape = new btCylinderShape(btVector3(1, 1, 1));
+	ID = nextID++;
 
-	shape->setLocalScaling(convert(p_scale));
-
-	btDefaultMotionState* transform = 
-		new btDefaultMotionState(btTransform(
-							 btQuaternion(convert(p_orientation)), 
-							 btVector3(convert(p_translation))));
-
-	btVector3 inertia; 
-	shape->calculateLocalInertia(mass, inertia);
-	btRigidBody::btRigidBodyConstructionInfo 
-		groundRigidBodyCI(mass, transform, shape, inertia);
-	rigidbody = new btRigidBody(groundRigidBodyCI);
-
-	//rigidbody->setRestitution(0.0);
+	SetShape(p_translation, p_orientation, p_scale, p_shapeType);
+	
 	collisionFlagsDefault = rigidbody->getCollisionFlags();
-	SetCollidable(collidable);
-
-	const char* name = shape->getName();
+	SetCollidable(p_collidable);
 
 	if(mass != 0)
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
+	
 	//rigidbody->setMassProps(mass, inertia);
+	//rigidbody->setRestitution(0.0);
 
 	rigidbody->setUserPointer(this);
 }
@@ -63,7 +44,8 @@ glm::mat4 GameObject::GetModelMatrix()
 
 void GameObject::Render()
 {
-	mesh->Draw();
+	if(drawable)
+		mesh->Draw();
 }
 
 void GameObject::Update(float deltaTime)
@@ -79,4 +61,38 @@ void GameObject::Update(float deltaTime)
 				convert(rigidbody->getLinearVelocity()),
 				mass, deltaTime)));
 	}
+}
+
+void GameObject::SetShape(Shape p_shapeType)
+{
+	glm::vec3 translation = GetTranslation();
+	glm::quat orientation = GetOrientation();
+	glm::vec3 scale = GetScale();
+	Physics::dynamicsWorld->removeRigidBody(rigidbody);
+	delete rigidbody;
+	SetShape(translation, orientation, scale,
+		p_shapeType);
+}
+
+void GameObject::SetShape(glm::vec3 translation, glm::quat orientation,
+	glm::vec3 scale, Shape p_shapeType)
+{
+	btCollisionShape* shape;
+	if (p_shapeType == Shape::Box)
+		shape = new btBoxShape(btVector3(1, 1, 1));
+	else
+		shape = new btCylinderShape(btVector3(1, 1, 1));
+	shape->setLocalScaling(convert(scale));
+	btDefaultMotionState* transform =
+		new btDefaultMotionState(btTransform(
+			btQuaternion(convert(orientation)),
+			btVector3(convert(translation))));
+	btVector3 inertia;
+	shape->calculateLocalInertia(mass, inertia);
+	btRigidBody::btRigidBodyConstructionInfo
+		groundRigidBodyCI(mass, transform, shape, inertia);
+	rigidbody = new btRigidBody(groundRigidBodyCI);
+	Physics::dynamicsWorld->addRigidBody(rigidbody);
+
+	shapeType = p_shapeType;
 }

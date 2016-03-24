@@ -27,8 +27,8 @@ void LevelEditor::MainMenuBar()
 						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
 					delete Level::currentLevel;
 					Level::currentLevel = Level::Deserialize(lTheOpenFileName);
-					for (GameObject* ent : Level::currentLevel->Objects)
-						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);
+					/*for (GameObject* ent : Level::currentLevel->Objects)
+						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);*/
 				}
 			}
 
@@ -69,9 +69,7 @@ void LevelEditor::MainMenuBar()
 			if (ImGui::MenuItem("GameObject"))
 			{
 				level->AddGameObject(glm::vec3(0), glm::quat(), glm::vec3(1),
-					glm::vec4(.5f, .5f, .5f, 1.f), 4, 1.0f);
-				Physics::dynamicsWorld->addRigidBody(
-					level->Objects[level->Objects.size() - 1]->rigidbody);
+					glm::vec4(.5f, .5f, .5f, 1.f), 4, "box", 1.0f);
 				selection.clear();
 				selection.insert(level->Objects[level->Objects.size() - 1]);
 			}
@@ -169,7 +167,20 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			bool collidable = first->GetCollidable();
 			if (ImGui::Checkbox("Collidable", &collidable))
 				first->SetCollidable(collidable);
-
+			ImGui::Checkbox("Drawable", &first->drawable);
+			Shape shapeType = first->shapeType;
+			if(ImGui::Combo("Shape", (int*)&shapeType, 
+				"Box\0Cylinder\0"));
+			{
+				first->SetShape(shapeType);
+				if (shapeType == Box)
+					first->SetMesh(
+						Level::currentLevel->Meshes[(size_t)Box]);
+				else
+					first->SetMesh(
+						Level::currentLevel->Meshes[(size_t)Cylinder]);
+			}
+				
 			float mass = first->mass;
 			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
 			{
@@ -561,6 +572,6 @@ void LevelEditor::CloneSelection()
 	{
 		GameObject* newEnt = new GameObject(*rb);
 		Level::currentLevel->Objects.push_back(newEnt);
-		Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
+		//Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}
 }

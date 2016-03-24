@@ -29,7 +29,9 @@ class Level
 				glm::vec3 dimensions,
 				glm::vec4 color,
 				GLuint texID,
-				float mass = 0.f);
+				std::string type,
+				float mass = 0.f
+				);
 		void Delete(std::size_t index);
 		void Clear();
 		int Find(btRigidBody *r);

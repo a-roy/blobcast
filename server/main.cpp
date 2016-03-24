@@ -186,8 +186,8 @@ bool init_physics()
 	Physics::CreateBlob();
 
 	Level::currentLevel = Level::Deserialize(LevelDir "level1.json");
-	for(GameObject* r : Level::currentLevel->Objects)
-		Physics::dynamicsWorld->addRigidBody(r->rigidbody);
+	/*for(GameObject* r : Level::currentLevel->Objects)
+		Physics::dynamicsWorld->addRigidBody(r->rigidbody);*/
 	Physics::dynamicsWorld->setDebugDrawer(&bulletDebugDrawer);
 
 	//Level::currentLevel->AddParticleSystem(glm::vec3(0));

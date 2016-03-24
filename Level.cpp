@@ -5,7 +5,7 @@
 
 Level::Level()
 {
-	Meshes[(size_t)None] = nullptr;
+	//Meshes[(size_t)None] = nullptr;
 	Meshes[(size_t)Box] = Mesh::CreateCubeWithNormals();
 	Meshes[(size_t)Cylinder] = Mesh::CreateCylinderWithNormals();
 }
@@ -53,11 +53,18 @@ std::size_t Level::AddGameObject(
 		glm::vec3 dimensions,
 		glm::vec4 color,
 		GLuint texID,
-		float mass)
+		std::string type,
+		float mass
+		)
 {
-	GameObject *p =
-		new GameObject(Meshes[(size_t)Box], Shape::Box, position,
+	GameObject *p;
+	
+	if(type == "box")
+		p = new GameObject(Meshes[(size_t)Box], Shape::Box, position,
 			orientation, dimensions, color, texID, mass);
+	else
+		p = new GameObject(Meshes[(size_t)Cylinder], Shape::Cylinder, 
+			position, orientation, dimensions, color, texID, mass);
 	Objects.push_back(p);
 	return Objects.size() - 1;
 }
@@ -140,6 +147,7 @@ void Level::Serialize(std::string file)
 		object["collidable"] = ent->GetCollidable();
 		object["id"] = ent->ID;
 		object["texID"] = ent->textureID;
+		object["drawable"] = ent->drawable;
 
 		if (!ent->motion.Points.empty())
 		{
@@ -205,7 +213,9 @@ Level *Level::Deserialize(std::string file)
 		if(!object["collidable"].is_null())
 			collidable = object["collidable"];
 		std::size_t i = level->AddGameObject(position, orientation, 
-			dimensions, color, texID, mass);
+			dimensions, color, texID, object["type"], mass);
+		if (!object["drawable"].is_null())
+			level->Objects[i]->drawable = object["drawable"];
 		if (!object["collidable"].is_null())
 			level->Objects[i]->SetCollidable(collidable);
 		if (!object["id"].is_null())

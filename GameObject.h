@@ -9,7 +9,7 @@
 
 #include <glm/gtc/matrix_transform.hpp> 
 
-enum Shape { None, Box, Cylinder, SHAPE_NUMITEMS };
+enum Shape { /*None,*/ Box, Cylinder, SHAPE_NUMITEMS };
 
 class GameObject
 {
@@ -27,6 +27,7 @@ public:
 
 	btRigidBody* rigidbody;
 	
+	bool drawable = true;
 	glm::vec4 color;
 	glm::vec4 trueColor;
 	float mass;
@@ -45,7 +46,7 @@ public:
 
 	//Cloning doesn't copy path or trigger, for now
 	GameObject(GameObject& p) :
-		GameObject(Mesh::CreateCubeWithNormals(),
+		GameObject(p.mesh,
 			p.shapeType,
 			p.GetTranslation(),
 			p.GetOrientation(),
@@ -70,6 +71,7 @@ public:
 		return convert(rigidbody->getCollisionShape()->getLocalScaling());
 	}
 
+	bool GetCollidable() { return collidable; }
 	void SetCollidable(bool set)
 	{
 		collidable = set;
@@ -80,11 +82,14 @@ public:
 				| rigidbody->CF_NO_CONTACT_RESPONSE);
 	}
 
-	bool GetCollidable()
-	{
-		return collidable;
-	}
+	void SetShape(Shape p_shapeType);
+	void SetMesh(Mesh* p_mesh) { mesh = p_mesh; }
 
+private:
+	void SetShape(glm::vec3 translation, glm::quat orientation,
+		glm::vec3 scale, Shape p_shapeType);
+
+public:
 	void Render();
 	void Update(float deltaTime);
 
