@@ -27,40 +27,12 @@ class Profiler
 public:
 
 	static std::map<std::string, Measurement> measurements;
+	static double frameCounterTime;
 
-	static void Start(std::string measurementName)
-	{
-		measurements[measurementName].ts = glfwGetTime();
-	}
-
+	static void Start(std::string measurementName);
 	static void Finish(std::string measurementName, bool frameAdvance = true,
-		bool averaging = true)
-	{
-		if (!averaging)
-		{
-			measurements[measurementName].result = glfwGetTime() -
-				measurements[measurementName].ts;
-		}
-		else
-		{
-			measurements[measurementName].deltas += glfwGetTime() -
-				measurements[measurementName].ts;
-			
-			if(frameAdvance)
-				measurements[measurementName].count++;
-		}
+		bool averaging = true);
 
-		measurements[measurementName].avg = averaging;
-	}
-
-	static void Gui(std::string measurementName)
-	{
-		//const char* s = measurementName.c_str;
-		ImGui::Text("%s average %.3f ms/frame | %.1f percent | %.1f FPS",
-			measurementName.c_str(),
-			Profiler::measurements[measurementName].result * 1000,
-			(Profiler::measurements[measurementName].result
-				/ Profiler::measurements["Frame"].result) * 100.0f,
-			1.0f / Profiler::measurements[measurementName].result);
-	}
+	static void Update(double deltaTime);
+	static void Gui(std::string measurementName);
 };

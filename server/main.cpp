@@ -80,9 +80,6 @@ float death_plane_y = -100.f;
 ShaderProgram *displayShaderProgram;
 ShaderProgram *debugdrawShaderProgram;
 
-double Timer::currentFrame = glfwGetTime();
-double Timer::lastFrame = Timer::currentFrame;
-double Timer::deltaTime;
 AggregateInput current_inputs;
 
 LevelEditor *levelEditor;
@@ -96,9 +93,6 @@ FlyCam* flyCam;
 BlobCam* blobCam;
 
 BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
-
-double frameCounterTime = 0.0f;
-std::map<std::string, Measurement> Profiler::measurements;
 
 #pragma warning(disable:4996)
 
@@ -253,18 +247,8 @@ void update()
 
 	Physics::blob->AddForces(current_inputs);
 
-	Timer::currentFrame = glfwGetTime();
-	Timer::deltaTime = Timer::currentFrame - Timer::lastFrame;
-	Timer::lastFrame = Timer::currentFrame;
-	frameCounterTime += Timer::deltaTime;
-	if (frameCounterTime >= 1.0f)
-	{
-		for (auto itr = Profiler::measurements.begin();
-		itr != Profiler::measurements.end(); itr++)
-			if(itr->second.avg)
-				itr->second.SetAvg();
-		frameCounterTime = 0;
-	}
+	Timer::Update(glfwGetTime());
+	Profiler::Update(Timer::deltaTime);
 
 	Profiler::Start("Physics");
 	if(Physics::bStepPhysics)
@@ -279,6 +263,8 @@ void update()
 					if (Physics::NarrowphaseCheck(Physics::blob->softbody,
 						ent->rigidbody))
 						collides = true;
+
+				//TODO Rigidbody - Rigidbody check
 
 				if (collides)
 					if (!ent->trigger.bTriggered)
