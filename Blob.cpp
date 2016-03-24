@@ -10,7 +10,7 @@ Blob::Blob(
 				softBodyWorldInfo, center, btVector3(1, 1, 1) * r, vertices)),
 	centroid(center),
 	radius(r),
-	speed(1120.f / vertices)
+	speed(5500.f / vertices)
 {
 	forward = btVector3(0, 0, -1);
 	btVector3 scale = btVector3(1, 1, 1) * r;
@@ -38,6 +38,7 @@ Blob::Blob(
 
 	softbody->m_materials[0]->m_kLST = 0.1;
 	softbody->m_cfg.kDF = 1;
+	softbody->m_cfg.kDG = 0.008;
 	softbody->m_cfg.kDP = 0.001;
 	softbody->m_cfg.kPR = 2500;
 	softbody->setTotalMass(30, true);
@@ -125,7 +126,7 @@ void Blob::AddForces(const AggregateInput& inputs)
 		AddForce(force, i);
 	}
 
-	btScalar amplitude(0.1);
+	btScalar amplitude(0.2 / speed);
 	btScalar bounce = btSin(Timer::currentFrame) * amplitude;
 	AddForce(btVector3(0, bounce, 0));
 }
@@ -184,7 +185,7 @@ void Blob::Gui()
 	ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
 		&softbody->m_cfg.kVC, 1.0f, 100.0f);
 	ImGui::InputFloat("Drag coefficient [0, +inf]",
-		&softbody->m_cfg.kDG, 1.0f, 100.0f);
+		&softbody->m_cfg.kDG, 1e-4f, 100.0f);
 	ImGui::SliderFloat("Damping coefficient [0,1]",
 		&softbody->m_cfg.kDP, 0.0f, 1.0f);
 	ImGui::InputFloat("Lift coefficient [0,+inf]",
