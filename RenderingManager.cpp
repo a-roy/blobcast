@@ -208,8 +208,15 @@ void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	glm::mat4 lightProjection = glm::ortho(100.0f + camPos.z/2, -200.0f + camPos.z/2, 100.0f + camPos.z/2, -200.0f + camPos.z/2, -100.0f, 200.0f);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
+	glm::mat4 lightProjection = glm::ortho(
+		camPos.z/2 + 50.0f,
+		camPos.z/2 - 300.0f,
+		camPos.z/2 + 50.0f,
+		camPos.z/2 - 300.0f,
+		camPos.z - 50.0f,
+		glm::abs(camPos.z) + 300.0f
+	);
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0), dirLight.direction, glm::vec3(1.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 	
 	(*depthShader)["lightSpaceMat"] = lightSpaceMatrix;
