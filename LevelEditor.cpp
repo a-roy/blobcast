@@ -194,7 +194,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				}
 			}
 			
-			if (ImGui::CollapsingHeader("Connections")) {
+			if (ImGui::CollapsingHeader("Trigger")) {
 				if (ImGui::Button("Set Path Link")) {
 					bSetLink = true;
 				}
@@ -202,9 +202,16 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 					ImGui::SameLine();
 					ImGui::Text("Click on the path object now");
 				}
-				if (ImGui::Button("Set Deadly")) {
-					first->trigger.bDeadly = true;
-					first->trigger.RegisterCallback(Physics::CreateBlob, Enter);
+				if (!first->trigger.bDeadly)
+				{
+					if (ImGui::Button("Set Deadly")) {
+						first->trigger.bDeadly = true;
+						first->trigger.RegisterCallback(Physics::CreateBlob, Enter);
+					}
+				}
+				else 
+				{
+					ImGui::Text("Deadly!");
 				}
 				for (int id : first->trigger.connectionIDs) {
 					std::stringstream ss;
