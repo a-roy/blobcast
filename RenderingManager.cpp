@@ -42,7 +42,7 @@ bool RenderingManager::init()
 		ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.3f, -0.3f, -0.1f);
+	dirLight.direction = glm::vec3(-0.3f, -0.3f, -0.08f);
 
 	width = RENDER_WIDTH;
 	height = RENDER_HEIGHT;
@@ -210,13 +210,14 @@ void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 
 	glm::mat4 lightProjection = glm::ortho(
 		-camPos.x/2 + 150.0f,
-		-camPos.x/2 - 150.0f,
-		camPos.z + 100.0f,
-		camPos.z - 200.0f,
+		-camPos.x/2 - 200.0f,
+		camPos.z + 30.0f,
+		camPos.z - 300.0f,
 		camPos.z -50.0f,
 		glm::abs(camPos.z) + 300.0f
 	);
-	glm::mat4 lightView = glm::lookAt(glm::vec3(0), dirLight.direction, glm::vec3(1.0f));
+
+	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 	
 	(*depthShader)["lightSpaceMat"] = lightSpaceMatrix;

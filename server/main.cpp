@@ -327,7 +327,7 @@ void draw()
 
 	viewMatrix = activeCam->GetMatrix();
 	projMatrix = glm::perspective(glm::radians(60.0f), 
-		(float)width / (float)height, 0.1f, 450.0f);
+		(float)width / (float)height, 0.1f, 500.0f);
 
 	renderManager.geometryPass(Level::currentLevel, viewMatrix, projMatrix);
 	renderManager.SSAOPass(projMatrix, activeCam->Position);

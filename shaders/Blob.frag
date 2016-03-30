@@ -4,7 +4,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec4 LightSpacePos;
 
-out vec4 fragColor;                                                                                  
+out vec4 fragColor;                                                                    
 
 struct DirectionalLight
 {
