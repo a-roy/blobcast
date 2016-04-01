@@ -10,9 +10,12 @@
 
 #include <iostream>
 
+#include "Blob.h"
+
 class Physics
 {
 public:
+	static Blob *blob;
 	static btSoftRigidDynamicsWorld *dynamicsWorld;
 	static btCollisionDispatcher *dispatcher;
 	static btBroadphaseInterface *broadphase;
@@ -27,6 +30,8 @@ public:
 
 	static void Init();
 	static void Cleanup();
+
+	static void CreateBlob();
 
 	//Works between rigid bodies only!
 	struct ContactResultCallback : 

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <array>
 #include "Entity.h"
 #include "Trigger.h"
 #include "ParticleSystem.h"
@@ -16,8 +17,9 @@ class Level
 		std::vector<Entity*> Objects;
 		//std::vector<Button *> Buttons;
 		std::vector<ParticleSystem *> ParticleSystems;
+		std::array<Mesh *, SHAPE_NUMITEMS> Meshes;
 
-		Level() = default;
+		Level();
 		~Level();
 		Level(const Level& other);
 		Level& operator=(const Level& other);
