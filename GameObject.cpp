@@ -27,6 +27,26 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	//rigidbody->setMassProps(mass, inertia);
 	//rigidbody->setRestitution(0.0);
 
+	//http://bulletphysics.org/mediawiki-1.5.8/index.php/Constraints
+	/*btGeneric6DofConstraint constraint = new btGeneric6DofConstraint(*rigidbody,
+	btTransform::getIdentity());*/
+
+
+	btGeneric6DofConstraint* constraint =
+		new btGeneric6DofConstraint(*rigidbody, 
+			btTransform::getIdentity(), 
+			false);
+	//constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
+	//constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
+	//constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
+	//constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
+	////constraint->enableSpring(0, true);
+	////constraint->setStiffness(0, 100);
+	////constraint->getTranslationalLimitMotor()->m_enableMotor[0] = true;
+	////constraint->getTranslationalLimitMotor()->m_targetVelocity[0] = -5.0f
+	////constraint->setEquilibriumPoint(0, 0);
+	Physics::dynamicsWorld->addConstraint(constraint);	
+
 	rigidbody->setUserPointer(this);
 }
 

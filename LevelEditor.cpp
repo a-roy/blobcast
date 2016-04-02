@@ -26,6 +26,11 @@ void LevelEditor::MainMenuBar()
 					for (GameObject* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->removeRigidBody(ent->rigidbody);
 					delete Level::currentLevel;
+					for (int i = 
+						Physics::dynamicsWorld->getNumConstraints() - 1; 
+						i >= 0; i--)
+						Physics::dynamicsWorld->removeConstraint(
+							Physics::dynamicsWorld->getConstraint(i));
 					Level::currentLevel = Level::Deserialize(lTheOpenFileName);
 					/*for (GameObject* ent : Level::currentLevel->Objects)
 						Physics::dynamicsWorld->addRigidBody(ent->rigidbody);*/
@@ -94,22 +99,6 @@ void LevelEditor::MainMenuBar()
 
 void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 {
-	(*shaderProgram)["uColor"] = glm::vec4(1, 0, 0, 1);
-	Line x(glm::vec3(0, 0, 0), glm::vec3(1, 0, 0));
-	shaderProgram->Use([&]() {
-		x.Render();
-	});
-	(*shaderProgram)["uColor"] = glm::vec4(0, 1, 0, 1);
-	Line y(glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	shaderProgram->Use([&]() {
-		y.Render();
-	});
-	(*shaderProgram)["uColor"] = glm::vec4(0, 0, 1, 1);
-	Line z(glm::vec3(0, 0, 0), glm::vec3(0, 0, 1));
-	shaderProgram->Use([&]() {
-		z.Render();
-	});
-
 	if (selection.size() > 0)
 	{
 		ImGui::SetNextWindowSize(ImVec2(300, 400),
@@ -118,6 +107,13 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 		std::stringstream ss;
 		ss << "Selection (" << selection.size() << " objects)###Selection";
 		ImGui::Begin(ss.str().c_str());
+
+		if (ImGui::Button("Put Blob Above"))
+		{
+			GameObject *first = *selection.begin();
+			Physics::blob->softbody->translate(
+				convert(first->GetTranslation() + glm::vec3(0,5,0)));
+		}
 
 		if (ImGui::CollapsingHeader("Translation"))
 			Translation();

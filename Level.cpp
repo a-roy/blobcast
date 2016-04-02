@@ -231,6 +231,7 @@ Level *Level::Deserialize(std::string file)
 			auto points = path["points"];
 			if (!path["enabled"].is_null())
 				ent->motion.Enabled = path["enabled"];
+			ent->motion.Curved = false;
 			ent->motion.Speed = speed;
 			for (auto point : points)
 				ent->motion.Points.insert(
