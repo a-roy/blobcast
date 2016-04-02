@@ -4,7 +4,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec4 LightSpacePos;
 
-out vec4 fragColor;                                                                                  
+out vec4 fragColor;                                                                    
 
 struct DirectionalLight
 {
@@ -44,17 +44,17 @@ float CalcShadowFactor(vec4 LightSpacePos)
         }
     }
 
-    return (0.5 + (Factor / 36.0));
+    return (0.5 + (Factor / 24.0));
 }
 
 void main()
 {   
 	// Ambient
-	float ambientStrength = 0.5f;
+	float ambientStrength = 0.5;
     vec3 ambient = ambientStrength * directionalLight.ambientColor;
 	
 	// Diffuse
-	float diffuseStrength = 0.6f;
+	float diffuseStrength = 0.6;
 	vec3 normal = normalize(Normal);
     vec3 lightDir = normalize(-directionalLight.direction);
     float diff = max(dot(normal, lightDir), 0.0);

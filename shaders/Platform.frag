@@ -67,7 +67,7 @@ float CalcShadowFactor(vec4 LightSpacePos)
 void main()
 {   
 	// Ambient
-    vec3 ambient = 0.5 * directionalLight.ambientColor;
+    vec3 ambient = 0.7 * directionalLight.ambientColor;
 	float occlusion = texture(aoMap, CalcScreenTexCoord()).r;
 	ambient *= occlusion;
 	

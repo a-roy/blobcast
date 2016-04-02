@@ -42,7 +42,7 @@ bool RenderingManager::init()
 		ShaderDir "Particle.frag" });
 
 	dirLight.color = glm::vec3(1.0f, 1.0f, 1.0f);
-	dirLight.direction = glm::vec3(-0.2f, -0.3f, -0.2f);
+	dirLight.direction = glm::vec3(-0.3f, -0.3f, -0.08f);
 
 	width = RENDER_WIDTH;
 	height = RENDER_HEIGHT;
@@ -76,7 +76,7 @@ bool RenderingManager::init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	loadTexture(TextureDir "metal.png", true);
-	loadTexture(TextureDir "water.jpg", false);
+	loadTexture(TextureDir "sunny_skybox/posy.png", true);
 
 	if (!initFrameBuffers())
 		return false;
@@ -208,7 +208,15 @@ void RenderingManager::depthPass(Blob *blob, Level *level, glm::vec3 camPos)
 	glCullFace(GL_FRONT);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	glm::mat4 lightProjection = glm::ortho(100.0f + camPos.z/2, -200.0f + camPos.z/2, 100.0f + camPos.z/2, -200.0f + camPos.z/2, -100.0f, 200.0f);
+	glm::mat4 lightProjection = glm::ortho(
+		-camPos.x/2 + 150.0f,
+		-camPos.x/2 - 200.0f,
+		camPos.z + 30.0f,
+		camPos.z - 300.0f,
+		camPos.z -50.0f,
+		glm::abs(camPos.z) + 300.0f
+	);
+
 	glm::mat4 lightView = glm::lookAt(glm::vec3(0.0f), dirLight.direction, glm::vec3(1.0f));
 	lightSpaceMatrix = lightProjection * lightView;
 	
