@@ -190,9 +190,6 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 
 				first->mass = mass;
 			}
-			float friction = first->rigidbody->getFriction();
-			if (ImGui::InputFloat("Friction", &friction, 1.0f, 10.0f))
-				first->rigidbody->setFriction(friction);
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
 			if (first->mass) {

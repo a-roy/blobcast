@@ -25,6 +25,9 @@ void Physics::Init()
 		new btSoftBodyRigidBodyCollisionConfiguration();
 	dispatcher = new btCollisionDispatcher(collisionConfiguration);
 	solver = new btSequentialImpulseConstraintSolver();
+
+	//new btConstraintSolver()
+
 	softBodySolver = new btDefaultSoftBodySolver();
 	dynamicsWorld = new btSoftRigidDynamicsWorld(dispatcher,
 		broadphase, solver, collisionConfiguration, softBodySolver);
