@@ -143,7 +143,7 @@ void Level::Serialize(std::string file)
 		object["color"] = {
 			ent->trueColor.r, ent->trueColor.g, ent->trueColor.b, 
 			ent->trueColor.a };
-		object["mass"] = ent->mass;
+		object["mass"] = ent->GetMass();
 		object["collidable"] = ent->GetCollidable();
 		object["id"] = ent->ID;
 		object["texID"] = ent->textureID;

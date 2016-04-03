@@ -3,6 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include "config.h"
 
 int GameObject::nextID = 0;
 
@@ -13,8 +14,6 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
 	mass(p_mass)
 {
-	//http://www.bulletphysics.org/mediawiki-1.5.8/index.php/Collision_Shapes
-	
 	ID = nextID++;
 
 	SetShape(p_translation, p_orientation, p_scale, p_shapeType);
@@ -25,28 +24,9 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	if(mass != 0)
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
 
-	rigidbody->setFriction(1.0f);
+	rigidbody->setFriction(RB_FRICTION);
 
 	motion = p_motion;
-	
-	//rigidbody->setMassProps(mass, inertia);
-	//rigidbody->setRestitution(0.0);
-
-	//http://bulletphysics.org/mediawiki-1.5.8/index.php/Constraints
-	/*btGeneric6DofConstraint constraint = new btGeneric6DofConstraint(*rigidbody,
-	btTransform::getIdentity());*/
-	////constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
-	////constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
-	//constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
-	//constraint->setAngularUpperLimit(btVector3(0., 0., 0.));
-	//////constraint->enableSpring(0, true);
-	//////constraint->setStiffness(0, 100);
-	//////constraint->getTranslationalLimitMotor()->m_enableMotor[0] = true;
-	//////constraint->getTranslationalLimitMotor()->m_targetVelocity[0] = -5.0f
-	//////constraint->setEquilibriumPoint(0, 0);
-	//constraint->enableSpring(0, true);
-	//constraint->setStiffness(0, 10000, false);
-	//Physics::dynamicsWorld->addConstraint(constraint);	
 
 	rigidbody->setUserPointer(this);
 }
@@ -89,8 +69,11 @@ void GameObject::SetShape(Shape p_shapeType)
 	glm::vec3 translation = GetTranslation();
 	glm::quat orientation = GetOrientation();
 	glm::vec3 scale = GetScale();
-	Physics::dynamicsWorld->removeRigidBody(rigidbody);
-	delete rigidbody;
+
+	//TODO: if not in dynamics world
+		Physics::dynamicsWorld->removeRigidBody(rigidbody);
+		delete rigidbody;
+	
 	SetShape(translation, orientation, scale,
 		p_shapeType);
 }
@@ -110,11 +93,14 @@ void GameObject::SetShape(glm::vec3 translation, glm::quat orientation,
 			btVector3(convert(translation))));
 	btVector3 inertia;
 	shape->calculateLocalInertia(mass, inertia);
+
 	btRigidBody::btRigidBodyConstructionInfo
 		groundRigidBodyCI(mass, transform, shape, inertia);
+	
 	rigidbody = new btRigidBody(groundRigidBodyCI);
-	Physics::dynamicsWorld->addRigidBody(rigidbody);
+	rigidbody->setMassProps(mass, inertia);
 	rigidbody->setUserPointer(this);
-
+	Physics::dynamicsWorld->addRigidBody(rigidbody);
+	
 	shapeType = p_shapeType;
 }

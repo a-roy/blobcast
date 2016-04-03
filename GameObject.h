@@ -21,6 +21,8 @@ private:
 	bool collidable;
 	int collisionFlagsDefault;
 
+	float mass;
+
 public:
 
 	static int nextID;
@@ -30,7 +32,7 @@ public:
 	bool drawable = true;
 	glm::vec4 color;
 	glm::vec4 trueColor;
-	float mass;
+	
 	Shape shapeType;
 	int ID;
 	GLuint textureID;
@@ -95,21 +97,18 @@ public:
 	void Render();
 	void Update(float deltaTime);
 
-#pragma region constraint stuff
-	//http://bulletphysics.org/mediawiki-1.5.8/index.php/Constraints
-	/*constraint = new btGeneric6DofSpring2Constraint(*rigidbody,
-	btTransform::getIdentity());
-	constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
-	constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
-	constraint->setAngularLowerLimit(btVector3(0., 0., 0.));
-	constraint->setAngularUpperLimit(btVector3(0., 0., 0.));*/
-	//constraint->enableSpring(0, true);
-	//constraint->setStiffness(0, 100);
-	//constraint->getTranslationalLimitMotor()->m_enableMotor[0] = true;
-	//constraint->getTranslationalLimitMotor()->m_targetVelocity[0] = -5.0f
-	//constraint->setEquilibriumPoint(0, 0);
-	//Physics::dynamicsWorld->addConstraint(constraint);	
-#pragma endregion
+	float GetMass() { return mass; }
+
+	void SetMass(float p_mass)
+	{
+		Physics::dynamicsWorld->removeRigidBody(rigidbody);
+		btVector3 inertia;
+		rigidbody->getCollisionShape()->
+			calculateLocalInertia(p_mass, inertia);
+		rigidbody->setMassProps(p_mass, inertia);
+		Physics::dynamicsWorld->addRigidBody(rigidbody);
+		mass = p_mass;
+	}
 };
 
 

@@ -183,22 +183,15 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 						Level::currentLevel->Meshes[(size_t)Cylinder]);
 			}
 				
-			float mass = first->mass;
+			float mass = first->GetMass();
 			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
-			{
-				//Remove from world to change mass
-				Physics::dynamicsWorld->removeRigidBody(first->rigidbody);
-				btVector3 inertia;
-				first->rigidbody->getCollisionShape()->
-					calculateLocalInertia(mass, inertia);
-				first->rigidbody->setMassProps(mass, inertia);
-				Physics::dynamicsWorld->addRigidBody(first->rigidbody);
+				first->SetMass(mass);
+			if (ImGui::Button("Set Mass: Moving Platform Default"))
+				first->SetMass(MOVING_PLATFORM_MASS);
 
-				first->mass = mass;
-			}
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
-			if (first->mass) {
+			if (first->GetMass()) {
 				if (ImGui::CollapsingHeader("Path")) {
 					Path();
 				}
