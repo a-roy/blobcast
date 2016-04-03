@@ -41,10 +41,11 @@ public:
 
 	GameObject(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
-		GLuint p_texID, float p_mass = 0, bool bCollidable = true);
+		GLuint p_texID, float p_mass = 0, bool bCollidable = true, 
+		Path p_motion = Path());
 	~GameObject();
 
-	//Cloning doesn't copy path or trigger, for now
+	//Cloning doesn't copy trigger, for now
 	GameObject(GameObject& p) :
 		GameObject(p.mesh,
 			p.shapeType,
@@ -54,7 +55,8 @@ public:
 			p.trueColor,
 			p.textureID,
 			p.mass,
-			p.collidable) {}
+			p.collidable,
+			p.motion) {}
 
 	glm::mat4 GetModelMatrix();
 

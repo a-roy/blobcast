@@ -105,7 +105,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			ImGuiSetCond_FirstUseEver);
 
 		std::stringstream ss;
-		ss << "Selection (" << selection.size() << " objects)###Selection";
+		ss << "Selection (" << selection.size() << " objects)";// ###Selection";
 		ImGui::Begin(ss.str().c_str());
 
 		if (ImGui::Button("Put Blob Above"))
@@ -165,8 +165,14 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				first->SetCollidable(collidable);
 			ImGui::Checkbox("Drawable", &first->drawable);
 			Shape shapeType = first->shapeType;
+
+			std::string box = "Box";
+			std::string cyl = "Cylinder";
+			char zero = '\0';
+			std::stringstream ss;
+			ss << box << zero << cyl << zero;
 			if(ImGui::Combo("Shape", (int*)&shapeType, 
-				"Box\0Cylinder\0"));
+				&ss.str()[0]));
 			{
 				first->SetShape(shapeType);
 				if (shapeType == Box)
@@ -318,6 +324,9 @@ void LevelEditor::TranslateSelection(glm::vec3 translate)
 			rb->rigidbody->getOrientation(),
 			rb->rigidbody->getWorldTransform().getOrigin()
 			+ convert(translate)));
+
+		for (int i = 0; i < rb->motion.Points.size(); i++)
+			rb->motion.Points[i] += translate;
 	}
 }
 

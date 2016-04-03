@@ -8,7 +8,8 @@ int GameObject::nextID = 0;
 
 GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	glm::vec3 p_translation, glm::quat p_orientation, glm::vec3 p_scale,
-	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable) 
+	glm::vec4 p_color, GLuint p_texID, float p_mass, bool p_collidable,
+	Path p_motion)
 	: mesh(p_mesh), color(p_color), trueColor(p_color), textureID(p_texID),
 	mass(p_mass)
 {
@@ -25,6 +26,8 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
 
 	rigidbody->setFriction(1.0f);
+
+	motion = p_motion;
 	
 	//rigidbody->setMassProps(mass, inertia);
 	//rigidbody->setRestitution(0.0);
