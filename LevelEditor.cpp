@@ -115,6 +115,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				convert(first->GetTranslation() + glm::vec3(0,5,0)));
 		}
 
+		
 		if (ImGui::CollapsingHeader("Translation"))
 			Translation();
 		ImGui::Spacing(); 
@@ -129,6 +130,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			ImGui::Separator();
 		}
 		ImGui::Spacing();
+
 		if (ImGui::Button("Clone selection"))
 			CloneSelection(); ImGui::SameLine();
 		if (ImGui::Button("Delete selection"))
@@ -164,6 +166,8 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			if (ImGui::Checkbox("Collidable", &collidable))
 				first->SetCollidable(collidable);
 			ImGui::Checkbox("Drawable", &first->drawable);
+
+			/*
 			Shape shapeType = first->shapeType;
 
 			std::string box = "Box";
@@ -181,7 +185,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 				else
 					first->SetMesh(
 						Level::currentLevel->Meshes[(size_t)Cylinder]);
-			}
+			}*/
 				
 			float mass = first->GetMass();
 			if (ImGui::InputFloat("Mass", &mass, 1.0f, 10.0f))
@@ -191,11 +195,13 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 
 			ImGui::ColorEdit4("Color", glm::value_ptr(first->trueColor));
 			
+			
 			if (first->GetMass()) {
 				if (ImGui::CollapsingHeader("Path")) {
 					Path();
 				}
 			}
+			
 			
 			if (ImGui::CollapsingHeader("Trigger")) {
 				if (ImGui::Button("Set Path Link")) {
@@ -272,8 +278,10 @@ void LevelEditor::NewSelection(GameObject* newSelection)
 {
 	if (bSetLink)
 	{
+		
 		if (!newSelection->motion.Points.empty())
-			(*selection.begin())->trigger.LinkToPlatform(newSelection);
+			(*selection.begin())->trigger.LinkToPlatform(
+				Level::currentLevel->Find(newSelection->ID));
 		bSetLink = false;
 	}
 	else
