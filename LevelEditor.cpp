@@ -278,10 +278,10 @@ void LevelEditor::NewSelection(GameObject* newSelection)
 {
 	if (bSetLink)
 	{
-		
 		if (!newSelection->motion.Points.empty())
 			(*selection.begin())->trigger.LinkToPlatform(
-				Level::currentLevel->Find(newSelection->ID));
+				Level::currentLevel->Find(newSelection->ID),
+				(*selection.begin()));
 		bSetLink = false;
 	}
 	else
@@ -575,6 +575,5 @@ void LevelEditor::CloneSelection()
 	{
 		GameObject* newEnt = new GameObject(*rb);
 		Level::currentLevel->Objects.push_back(newEnt);
-		//Physics::dynamicsWorld->addRigidBody(newEnt->rigidbody);
 	}
 }

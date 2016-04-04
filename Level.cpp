@@ -262,7 +262,7 @@ Level *Level::Deserialize(std::string file)
 			GameObject* plat = level->Find(id);
 
 			if (!plat->motion.Points.empty())
-				entity->trigger.LinkToPlatform(plat);
+				entity->trigger.LinkToPlatform(plat, entity);
 		}
 
 		if (entity->trigger.bDeadly)

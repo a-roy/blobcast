@@ -38,16 +38,23 @@ void Trigger::OnLeave()
 	bTriggered = false;
 }
 
-void Trigger::LinkToPlatform(GameObject* platform)
+void Trigger::LinkToPlatform(GameObject* platform,
+	GameObject* button)
 {
 	RegisterCallback(
-		[platform]() { platform->motion.Enabled = true; },
-		CallbackType::Enter
-		);
+		[platform, button]() {
+			platform->motion.Enabled = true; 
+			button->color = glm::vec4(0, 1, 0, 1);
+		},
+	CallbackType::Enter);
+
 	RegisterCallback(
-		[platform]() { platform->motion.Enabled = false; },
-		CallbackType::Leave
-		);
+		[platform, button]() {
+			platform->motion.Enabled = false;
+			button->color = platform->trueColor;
+		},
+	CallbackType::Leave
+	);
 
 	auto ids = connectionIDs;
 	if (!std::binary_search(ids.begin(), ids.end(),
