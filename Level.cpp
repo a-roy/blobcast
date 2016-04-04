@@ -132,9 +132,16 @@ void Level::Serialize(std::string file)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
-		object["position"] = {
-			translation.x, translation.y,
-			translation.z };
+
+		if(ent->motion.Points.size() == 0)
+			object["position"] = {
+				translation.x, translation.y,
+				translation.z };
+		else
+			object["position"] = {
+				ent->motion.Points[0].x,
+				ent->motion.Points[0].y,
+				ent->motion.Points[0].z };
 		object["orientation"] = {
 			orientation.w, orientation.x,
 			orientation.y, orientation.z };
