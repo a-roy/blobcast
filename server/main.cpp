@@ -264,7 +264,9 @@ void update()
 						ent->rigidbody))
 						collides = true;
 
-				//TODO Rigidbody - Rigidbody check
+				Physics::ContactResultCallback callback(&collides);
+				Physics::dynamicsWorld->contactTest
+					(ent->rigidbody, callback);
 
 				if (collides)
 					if (!ent->trigger.bTriggered)

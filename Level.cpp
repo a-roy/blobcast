@@ -126,7 +126,6 @@ void Level::Serialize(std::string file)
 		glm::vec3 translation = ent->GetTranslation();
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
-
 		
 		if (ent->shapeType == Shape::Box)
 			object["type"] = "box";
@@ -166,8 +165,7 @@ void Level::Serialize(std::string file)
 				path["points"].push_back({ v->x, v->y, v->z });
 			object["path"] = path;
 		}
-		
-		
+			
 		if (ent->trigger.connectionIDs.size() > 0)
 		{
 			for (auto c : ent->trigger.connectionIDs)

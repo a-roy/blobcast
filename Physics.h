@@ -33,10 +33,11 @@ public:
 
 	static void CreateBlob();
 
-	//Works between rigid bodies only!
 	struct ContactResultCallback : 
 		public btCollisionWorld::ContactResultCallback
 	{
+		ContactResultCallback(bool* ptr) : context(ptr) {}
+
 		btScalar addSingleResult(btManifoldPoint& cp,
 			const btCollisionObjectWrapper* colObj0Wrap,
 			int partId0,
@@ -45,9 +46,11 @@ public:
 			int partId1,
 			int index1)
 		{
-			std::cout << "Collision!";
-			return 1;
+			*context = true;
+			return 0;
 		}
+
+		bool* context;
 	};
 
 	static bool BroadphaseCheck(btCollisionObject* obj1,
