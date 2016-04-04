@@ -1,4 +1,5 @@
 #include "Path.h"
+#include "config.h"
 
 void Path::Reset()
 {
@@ -10,7 +11,7 @@ bool Path::Step(float dt)
 	if (Loop)
 	{
 		float path_length = (float)Points.size();
-		position += Speed * dt;
+		position += Speed * PLATFORM_SPEED_MODIFIER * dt;
 		if (position > path_length)
 			position = 0.0f;
 	}
@@ -19,7 +20,7 @@ bool Path::Step(float dt)
 		float path_length = (float)(Points.size() - 1);
 		if (position == path_length)
 			return false;
-		position += Speed * dt;
+		position += Speed * PLATFORM_SPEED_MODIFIER * dt;
 		if (position > path_length)
 			position = path_length;
 	}
