@@ -38,5 +38,6 @@ public:
 	void OnStay();
 	void OnLeave();
 
-	void LinkToPlatform(GameObject* platform);
+	void LinkToPlatform(GameObject* platform,
+		GameObject* button);
 };

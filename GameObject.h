@@ -80,9 +80,12 @@ public:
 	{
 		collidable = set;
 		if (collidable)
-			rigidbody->setCollisionFlags(collisionFlagsDefault);
+			rigidbody->setCollisionFlags(
+				rigidbody->getCollisionFlags() 
+				&~ rigidbody->CF_NO_CONTACT_RESPONSE);
 		else
-			rigidbody->setCollisionFlags(collisionFlagsDefault
+			rigidbody->setCollisionFlags(
+				rigidbody->getCollisionFlags()
 				| rigidbody->CF_NO_CONTACT_RESPONSE);
 	}
 

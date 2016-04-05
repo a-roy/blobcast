@@ -264,7 +264,9 @@ void update()
 						ent->rigidbody))
 						collides = true;
 
-				//TODO Rigidbody - Rigidbody check
+				Physics::ContactResultCallback callback(&collides);
+				Physics::dynamicsWorld->contactTest
+					(ent->rigidbody, callback);
 
 				if (collides)
 					if (!ent->trigger.bTriggered)
@@ -433,8 +435,9 @@ void infoBox()
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GL_TRUE);
+	/*if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);*/
+	//So Barbara doesn't lose her stuff
 
 	if (key == GLFW_KEY_G && action == GLFW_PRESS)
 		bGui ^= 1;

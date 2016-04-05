@@ -126,15 +126,21 @@ void Level::Serialize(std::string file)
 		glm::vec3 translation = ent->GetTranslation();
 		glm::quat orientation = ent->GetOrientation();
 		glm::vec3 scale = ent->GetScale();
-
 		
 		if (ent->shapeType == Shape::Box)
 			object["type"] = "box";
 		else
 			object["type"] = "cylinder";
-		object["position"] = {
-			translation.x, translation.y,
-			translation.z };
+
+		if(ent->motion.Points.size() == 0)
+			object["position"] = {
+				translation.x, translation.y,
+				translation.z };
+		else
+			object["position"] = {
+				ent->motion.Points[0].x,
+				ent->motion.Points[0].y,
+				ent->motion.Points[0].z };
 		object["orientation"] = {
 			orientation.w, orientation.x,
 			orientation.y, orientation.z };
@@ -159,8 +165,7 @@ void Level::Serialize(std::string file)
 				path["points"].push_back({ v->x, v->y, v->z });
 			object["path"] = path;
 		}
-		
-		
+			
 		if (ent->trigger.connectionIDs.size() > 0)
 		{
 			for (auto c : ent->trigger.connectionIDs)
@@ -257,7 +262,7 @@ Level *Level::Deserialize(std::string file)
 			GameObject* plat = level->Find(id);
 
 			if (!plat->motion.Points.empty())
-				entity->trigger.LinkToPlatform(plat);
+				entity->trigger.LinkToPlatform(plat, entity);
 		}
 
 		if (entity->trigger.bDeadly)

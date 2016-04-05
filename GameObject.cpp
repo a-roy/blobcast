@@ -17,14 +17,14 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	ID = nextID++;
 
 	SetShape(p_translation, p_orientation, p_scale, p_shapeType);
-	
-	collisionFlagsDefault = rigidbody->getCollisionFlags();
+
+	rigidbody->setFriction(RB_FRICTION);
+
 	SetCollidable(p_collidable);
 
 	if(mass != 0)
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
-
-	rigidbody->setFriction(RB_FRICTION);
+	
 
 	motion = p_motion;
 
