@@ -566,6 +566,9 @@ void LevelEditor::Path()
 	{
 		ent->motion.Points.push_back(ent->GetTranslation());
 		path_changed = true;
+
+		ent->rigidbody->setMassProps(ent->GetMass(),
+			btVector3(0, 0, 0));
 	}
 	if (path_changed)
 		ent->motion.Reset();

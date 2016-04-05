@@ -246,6 +246,8 @@ Level *Level::Deserialize(std::string file)
 				ent->motion.Points.insert(
 					ent->motion.Points.end(),
 						glm::vec3(point[0], point[1], point[2]));
+			ent->rigidbody->setMassProps(ent->GetMass(),
+				btVector3(0, 0, 0));
 		}
 		auto conns = object["conns"];
 		if (!conns.is_null())
