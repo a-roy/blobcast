@@ -16,18 +16,18 @@ class Trigger //: public Component
 
 public:
 
-	//btGeneric6DofSpring2Constraint* constraint;
+	bool bTriggered = false;
 
-	bool bEnabled = false;
-	
 	std::vector<CallbackFunc> onEnterCallbacks;
 	std::vector<CallbackFunc> onStayCallbacks;
 	std::vector<CallbackFunc> onLeaveCallbacks;
 
+	bool bEnabled = false; //When component won't need this
+	
+	//For specific behaviours
 	std::vector<int> connectionIDs;
-
-	bool bTriggered = false;
 	bool bDeadly = false;
+	bool bLoopy = false;
 
 	Trigger(){}
 	~Trigger(){}
@@ -38,6 +38,7 @@ public:
 	void OnStay();
 	void OnLeave();
 
+	//For specific behaviour
 	void LinkToPlatform(GameObject* platform,
 		GameObject* button);
 };

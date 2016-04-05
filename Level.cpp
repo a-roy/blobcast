@@ -175,6 +175,10 @@ void Level::Serialize(std::string file)
 		{
 			object["deadly"] = true;
 		}
+		if (ent->trigger.bLoopy)
+		{
+			object["loopy"] = true;
+		}
 		
 		objects.push_back(object);
 	}
@@ -242,6 +246,8 @@ Level *Level::Deserialize(std::string file)
 				ent->motion.Points.insert(
 					ent->motion.Points.end(),
 						glm::vec3(point[0], point[1], point[2]));
+			ent->rigidbody->setMassProps(ent->GetMass(),
+				btVector3(0, 0, 0));
 		}
 		auto conns = object["conns"];
 		if (!conns.is_null())
@@ -251,6 +257,8 @@ Level *Level::Deserialize(std::string file)
 		}
 		if (object["deadly"].is_boolean() && object["deadly"])
 			level->Objects[i]->trigger.bDeadly = true;
+		if (object["loopy"].is_boolean() && object["loopy"])
+			level->Objects[i]->trigger.bLoopy = true;
 	}
 	f.close();
 
@@ -266,7 +274,14 @@ Level *Level::Deserialize(std::string file)
 		}
 
 		if (entity->trigger.bDeadly)
-			entity->trigger.RegisterCallback(Physics::CreateBlob, Enter);
+			entity->trigger.RegisterCallback([]() {
+			Physics::CreateBlob();
+		}, Enter);
+
+		if (entity->trigger.bLoopy)
+			entity->trigger.RegisterCallback([]() {
+			Physics::CreateBlob(glm::vec4(0,0,1,1));
+		}, Enter);
 	}
 
 	return level;

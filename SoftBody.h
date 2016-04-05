@@ -21,6 +21,8 @@ class SoftBody
 		GLuint *VBOs;
 		GLuint IBO;
 
+		glm::vec4 color;
+
 		btSoftBody* softbody;
 
 		std::vector<glm::vec3> vertices;
