@@ -9,8 +9,9 @@
 #include <glm/glm.hpp>
 
 #include <iostream>
-
+#include "config.h"
 #include "Blob.h"
+//#include "GameObject.h"
 
 class Physics
 {
@@ -44,11 +45,7 @@ public:
 			int index0,
 			const btCollisionObjectWrapper* colObj1Wrap,
 			int partId1,
-			int index1)
-		{
-			*context = true;
-			return 0;
-		}
+			int index1);
 
 		bool* context;
 	};
