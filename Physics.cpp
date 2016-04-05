@@ -1,5 +1,6 @@
 #include "Physics.h"
 #include "config.h"
+#include "GameObject.h"
 
 Blob *Physics::blob;
 btSoftRigidDynamicsWorld *Physics::dynamicsWorld;
@@ -13,6 +14,27 @@ btSoftBodyWorldInfo Physics::softBodyWorldInfo;
 
 bool Physics::bStepPhysics = false;
 bool Physics::bShowBulletDebug = true;
+
+
+btScalar Physics::ContactResultCallback::addSingleResult(btManifoldPoint& cp,
+	const btCollisionObjectWrapper* colObj0Wrap,
+	int partId0,
+	int index0,
+	const btCollisionObjectWrapper* colObj1Wrap,
+	int partId1,
+	int index1)
+{
+	GameObject* go =
+	(GameObject*)colObj1Wrap->getCollisionObject()->
+	getUserPointer();
+
+	if (go->GetMass() == 0
+		|| go->GetMass() == MOVING_PLATFORM_MASS)
+		*context = false;
+	else
+		*context = true;
+	return 0;
+}
 
 void Physics::Init()
 {
