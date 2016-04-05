@@ -56,7 +56,7 @@ void Physics::Cleanup()
 	delete Physics::blob;
 }
 
-void Physics::CreateBlob()
+void Physics::CreateBlob(glm::vec4 color)
 {
 	if (blob)
 	{
@@ -65,6 +65,7 @@ void Physics::CreateBlob()
 	}
 	blob = new Blob(Physics::softBodyWorldInfo,
 		btVector3(0, 100, 0), 3.0f, 512);
+	blob->color = color;
 	dynamicsWorld->addSoftBody(blob->softbody);
 }
 

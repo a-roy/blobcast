@@ -211,17 +211,30 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 					ImGui::SameLine();
 					ImGui::Text("Click on the path object now");
 				}
-				if (!first->trigger.bDeadly)
+				if (!first->trigger.bDeadly
+					&& !first->trigger.bLoopy)
 				{
 					if (ImGui::Button("Set Deadly")) {
 						first->trigger.bDeadly = true;
-						first->trigger.RegisterCallback(Physics::CreateBlob, Enter);
+						first->trigger.RegisterCallback(
+							[]() {
+							Physics::CreateBlob();
+						}, Enter);
+					}
+					if (ImGui::Button("Set Loopy")) {
+						first->trigger.bLoopy = true;
+						first->trigger.RegisterCallback(
+							[]() {
+							Physics::CreateBlob(glm::vec4(0,0,1,1));
+						}, Enter);
 					}
 				}
-				else 
-				{
+				
+				if(first->trigger.bDeadly)
 					ImGui::Text("Deadly!");
-				}
+				else if(first->trigger.bLoopy)
+					ImGui::Text("Loopy!");
+
 				for (int id : first->trigger.connectionIDs) {
 					std::stringstream ss;
 					ss << "Platform - " << id;

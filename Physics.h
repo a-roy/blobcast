@@ -31,7 +31,7 @@ public:
 	static void Init();
 	static void Cleanup();
 
-	static void CreateBlob();
+	static void CreateBlob(glm::vec4 color = glm::vec4(0,1,0,1));
 
 	struct ContactResultCallback : 
 		public btCollisionWorld::ContactResultCallback

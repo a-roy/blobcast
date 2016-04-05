@@ -128,7 +128,7 @@ bool RenderingManager::initSkybox()
 
 void RenderingManager::drawBlob(Blob *blob, glm::vec3 camPos, glm::mat4 viewMatrix, glm::mat4 projMatrix)
 {
-	(*blobShader)["objectColor"] = glm::vec3(0.0f, 1.0f, 0.0f);
+	(*blobShader)["objectColor"] = glm::vec3(blob->color);
 	(*blobShader)["directionalLight.color"] = dirLight.color;
 	(*blobShader)["directionalLight.ambientColor"] = dirLight.ambientColor;
 	(*blobShader)["directionalLight.direction"] = dirLight.direction;
