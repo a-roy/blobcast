@@ -258,15 +258,16 @@ void update()
 			if (ent->trigger.bEnabled)
 			{
 				bool collides = false;
+				
+				Physics::ContactResultCallback callback(&collides);
+				Physics::dynamicsWorld->contactTest
+					(ent->rigidbody, callback);
+
 				if (Physics::BroadphaseCheck(Physics::blob->softbody,
 					ent->rigidbody))
 					if (Physics::NarrowphaseCheck(Physics::blob->softbody,
 						ent->rigidbody))
 						collides = true;
-
-				Physics::ContactResultCallback callback(&collides);
-				Physics::dynamicsWorld->contactTest
-					(ent->rigidbody, callback);
 
 				if (collides)
 					if (!ent->trigger.bTriggered)

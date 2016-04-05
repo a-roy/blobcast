@@ -28,10 +28,8 @@ btScalar Physics::ContactResultCallback::addSingleResult(btManifoldPoint& cp,
 	(GameObject*)colObj1Wrap->getCollisionObject()->
 	getUserPointer();
 
-	if (go->GetMass() == 0
-		|| go->GetMass() == MOVING_PLATFORM_MASS)
-		*context = false;
-	else
+	if (go->GetMass() != 0
+		&& go->GetMass() != MOVING_PLATFORM_MASS)
 		*context = true;
 	return 0;
 }
