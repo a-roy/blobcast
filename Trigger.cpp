@@ -51,7 +51,7 @@ void Trigger::LinkToPlatform(GameObject* platform,
 	RegisterCallback(
 		[platform, button]() {
 			platform->motion.Enabled = false;
-			button->color = platform->trueColor;
+			button->color = button->trueColor;
 		},
 	CallbackType::Leave
 	);
