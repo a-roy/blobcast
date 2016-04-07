@@ -35,7 +35,9 @@ GLFWwindow *window;
 std::shared_ptr<VertexArray> vao;
 std::unique_ptr<FloatBuffer> vbo;
 std::unique_ptr<Text> input_display;
-std::shared_ptr<Font> vera;
+std::unique_ptr<Text> spectator_indicator;
+std::shared_ptr<Font> med_font;
+std::shared_ptr<Font> lg_font;
 std::unique_ptr<ShaderProgram> stream_program;
 std::unique_ptr<ShaderProgram> text_program;
 int width, height;
@@ -44,7 +46,9 @@ uint8_t *data;
 GLuint tex;
 std::unique_ptr<StreamReceiver> stream;
 
-bool chat_mode;
+bool spectator_mode = true;
+int timeout = 0;
+bool chat_mode = false;
 std::u32string input_text;
 
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
@@ -108,7 +112,7 @@ bool connect()
 					<< RTMP_PATH;
 				stream_address = ss.str();
 #else // RTMP_STREAM
-				stream_address = STREAM_PATH;
+				stream_address = STREAM_PATH "?fifo_size=122880&overrun_nonfatal=1";
 #endif // RTMP_STREAM
 				break;
 			}
@@ -133,11 +137,16 @@ bool init()
 	vbo->VertexAttribPointer(0);
 
 	glGenTextures(1, &tex);
-	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 20.f));
-	input_display = std::unique_ptr<Text>(new Text(vera.get()));
+	med_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 20.f));
+	lg_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 36.f));
+	input_display = std::unique_ptr<Text>(new Text(med_font.get()));
 	input_display->XPosition = 240;
 	input_display->YPosition = 30;
 	input_display->SetText(" ");
+	spectator_indicator = std::unique_ptr<Text>(new Text(lg_font.get()));
+	spectator_indicator->XPosition = 480;
+	spectator_indicator->YPosition = height - 64;
+	spectator_indicator->SetText("PRESS SPACE TO BLOB");
 
 	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
 			ShaderDir "Stream.vert",
@@ -154,9 +163,7 @@ bool init()
 	(*stream_program)["uImage"] = 0;
 
 	glm::mat4 projMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
-	text_program->Use([&](){
-		vera->BindTexture(text_program->GetUniformLocation("uAtlas"));
-	});
+	(*text_program)["uAtlas"] = 0;
 	(*text_program)["uTextColor"] = glm::vec4(0.f, 0.f, 0.f, 1.f);
 	(*text_program)["uMVPMatrix"] = projMatrix;
 
@@ -206,13 +213,27 @@ void draw()
 		}
 	}
 
-	char send_data[2];
-	send_data[0] = ID_USER_PACKET_ENUM;
-	send_data[1] = current_input;
-	rakPeer->Send(
-			send_data, 2,
-			IMMEDIATE_PRIORITY, RELIABLE, 0,
-			hostAddress, false);
+	if (!spectator_mode)
+	{
+		char send_data[2];
+		send_data[0] = ID_USER_PACKET_ENUM;
+		send_data[1] = current_input;
+		rakPeer->Send(
+				send_data, 2,
+				IMMEDIATE_PRIORITY, RELIABLE, 0,
+				hostAddress, false);
+		if (current_input == NoInput)
+		{
+			if (++timeout >= 30 * 60)
+			{
+				spectator_mode = true;
+			}
+		}
+		else
+		{
+			timeout = 0;
+		}
+	}
 
 	stream->ReceiveFrame(data);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -231,10 +252,17 @@ void draw()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	vera->UploadTextureAtlas(vera->TextureAtlas->id);
+	med_font->UploadTextureAtlas(0);
 	text_program->Use([&](){
 		input_display->Draw();
 	});
+	if (spectator_mode)
+	{
+		lg_font->UploadTextureAtlas(0);
+		text_program->Use([&](){
+			spectator_indicator->Draw();
+		});
+	}
 
 	glfwSwapBuffers(window);
 }
@@ -284,6 +312,14 @@ void key_callback(
 			update();
 		}
 		return;
+	}
+
+	if (spectator_mode)
+	{
+		if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+		{
+			spectator_mode = false;
+		}
 	}
 
 	if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
