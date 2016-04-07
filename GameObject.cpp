@@ -16,6 +16,8 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 {
 	ID = nextID++;
 
+	motion = p_motion;
+
 	SetShape(p_translation, p_orientation, p_scale, p_shapeType);
 
 	rigidbody->setFriction(RB_FRICTION);
@@ -25,9 +27,6 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 	if(mass != 0)
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
 	
-
-	motion = p_motion;
-
 	rigidbody->setUserPointer(this);
 }
 
@@ -98,7 +97,10 @@ void GameObject::SetShape(glm::vec3 translation, glm::quat orientation,
 		groundRigidBodyCI(mass, transform, shape, inertia);
 	
 	rigidbody = new btRigidBody(groundRigidBodyCI);
-	rigidbody->setMassProps(mass, inertia);
+	if (motion.Points.size() > 0)
+		rigidbody->setMassProps(mass, inertia);
+	else
+		rigidbody->setMassProps(mass, btVector3(0, 0, 0));
 	rigidbody->setUserPointer(this);
 	Physics::dynamicsWorld->addRigidBody(rigidbody);
 	

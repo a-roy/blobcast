@@ -278,6 +278,9 @@ void update()
 					if (ent->trigger.bTriggered)
 						ent->trigger.OnLeave();
 			}
+
+			if (ent->motion.Points.size() > 0)
+				ent->rigidbody->setAngularVelocity(btVector3(0,0,0));
 		}
 
 		for (GameObject *r : Level::currentLevel->Objects)
