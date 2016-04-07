@@ -203,8 +203,8 @@ void Blob::Gui()
 	ImGui::InputFloat("Movement force", &speed, 0.1f, 100.0f);
 
 	static float vec3[3] = { 0.f, 0.f, 0.f };
-	if (ImGui::InputFloat3("", vec3))
-		ImGui::SameLine();
+	ImGui::InputFloat3("", vec3);
+	ImGui::SameLine();
 	if (ImGui::SmallButton("Set Position"))
 		softbody->translate(
 			btVector3(vec3[0], vec3[1], vec3[2]) - centroid);

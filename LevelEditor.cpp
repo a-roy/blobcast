@@ -112,9 +112,10 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 		{
 			GameObject *first = *selection.begin();
 			Physics::blob->softbody->translate(
-				convert(first->GetTranslation() + glm::vec3(0,5,0)));
+				convert(first->GetTranslation())
+					- Physics::blob->GetCentroid() 
+				    + btVector3(0,15,0));
 		}
-
 		
 		if (ImGui::CollapsingHeader("Translation"))
 			Translation();
