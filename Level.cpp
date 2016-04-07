@@ -276,13 +276,23 @@ Level *Level::Deserialize(std::string file)
 	
 		if (entity->trigger.bEnabled)
 		{
-			for (int j = 0; j < entity->trigger.connectionIDs.size(); j++)
+			for (int j = entity->trigger.connectionIDs.size()-1;
+					j >= 0; j--)
 			{
 				GameObject* plat = level->Find(
 					entity->trigger.connectionIDs[j]);
 
-				if (!plat->motion.Points.empty())
-					entity->trigger.LinkToPlatform(plat, entity);
+				if (plat != NULL)
+				{
+					if (!plat->motion.Points.empty())
+						entity->trigger.LinkToPlatform(plat, entity);
+				}
+				else
+				{
+					entity->trigger.connectionIDs.erase
+						(entity->trigger.connectionIDs.begin() + j);
+				}
+				
 			}
 
 			if (entity->trigger.bDeadly)
