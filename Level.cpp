@@ -252,6 +252,7 @@ Level *Level::Deserialize(std::string file)
 		auto conns = object["conns"];
 		if (!conns.is_null())
 		{
+			std::cout << conns.size() << std::endl;
 			for (int j = 0; j < conns.size(); j++)
 				level->Objects[i]->trigger.connectionIDs.push_back(conns[j]);
 			level->Objects[i]->trigger.bEnabled = true;
