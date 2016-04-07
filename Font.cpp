@@ -23,9 +23,9 @@ float Font::GetKerning(texture_glyph_t *glyph, const char *c) const
 	return texture_glyph_get_kerning(glyph, c);
 }
 
-void Font::UploadTextureAtlas()
+void Font::UploadTextureAtlas(int texture_unit)
 {
-	glActiveTexture(GL_TEXTURE0 + TextureAtlas->id - 1);
+	glActiveTexture(GL_TEXTURE0 + texture_unit - 1);
 	texture_atlas_upload(TextureAtlas);
 }
 

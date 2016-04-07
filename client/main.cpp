@@ -10,6 +10,8 @@
 #include <thread>
 #include <iostream>
 #include <sstream>
+#include <codecvt>
+#include <locale>
 #include "GLFWProject.h"
 #include "ShaderProgram.h"
 #include "Buffer.h"
@@ -24,8 +26,10 @@ bool connect();
 bool init();
 void update();
 void draw();
+std::string convert(std::u32string str);
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods);
+void character_callback(GLFWwindow *window, unsigned int codepoint);
 
 GLFWwindow *window;
 std::shared_ptr<VertexArray> vao;
@@ -40,6 +44,9 @@ uint8_t *data;
 GLuint tex;
 std::unique_ptr<StreamReceiver> stream;
 
+bool chat_mode;
+std::u32string input_text;
+
 RakNet::RakPeerInterface *rakPeer = RakNet::RakPeerInterface::GetInstance();
 RakNet::SystemAddress hostAddress = RakNet::UNASSIGNED_SYSTEM_ADDRESS;
 BlobInput current_input;
@@ -53,6 +60,7 @@ int main(int argc, char *argv[])
 		return 1;
 
 	glfwSetKeyCallback(window, key_callback);
+	glfwSetCharCallback(window, character_callback);
 	glfwGetFramebufferSize(window, &width, &height);
 
 	if (!init())
@@ -60,7 +68,7 @@ int main(int argc, char *argv[])
 
 	while (!glfwWindowShouldClose(window))
 	{
-		update();
+		//update();
 		draw();
 		glfwPollEvents();
 	}
@@ -125,11 +133,11 @@ bool init()
 	vbo->VertexAttribPointer(0);
 
 	glGenTextures(1, &tex);
-	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 24.f));
+	vera = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 20.f));
 	input_display = std::unique_ptr<Text>(new Text(vera.get()));
-	input_display->XPosition = 8;
-	input_display->YPosition = 8;
-	input_display->SetText("Input:");
+	input_display->XPosition = 240;
+	input_display->YPosition = 30;
+	input_display->SetText(" ");
 
 	stream_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
 			ShaderDir "Stream.vert",
@@ -157,20 +165,10 @@ bool init()
 
 void update()
 {
-	std::ostringstream ss;
-	ss << "Input: ";
-	if (current_input & Forward)
-		ss << "F";
-	if (current_input & Backward)
-		ss << "B";
-	if (current_input & Right)
-		ss << "R";
-	if (current_input & Left)
-		ss << "L";
-	if (current_input & Jump)
-		ss << "J";
-
-	input_display->SetText(ss.str());
+	if (input_text.empty())
+		input_display->SetText(" ");
+	else
+		input_display->SetText(convert(input_text));
 }
 
 void draw()
@@ -233,7 +231,7 @@ void draw()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	vera->UploadTextureAtlas();
+	vera->UploadTextureAtlas(vera->TextureAtlas->id);
 	text_program->Use([&](){
 		input_display->Draw();
 	});
@@ -241,9 +239,59 @@ void draw()
 	glfwSwapBuffers(window);
 }
 
+std::string convert(std::u32string str)
+{
+	std::wstring_convert<std::codecvt_utf8<__int32>, __int32> cvt;
+	return cvt.to_bytes(
+			(__int32 *)&input_text.front(),
+			(__int32 *)&input_text.back() + 1);
+}
+
 void key_callback(
 		GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	if (chat_mode)
+	{
+		if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
+		{
+			if (!input_text.empty())
+			{
+				std::string send_text = convert(input_text);
+				int length = send_text.length();
+
+				std::vector<char> send_data(1 + length);
+				send_data[0] = ID_USER_PACKET_ENUM + 1;
+				std::copy(send_text.begin(), send_text.end(), send_data.begin() + 1);
+
+				rakPeer->Send(
+						send_data.data(), 1 + length,
+						LOW_PRIORITY, RELIABLE, 0,
+						hostAddress, false);
+			}
+			chat_mode = false;
+			input_text.clear();
+			update();
+		}
+		else if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		{
+			input_text.clear();
+			update();
+		}
+		else if (key == GLFW_KEY_BACKSPACE &&
+				(action == GLFW_PRESS || action == GLFW_REPEAT))
+		{
+			input_text.pop_back();
+			update();
+		}
+		return;
+	}
+
+	if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
+	{
+		chat_mode = !chat_mode;
+		return;
+	}
+
 	BlobInput changed_input = NoInput;
 	if (key == GLFW_KEY_W)
 		changed_input = Forward;
@@ -263,4 +311,13 @@ void key_callback(
 		else if (action == GLFW_RELEASE)
 			current_input = (BlobInput)(current_input & ~changed_input);
 	}
+}
+
+void character_callback(GLFWwindow *window, unsigned int codepoint)
+{
+	if (!chat_mode)
+		return;
+
+	input_text.append(1, (char32_t)codepoint);
+	input_display->SetText(convert(input_text));
 }
