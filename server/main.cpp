@@ -280,7 +280,8 @@ void update()
 			}
 
 			if (ent->motion.Points.size() > 0)
-				ent->rigidbody->setAngularVelocity(btVector3(0,0,0));
+				ent->rigidbody->setAngularVelocity(btVector3(0, 0, 0));
+				//ent->rigidbody->setAngularFactor(btVector3(0,0,0));
 		}
 
 		for (GameObject *r : Level::currentLevel->Objects)
