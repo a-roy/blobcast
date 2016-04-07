@@ -285,7 +285,7 @@ Level *Level::Deserialize(std::string file)
 				if (plat != NULL)
 				{
 					if (!plat->motion.Points.empty())
-						entity->trigger.LinkToPlatform(plat, entity);
+						entity->trigger.LinkToPlatform(plat, entity, true);
 				}
 				else
 				{

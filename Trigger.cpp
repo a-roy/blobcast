@@ -39,7 +39,7 @@ void Trigger::OnLeave()
 }
 
 void Trigger::LinkToPlatform(GameObject* platform,
-	GameObject* button)
+	GameObject* button, bool loading)
 {
 	RegisterCallback(
 		[platform, button]() {
@@ -56,8 +56,11 @@ void Trigger::LinkToPlatform(GameObject* platform,
 	CallbackType::Leave
 	);
 
-	auto ids = connectionIDs;
-	if (!std::binary_search(ids.begin(), ids.end(),
-		platform->ID))
-		connectionIDs.push_back(platform->ID);
+	if (!loading)
+	{
+		auto ids = connectionIDs;
+		if (!std::binary_search(ids.begin(), ids.end(),
+			platform->ID))
+			connectionIDs.push_back(platform->ID);
+	}
 }
