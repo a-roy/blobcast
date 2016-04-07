@@ -160,6 +160,7 @@ void Level::Serialize(std::string file)
 			nlohmann::json path;
 			path["speed"] = ent->motion.Speed;
 			path["enabled"] = ent->motion.Enabled;
+			path["curved"] = ent->motion.Curved;
 			for (auto v = ent->motion.Points.begin();
 			v != ent->motion.Points.end(); ++v)
 				path["points"].push_back({ v->x, v->y, v->z });
@@ -240,7 +241,10 @@ Level *Level::Deserialize(std::string file)
 			auto points = path["points"];
 			if (!path["enabled"].is_null())
 				ent->motion.Enabled = path["enabled"];
-			ent->motion.Curved = false;
+			if(!path["curved"].is_null())
+				ent->motion.Curved = path["curved"];
+			else
+				ent->motion.Curved = false;
 			ent->motion.Speed = speed;
 			for (auto point : points)
 				ent->motion.Points.insert(

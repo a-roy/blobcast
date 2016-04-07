@@ -182,7 +182,7 @@ void Blob::Gui()
 		&softbody->m_cfg.kDF, 0.0f, 1.0f);
 	ImGui::InputFloat("Pressure coefficient [-inf,+inf]",
 		&softbody->m_cfg.kPR, 1.0f, 100.0f);
-	ImGui::InputFloat("Volume conversation coefficient [0, +inf]",
+	ImGui::InputFloat("Volume conservation coefficient [0, +inf]",
 		&softbody->m_cfg.kVC, 1.0f, 100.0f);
 	ImGui::InputFloat("Drag coefficient [0, +inf]",
 		&softbody->m_cfg.kDG, 1e-4f, 100.0f);
@@ -192,6 +192,9 @@ void Blob::Gui()
 		&softbody->m_cfg.kLF, 1.0f, 100.0f);
 	ImGui::SliderFloat("Pose matching coefficient [0,1]",
 		&softbody->m_cfg.kMT, 0.0f, 1.0f);
+
+	//softbody->m_cfg.maxvolume
+	//softbody->setTotalMass
 
 	ImGui::Spacing();
 	ImGui::Separator();
