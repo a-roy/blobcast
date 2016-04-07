@@ -57,7 +57,7 @@ void Physics::Init()
 	softBodyWorldInfo.m_broadphase = broadphase;
 	softBodyWorldInfo.m_dispatcher = dispatcher;
 	softBodyWorldInfo.m_gravity.setValue(0, -10, 0);
-	softBodyWorldInfo.air_density = (btScalar)1.2;
+	softBodyWorldInfo.air_density = (btScalar)0.2;
 	softBodyWorldInfo.water_density = 0;
 	softBodyWorldInfo.water_offset = 0;
 	softBodyWorldInfo.water_normal = btVector3(0, 0, 0);
@@ -84,7 +84,7 @@ void Physics::CreateBlob(glm::vec4 color)
 		delete blob;
 	}
 	blob = new Blob(Physics::softBodyWorldInfo,
-		btVector3(0, 100, 0), 3.0f, 512);
+		btVector3(0, 15, 0), 3.0f, 512);
 	blob->color = color;
 	dynamicsWorld->addSoftBody(blob->softbody);
 }
