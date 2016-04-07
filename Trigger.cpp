@@ -61,7 +61,7 @@ void Trigger::LinkToPlatform(GameObject* platform,
 	{
 		auto ids = connectionIDs;
 		if (std::find(ids.begin(), ids.end(),
-			platform->ID) != ids.end())
+			platform->ID) == ids.end())
 			connectionIDs.push_back(platform->ID);
 	}
 }
