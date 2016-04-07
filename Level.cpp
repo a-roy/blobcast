@@ -252,36 +252,49 @@ Level *Level::Deserialize(std::string file)
 		auto conns = object["conns"];
 		if (!conns.is_null())
 		{
-			for (auto conn : conns)
-				level->Objects[i]->trigger.connectionIDs.push_back(conn);
+			for (int j = 0; j < conns.size(); j++)
+				level->Objects[i]->trigger.connectionIDs.push_back(conns[j]);
+			level->Objects[i]->trigger.bEnabled = true;
 		}
 		if (object["deadly"].is_boolean() && object["deadly"])
+		{
 			level->Objects[i]->trigger.bDeadly = true;
+			level->Objects[i]->trigger.bEnabled = true;
+		}
 		if (object["loopy"].is_boolean() && object["loopy"])
+		{
 			level->Objects[i]->trigger.bLoopy = true;
+			level->Objects[i]->trigger.bEnabled = true;
+		}
 	}
 	f.close();
 
 	//Set links
-	for (GameObject* entity : level->Objects)
+	for (int i = 0; i < level->Objects.size(); i++)
 	{
-		for (auto id : entity->trigger.connectionIDs)
+		GameObject* entity = level->Objects[i];
+	
+		if (entity->trigger.bEnabled)
 		{
-			GameObject* plat = level->Find(id);
+			for (int j = 0; j < entity->trigger.connectionIDs.size(); j++)
+			{
+				GameObject* plat = level->Find(
+					entity->trigger.connectionIDs[j]);
 
-			if (!plat->motion.Points.empty())
-				entity->trigger.LinkToPlatform(plat, entity);
+				if (!plat->motion.Points.empty())
+					entity->trigger.LinkToPlatform(plat, entity);
+			}
+
+			if (entity->trigger.bDeadly)
+				entity->trigger.RegisterCallback([]() {
+				Physics::CreateBlob();
+			}, Enter);
+
+			if (entity->trigger.bLoopy)
+				entity->trigger.RegisterCallback([]() {
+				Physics::CreateBlob(glm::vec4(0, 0, 1, 1));
+			}, Enter);
 		}
-
-		if (entity->trigger.bDeadly)
-			entity->trigger.RegisterCallback([]() {
-			Physics::CreateBlob();
-		}, Enter);
-
-		if (entity->trigger.bLoopy)
-			entity->trigger.RegisterCallback([]() {
-			Physics::CreateBlob(glm::vec4(0,0,1,1));
-		}, Enter);
 	}
 
 	return level;
