@@ -259,9 +259,13 @@ void update()
 			{
 				bool collides = false;
 				
-				Physics::ContactResultCallback callback(&collides);
-				Physics::dynamicsWorld->contactTest
-					(ent->rigidbody, callback);
+				if (!ent->trigger.bDeadly
+					&& !ent->trigger.bLoopy)
+				{
+					Physics::ContactResultCallback callback(&collides);
+					Physics::dynamicsWorld->contactTest
+						(ent->rigidbody, callback);
+				}
 
 				if (Physics::BroadphaseCheck(Physics::blob->softbody,
 					ent->rigidbody))
