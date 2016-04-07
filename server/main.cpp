@@ -7,6 +7,7 @@
 #include <RakNet/MessageIdentifiers.h>
 #include <RakNet/RakPeerInterface.h>
 
+#include <memory>
 #include <iostream>
 #include <random>
 
@@ -91,6 +92,10 @@ bool bGui = true;
 Camera *activeCam;
 FlyCam* flyCam;
 BlobCam* blobCam;
+
+std::unique_ptr<Text> chat_text;
+std::shared_ptr<Font> chat_font;
+std::unique_ptr<ShaderProgram> text_program;
 
 BulletDebugDrawer_DeprecatedOpenGL bulletDebugDrawer;
 
@@ -217,6 +222,21 @@ bool init_graphics()
 	activeCam = flyCam;
 	BufferData::cam = flyCam;
 
+	chat_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 16.f));
+	chat_text = std::unique_ptr<Text>(new Text(chat_font.get()));
+	chat_text->XPosition = width - 432;
+	chat_text->YPosition = 32;
+	chat_text->SetText(" ");
+
+	text_program = std::unique_ptr<ShaderProgram>(new ShaderProgram({
+			ShaderDir "Text.vert",
+			ShaderDir "Text.frag" }));
+
+	glm::mat4 textMatrix = glm::ortho(0.f, (float)width, 0.f, (float)height);
+	(*text_program)["uAtlas"] = 0;
+	(*text_program)["uTextColor"] = glm::vec4(0.f, 0.f, 0.f, 1.f);
+	(*text_program)["uMVPMatrix"] = textMatrix;
+
 	return true;
 }
 
@@ -242,6 +262,12 @@ void update()
 		{
 			BlobInput i = (BlobInput)p->data[1];
 			current_inputs += i;
+		}
+		else if (packet_type == ID_USER_PACKET_ENUM + 1)
+		{
+			std::string text = "Blobchat: ";
+			text.insert(text.end(), p->data + 1, p->data + p->length);
+			chat_text->SetText(text);
 		}
 	}
 
@@ -346,6 +372,11 @@ void draw()
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	blobDisplay->Render(*displayShaderProgram, current_inputs);
+
+	chat_font->UploadTextureAtlas(0);
+	text_program->Use([&](){
+		chat_text->Draw();
+	});
 	glDisable(GL_BLEND);
 }
 
