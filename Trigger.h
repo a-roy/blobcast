@@ -40,5 +40,5 @@ public:
 
 	//For specific behaviour
 	void LinkToPlatform(GameObject* platform,
-		GameObject* button);
+		GameObject* button, bool loading = false);
 };
