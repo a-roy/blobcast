@@ -98,9 +98,9 @@ void GameObject::SetShape(glm::vec3 translation, glm::quat orientation,
 	
 	rigidbody = new btRigidBody(groundRigidBodyCI);
 	if (motion.Points.size() > 0)
-		rigidbody->setMassProps(mass, inertia);
-	else
 		rigidbody->setMassProps(mass, btVector3(0, 0, 0));
+	else
+		rigidbody->setMassProps(mass, inertia);
 	rigidbody->setUserPointer(this);
 	Physics::dynamicsWorld->addRigidBody(rigidbody);
 	
