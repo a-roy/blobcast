@@ -26,6 +26,24 @@ GameObject::GameObject(Mesh* p_mesh, Shape p_shapeType,
 
 	if(mass != 0)
 		rigidbody->setActivationState(DISABLE_DEACTIVATION);
+
+	////http://bulletphysics.org/mediawiki-1.5.8/index.php/Constraints
+	//btGeneric6DofSpring2Constraint constraint = 
+	//	new btGeneric6DofSpring2Constraint(*rigidbody,
+	//	btTransform::getIdentity());
+	//constraint->setLinearLowerLimit(btVector3(0., 0., 0.));
+	//constraint->setLinearUpperLimit(btVector3(0., 0., 0.));
+
+	//constraint->enableSpring(0, true);
+	//constraint->setStiffness(0, 100);
+	//constraint->getTranslationalLimitMotor()->m_enableMotor[0] = true;
+	//constraint->getTranslationalLimitMotor()->m_targetVelocity[0] = -5.0f
+	//constraint->setEquilibriumPoint(0, 0);
+
+	//Physics::dynamicsWorld->addConstraint(constraint);
+
+	//rigidbody->setUserPointer(this);
+
 	
 	rigidbody->setUserPointer(this);
 }

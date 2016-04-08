@@ -41,6 +41,8 @@ public:
 	Path motion;
 	Trigger trigger;
 
+	bool dof[6] = { true, true, true, true, true, true };
+
 	GameObject(Mesh* p_mesh, Shape p_shapeType, glm::vec3 p_translation,
 		glm::quat p_orientation, glm::vec3 p_scale, glm::vec4 p_color, 
 		GLuint p_texID, float p_mass = 0, bool bCollidable = true, 

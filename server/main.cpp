@@ -312,6 +312,16 @@ void update()
 			if (ent->motion.Points.size() > 0)
 				ent->rigidbody->setAngularVelocity(btVector3(0, 0, 0));
 				//ent->rigidbody->setAngularFactor(btVector3(0,0,0));
+
+			//if (ent->constrainZ)
+			//{
+			//	/*ent->rigidbody->setLinearVelocity
+			//		(btVector3(ent->rigidbody->getLinearVelocity().getX(),
+			//			ent->rigidbody->getLinearVelocity().getY(),
+			//			0));*/
+			//	ent->rigidbody->setLinearFactor(btVector3(1, 1, 0));
+			//	ent->rigidbody->setAngularFactor(btVector3(1, 0, 0));
+			//}
 		}
 
 		for (GameObject *r : Level::currentLevel->Objects)

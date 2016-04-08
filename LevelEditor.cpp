@@ -167,6 +167,94 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			if (ImGui::Checkbox("Collidable", &collidable))
 				first->SetCollidable(collidable);
 			ImGui::Checkbox("Drawable", &first->drawable);
+			
+			if (ImGui::CollapsingHeader("Constraints"))
+			{
+				bool constrain= first->dof[0];
+				if (ImGui::Checkbox("freeXLin", &constrain))
+				{
+					btVector3 linFactor = first->rigidbody->getLinearFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(1, linFactor.getY(),
+								linFactor.getZ()));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(0, linFactor.getY(),
+								linFactor.getZ()));
+					first->dof[0] = constrain;
+				}
+				constrain = first->dof[1];
+				if (ImGui::Checkbox("freeYLin", &constrain))
+				{
+					btVector3 linFactor = first->rigidbody->getLinearFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(linFactor.getX(), 1,
+								linFactor.getZ()));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(linFactor.getX(), 0,
+								linFactor.getZ()));
+					first->dof[1] = constrain;
+				}
+				constrain = first->dof[2];
+				if (ImGui::Checkbox("freeZLin", &constrain))
+				{
+					btVector3 linFactor = first->rigidbody->getLinearFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(linFactor.getX(),
+								linFactor.getY(), 1));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(linFactor.getX(),
+								linFactor.getY(), 0));
+					first->dof[2] = constrain;
+				}
+				constrain = first->dof[3];
+				if (ImGui::Checkbox("freeXAng", &constrain))
+				{
+					btVector3 angFactor = first->rigidbody->getAngularFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(1, angFactor.getY(),
+								angFactor.getZ()));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(0, angFactor.getY(),
+								angFactor.getZ()));
+					first->dof[3] = constrain;
+				}
+				constrain = first->dof[4];
+				if (ImGui::Checkbox("freeYAng", &constrain))
+				{
+					btVector3 angFactor = first->rigidbody->getAngularFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(angFactor.getX(), 1,
+								angFactor.getZ()));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(angFactor.getX(), 0,
+								angFactor.getZ()));
+					first->dof[4] = constrain;
+				}
+				constrain = first->dof[5];
+				if (ImGui::Checkbox("freeZAng", &constrain))
+				{
+					btVector3 angFactor = first->rigidbody->getAngularFactor();
+					if (constrain)
+						first->rigidbody->setLinearFactor(
+							btVector3(angFactor.getX(),
+								angFactor.getY(), 1));
+					else
+						first->rigidbody->setLinearFactor(
+							btVector3(angFactor.getX(),
+								angFactor.getY(), 0));
+					first->dof[5] = constrain;
+				}
+			}
 
 			/*
 			Shape shapeType = first->shapeType;
@@ -204,6 +292,7 @@ void LevelEditor::SelectionWindow(ShaderProgram *shaderProgram)
 			}
 			
 			
+
 			if (ImGui::CollapsingHeader("Trigger")) {
 				if (ImGui::Button("Set Path Link")) {
 					bSetLink = true;
