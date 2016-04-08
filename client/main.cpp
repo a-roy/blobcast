@@ -142,7 +142,7 @@ bool init()
 	input_display = std::unique_ptr<Text>(new Text(med_font.get()));
 	input_display->XPosition = 240;
 	input_display->YPosition = 30;
-	input_display->SetText(" ");
+	input_display->SetText("_");
 	spectator_indicator = std::unique_ptr<Text>(new Text(lg_font.get()));
 	spectator_indicator->XPosition = 480;
 	spectator_indicator->YPosition = height - 64;
@@ -172,10 +172,7 @@ bool init()
 
 void update()
 {
-	if (input_text.empty())
-		input_display->SetText(" ");
-	else
-		input_display->SetText(convert(input_text));
+	input_display->SetText(convert(input_text) + "_");
 }
 
 void draw()
@@ -252,10 +249,13 @@ void draw()
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	med_font->UploadTextureAtlas(0);
-	text_program->Use([&](){
-		input_display->Draw();
-	});
+	if (chat_mode)
+	{
+		med_font->UploadTextureAtlas(0);
+		text_program->Use([&](){
+			input_display->Draw();
+		});
+	}
 	if (spectator_mode)
 	{
 		lg_font->UploadTextureAtlas(0);
@@ -308,8 +308,15 @@ void key_callback(
 		else if (key == GLFW_KEY_BACKSPACE &&
 				(action == GLFW_PRESS || action == GLFW_REPEAT))
 		{
-			input_text.pop_back();
-			update();
+			if (input_text.empty())
+			{
+				chat_mode = false;
+			}
+			else
+			{
+				input_text.pop_back();
+				update();
+			}
 		}
 		return;
 	}
@@ -355,5 +362,5 @@ void character_callback(GLFWwindow *window, unsigned int codepoint)
 		return;
 
 	input_text.append(1, (char32_t)codepoint);
-	input_display->SetText(convert(input_text));
+	update();
 }
