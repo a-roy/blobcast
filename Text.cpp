@@ -23,6 +23,10 @@ void Text::SetText(std::string text)
 
 	for (std::size_t i = 0; i < length; i++)
 	{
+		// UTF-8 non-first-bytes
+		if ((text[i] & 0xC0) == 0x80)
+			continue;
+
 		texture_glyph_t *glyph = FontStyle->GetGlyph(&text[i]);
 		if (glyph != NULL)
 		{

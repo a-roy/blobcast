@@ -112,7 +112,7 @@ bool connect()
 					<< RTMP_PATH;
 				stream_address = ss.str();
 #else // RTMP_STREAM
-				stream_address = STREAM_PATH "?fifo_size=122880&overrun_nonfatal=1";
+				stream_address = STREAM_PATH "?fifo_size=520192&overrun_nonfatal=1";
 #endif // RTMP_STREAM
 				break;
 			}
@@ -172,7 +172,7 @@ bool init()
 
 void update()
 {
-	input_display->SetText(convert(input_text) + "_");
+	input_display->SetText(convert(input_text) + '_');
 }
 
 void draw()
@@ -269,6 +269,8 @@ void draw()
 
 std::string convert(std::u32string str)
 {
+	if (str.empty())
+		return "";
 	std::wstring_convert<std::codecvt_utf8<__int32>, __int32> cvt;
 	return cvt.to_bytes(
 			(__int32 *)&input_text.front(),
