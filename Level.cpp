@@ -180,9 +180,19 @@ void Level::Serialize(std::string file)
 		{
 			object["loopy"] = true;
 		}
+
+		object["dof"] = {
+			ent->dof[0],
+			ent->dof[1],
+			ent->dof[2],
+			ent->dof[3],
+			ent->dof[4],
+			ent->dof[5]
+			};
 		
 		objects.push_back(object);
 	}
+	
 	nlohmann::json level;
 	level["objects"] = objects;
 	f << std::setw(2) << level << std::endl;
@@ -270,6 +280,12 @@ Level *Level::Deserialize(std::string file)
 		{
 			level->Objects[i]->trigger.bLoopy = true;
 			level->Objects[i]->trigger.bEnabled = true;
+		}
+
+		if (!object["dof"].is_null())
+		{
+			for (int j = 0; j < 6; j++)
+				level->Objects[i]->dof[j] = object["dof"][j];
 		}
 	}
 	f.close();
