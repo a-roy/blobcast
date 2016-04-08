@@ -137,8 +137,8 @@ bool init()
 	vbo->VertexAttribPointer(0);
 
 	glGenTextures(1, &tex);
-	med_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 20.f));
-	lg_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 36.f));
+	med_font = std::shared_ptr<Font>(new Font(FontDir "ClearSans-Regular.ttf", 20.f));
+	lg_font = std::shared_ptr<Font>(new Font(FontDir "ClearSans-Regular.ttf", 36.f));
 	input_display = std::unique_ptr<Text>(new Text(med_font.get()));
 	input_display->XPosition = 240;
 	input_display->YPosition = 30;

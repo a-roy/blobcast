@@ -222,7 +222,7 @@ bool init_graphics()
 	activeCam = flyCam;
 	BufferData::cam = flyCam;
 
-	chat_font = std::shared_ptr<Font>(new Font(FontDir "Vera.ttf", 16.f));
+	chat_font = std::shared_ptr<Font>(new Font(FontDir "ClearSans-Regular.ttf", 16.f));
 	chat_text = std::unique_ptr<Text>(new Text(chat_font.get()));
 	chat_text->XPosition = width - 432;
 	chat_text->YPosition = 32;
