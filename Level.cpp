@@ -285,7 +285,7 @@ Level *Level::Deserialize(std::string file)
 		if (!object["dof"].is_null())
 		{
 			for (int j = 0; j < 6; j++)
-				level->Objects[i]->dof[j] = object["dof"][j];
+				level->Objects[i]->dof[j] = object["dof"][j];		
 		}
 	}
 	f.close();

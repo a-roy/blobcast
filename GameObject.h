@@ -111,7 +111,7 @@ public:
 		rigidbody->getCollisionShape()->
 			calculateLocalInertia(p_mass, inertia);
 		
-		if (motion.Points.size() > 0)
+		if (motion.Points.size() == 0)
 			rigidbody->setMassProps(p_mass, inertia);
 		else
 			rigidbody->setMassProps(p_mass, btVector3(0, 0, 0));
